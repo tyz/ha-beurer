@@ -200,3 +200,71 @@ async def test_notification_handler_short_packet(beurer_instance: BeurerInstance
     char = MagicMock()
     await beurer_instance.notification_handler(char, bytearray([0, 1, 2]))
     # Should safely return without crash
+
+
+@pytest.mark.asyncio
+async def test_turn_on_defaults_to_white_mode(beurer_instance: BeurerInstance) -> None:
+    """Test that turn_on defaults to white daylight channel."""
+    sent_packets: list[bytearray] = []
+
+    async def mock_write(data: bytearray) -> None:
+        sent_packets.append(data)
+
+    beurer_instance._write = mock_write
+    beurer_instance.triggerStatus = AsyncMock()
+
+    await beurer_instance.turn_on()
+
+    assert len(sent_packets) == 1
+    packet = list(sent_packets[0])
+    assert packet[7] == 0x37
+    assert packet[8] == 0x01
+    assert beurer_instance.color_mode == ColorMode.WHITE
+
+
+@pytest.mark.asyncio
+async def test_set_white_turns_off_active_color_channel(beurer_instance: BeurerInstance) -> None:
+    """Test that switching to white turns off active color channel."""
+    sent_packets: list[bytearray] = []
+
+    async def mock_write(data: bytearray) -> None:
+        sent_packets.append(data)
+
+    beurer_instance._write = mock_write
+    beurer_instance.triggerStatus = AsyncMock()
+    beurer_instance._color_on = True
+    beurer_instance._light_on = True
+
+    await beurer_instance.set_white(150)
+
+    # First packet: turn off color [0x35, 0x02]
+    # Second packet: set white intensity [0x31, 0x01, ...]
+    assert len(sent_packets) == 2
+    pkt1 = list(sent_packets[0])
+    assert pkt1[7] == 0x35
+    assert pkt1[8] == 0x02
+    assert beurer_instance.color_mode == ColorMode.WHITE
+
+
+@pytest.mark.asyncio
+async def test_set_color_turns_off_active_white_channel(beurer_instance: BeurerInstance) -> None:
+    """Test that switching to color turns off active white channel."""
+    sent_packets: list[bytearray] = []
+
+    async def mock_write(data: bytearray) -> None:
+        sent_packets.append(data)
+
+    beurer_instance._write = mock_write
+    beurer_instance.triggerStatus = AsyncMock()
+    beurer_instance._light_on = True
+    beurer_instance._color_on = True
+
+    await beurer_instance.set_color((255, 128, 0))
+
+    # First packet: turn off white [0x35, 0x01]
+    # Second packet: set color [0x32, 255, 128, 0]
+    assert len(sent_packets) == 2
+    pkt1 = list(sent_packets[0])
+    assert pkt1[7] == 0x35
+    assert pkt1[8] == 0x01
+    assert beurer_instance.color_mode == ColorMode.RGB

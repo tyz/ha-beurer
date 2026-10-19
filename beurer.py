@@ -95,7 +95,7 @@ class BeurerInstance:
         self._effect: str | None = None
         self._write_uuid: str | None = None
         self._read_uuid: str | None = None
-        self._mode: ColorMode | None = None
+        self._mode: ColorMode | None = ColorMode.WHITE
         self._supported_effects: list[str] = [
             "Off",
             "Random",
@@ -258,6 +258,11 @@ class BeurerInstance:
         LOGGER.debug("Setting to color: %s, %s, %s", r, g, b)
         self._mode = ColorMode.RGB
         self._rgb_color = (r, g, b)
+        if self._light_on:
+            # Turn off white daylight channel when switching to color mode
+            await self.sendPacket([0x35, 0x01])
+            self._light_on = False
+            await asyncio.sleep(0.1)
         if not self._color_on:
             await self.turn_on()
         await self.sendPacket([0x32, r, g, b])
@@ -287,6 +292,11 @@ class BeurerInstance:
         """
         LOGGER.debug("Setting white to intensity: %s", intensity)
         self._mode = ColorMode.WHITE
+        if self._color_on:
+            # Turn off color mode channel when switching to white daylight
+            await self.sendPacket([0x35, 0x02])
+            self._color_on = False
+            await asyncio.sleep(0.1)
         if not self._light_on:
             await self.turn_on()
         intensity_percent = max(0, min(100, int(intensity / 255 * 100)))
@@ -306,6 +316,11 @@ class BeurerInstance:
         """
         LOGGER.debug("Setting effect %s", effect)
         self._mode = ColorMode.RGB
+        if self._light_on:
+            # Turn off white daylight channel when switching to color mode
+            await self.sendPacket([0x35, 0x01])
+            self._light_on = False
+            await asyncio.sleep(0.1)
         if not self._color_on:
             await self.turn_on()
         await self.sendPacket([0x34, self.find_effect_position(effect)])
@@ -316,9 +331,7 @@ class BeurerInstance:
         LOGGER.debug("Turning on")
         if self._device is None or not self._device.is_connected:
             await self.connect()
-        if self._mode == ColorMode.WHITE:
-            await self.sendPacket([0x37, 0x01])
-        else:
+        if self._mode == ColorMode.RGB:
             await self.sendPacket([0x37, 0x02])
             LOGGER.debug(
                 "Current color state: %s, %s, %s, %s",
@@ -337,6 +350,9 @@ class BeurerInstance:
                 await self.set_color(self._rgb_color)
                 if self._color_brightness:
                     await self.set_color_brightness(self._color_brightness)
+        else:
+            self._mode = ColorMode.WHITE
+            await self.sendPacket([0x37, 0x01])
         await asyncio.sleep(0.2)
         await self.triggerStatus()
 
@@ -345,6 +361,7 @@ class BeurerInstance:
         LOGGER.debug("Turning off")
         await self.sendPacket([0x35, 0x01])
         await self.sendPacket([0x35, 0x02])
+        self._mode = ColorMode.WHITE
         await asyncio.sleep(0.1)
         await self.triggerStatus()
 

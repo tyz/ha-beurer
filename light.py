@@ -9,6 +9,7 @@ from homeassistant.components.light import (
     ATTR_BRIGHTNESS,
     ATTR_EFFECT,
     ATTR_RGB_COLOR,
+    ATTR_WHITE,
     PLATFORM_SCHEMA,
     ColorMode,
     LightEntity,
@@ -156,7 +157,10 @@ class BeurerLight(LightEntity):
             await self._instance.turn_on()
             return
 
-        if kwargs.get(ATTR_RGB_COLOR):
+        if kwargs.get(ATTR_WHITE) is not None:
+            await self._instance.set_white(kwargs[ATTR_WHITE])
+
+        elif kwargs.get(ATTR_RGB_COLOR):
             color = kwargs[ATTR_RGB_COLOR]
             await self._instance.set_color(color)
             if kwargs.get(ATTR_BRIGHTNESS):

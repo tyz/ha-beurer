@@ -11,6 +11,7 @@ from homeassistant.components.light import (
     ATTR_BRIGHTNESS,
     ATTR_EFFECT,
     ATTR_RGB_COLOR,
+    ATTR_WHITE,
     ColorMode,
 )
 
@@ -92,6 +93,16 @@ async def test_async_turn_on_effect(mock_instance: MagicMock) -> None:
     light = BeurerLight(mock_instance, "My Lamp", "entry_123")
     await light.async_turn_on(**{ATTR_EFFECT: "Rainbow"})
     mock_instance.set_effect.assert_awaited_once_with("Rainbow")
+
+
+@pytest.mark.asyncio
+async def test_async_turn_on_with_white_attr(mock_instance: MagicMock) -> None:
+    """Test setting white brightness via ATTR_WHITE directly calls set_white."""
+    mock_instance.color_mode = ColorMode.RGB
+    light = BeurerLight(mock_instance, "My Lamp", "entry_123")
+    await light.async_turn_on(**{ATTR_WHITE: 180})
+    mock_instance.set_white.assert_awaited_once_with(180)
+    mock_instance.set_color_brightness.assert_not_called()
 
 
 @pytest.mark.asyncio
