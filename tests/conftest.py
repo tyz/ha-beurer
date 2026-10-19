@@ -1,0 +1,278 @@
+"""Fixtures and Home Assistant mocks for Beurer tests."""
+
+from __future__ import annotations
+
+import enum
+import sys
+from types import ModuleType
+from typing import Any
+from unittest.mock import AsyncMock, MagicMock
+
+
+def _setup_mock_modules() -> None:
+    """Mock external dependencies if not installed in the environment."""
+    # Mock voluptuous
+    if "voluptuous" not in sys.modules:
+        vol_mod = ModuleType("voluptuous")
+
+        class MockSchema:
+            def __init__(self, schema: Any = None) -> None:
+                self.schema = schema
+
+            def extend(self, extra: Any) -> MockSchema:
+                return self
+
+        class MockMarker:
+            def __init__(self, key: Any, **kwargs: Any) -> None:
+                self.key = key
+
+        vol_mod.Schema = MockSchema  # type: ignore[attr-defined]
+        vol_mod.Required = MockMarker  # type: ignore[attr-defined]
+        vol_mod.Optional = MockMarker  # type: ignore[attr-defined]
+        vol_mod.In = lambda x: x  # type: ignore[attr-defined]
+        sys.modules["voluptuous"] = vol_mod
+
+    # Mock bleak
+    if "bleak" not in sys.modules:
+        bleak_mod = ModuleType("bleak")
+
+        class MockBLEDevice:
+            def __init__(self, address: str = "57:4C:42:80:71:BA", name: str = "TL100_71BA") -> None:
+                self.address = address
+                self.name = name
+
+        class MockBleakError(Exception):
+            pass
+
+        class MockBleakGATTCharacteristic:
+            def __init__(self, uuid: str = "test-uuid") -> None:
+                self.uuid = uuid
+
+        class MockBleakClient:
+            def __init__(self, address_or_device: Any, disconnected_callback: Any = None) -> None:
+                self.address = getattr(address_or_device, "address", address_or_device)
+                self.disconnected_callback = disconnected_callback
+                self.is_connected = False
+                self.services = MagicMock()
+                self.services.characteristics = {}
+                self.connect = AsyncMock(return_value=True)
+                self.disconnect = AsyncMock(return_value=True)
+                self.start_notify = AsyncMock()
+                self.write_gatt_char = AsyncMock()
+
+        class MockBleakScanner:
+            discover = AsyncMock(return_value=[])
+
+        bleak_mod.BLEDevice = MockBLEDevice  # type: ignore[attr-defined]
+        bleak_mod.BleakClient = MockBleakClient  # type: ignore[attr-defined]
+        bleak_mod.BleakError = MockBleakError  # type: ignore[attr-defined]
+        bleak_mod.BleakGATTCharacteristic = MockBleakGATTCharacteristic  # type: ignore[attr-defined]
+        bleak_mod.BleakScanner = MockBleakScanner  # type: ignore[attr-defined]
+        sys.modules["bleak"] = bleak_mod
+
+    # Mock bleak_retry_connector
+    if "bleak_retry_connector" not in sys.modules:
+        brc_mod = ModuleType("bleak_retry_connector")
+
+        class MockBleakClientWithServiceCache(sys.modules["bleak"].BleakClient):  # type: ignore[misc]
+            pass
+
+        async def mock_establish_connection(
+            client_class: Any, device: Any, name: str, disconnected_callback: Any = None, **kwargs: Any
+        ) -> Any:
+            client = client_class(device, disconnected_callback=disconnected_callback)
+            client.is_connected = True
+            return client
+
+        brc_mod.BleakClientWithServiceCache = MockBleakClientWithServiceCache  # type: ignore[attr-defined]
+        brc_mod.establish_connection = mock_establish_connection  # type: ignore[attr-defined]
+        sys.modules["bleak_retry_connector"] = brc_mod
+
+    # Mock homeassistant
+    if "homeassistant" not in sys.modules:
+        ha_mod = ModuleType("homeassistant")
+        sys.modules["homeassistant"] = ha_mod
+
+        # core
+        ha_core = ModuleType("homeassistant.core")
+        ha_core.HomeAssistant = MagicMock()  # type: ignore[attr-defined]
+        sys.modules["homeassistant.core"] = ha_core
+
+        # const
+        ha_const = ModuleType("homeassistant.const")
+        ha_const.CONF_MAC = "mac"  # type: ignore[attr-defined]
+        sys.modules["homeassistant.const"] = ha_const
+
+        # exceptions
+        ha_exc = ModuleType("homeassistant.exceptions")
+
+        class ConfigEntryNotReady(Exception):
+            pass
+
+        ha_exc.ConfigEntryNotReady = ConfigEntryNotReady  # type: ignore[attr-defined]
+        sys.modules["homeassistant.exceptions"] = ha_exc
+
+        # config_entries
+        ha_ce = ModuleType("homeassistant.config_entries")
+
+        class ConfigEntry:
+            def __init__(self, entry_id: str = "test_entry", data: dict[str, Any] | None = None) -> None:
+                self.entry_id = entry_id
+                self.data = data or {}
+
+        class ConfigFlow:
+            _domain: str | None = None
+
+            def __init_subclass__(cls, domain: str | None = None, **kwargs: Any) -> None:
+                super().__init_subclass__(**kwargs)
+                cls._domain = domain
+
+            async def async_set_unique_id(self, unique_id: str) -> None:
+                pass
+
+            def _async_current_ids(self, include_ignore: bool = False) -> set[str]:
+                return set()
+
+            def async_show_form(self, step_id: str, data_schema: Any, errors: dict[str, str]) -> dict[str, Any]:
+                return {"type": "form", "step_id": step_id, "data_schema": data_schema, "errors": errors}
+
+            def async_create_entry(self, title: str, data: dict[str, Any]) -> dict[str, Any]:
+                return {"type": "create_entry", "title": title, "data": data}
+
+            def async_abort(self, reason: str) -> dict[str, Any]:
+                return {"type": "abort", "reason": reason}
+
+        ha_ce.ConfigEntry = ConfigEntry  # type: ignore[attr-defined]
+        ha_ce.ConfigFlow = ConfigFlow  # type: ignore[attr-defined]
+        sys.modules["homeassistant.config_entries"] = ha_ce
+
+        # data_entry_flow
+        ha_def = ModuleType("homeassistant.data_entry_flow")
+        ha_def.FlowResult = dict[str, Any]  # type: ignore[attr-defined]
+        sys.modules["homeassistant.data_entry_flow"] = ha_def
+
+        # components
+        ha_comp = ModuleType("homeassistant.components")
+        sys.modules["homeassistant.components"] = ha_comp
+
+        # components.bluetooth
+        ha_bt = ModuleType("homeassistant.components.bluetooth")
+        ha_bt.async_ble_device_from_address = MagicMock(return_value=None)  # type: ignore[attr-defined]
+        sys.modules["homeassistant.components.bluetooth"] = ha_bt
+
+        # components.light
+        ha_light = ModuleType("homeassistant.components.light")
+
+        class ColorMode(str, enum.Enum):
+            WHITE = "white"
+            RGB = "rgb"
+
+        class LightEntityFeature(enum.IntFlag):
+            EFFECT = 4
+
+        class LightEntity:
+            _attr_name: str | None = None
+            _attr_unique_id: str | None = None
+            _attr_supported_color_modes: set[ColorMode] | None = None
+
+            def async_write_ha_state(self) -> None:
+                pass
+
+            @property
+            def name(self) -> str | None:
+                return self._attr_name
+
+            @property
+            def unique_id(self) -> str | None:
+                return self._attr_unique_id
+
+        ha_light.ColorMode = ColorMode  # type: ignore[attr-defined]
+        ha_light.LightEntityFeature = LightEntityFeature  # type: ignore[attr-defined]
+        ha_light.LightEntity = LightEntity  # type: ignore[attr-defined]
+        ha_light.ATTR_RGB_COLOR = "rgb_color"  # type: ignore[attr-defined]
+        ha_light.ATTR_BRIGHTNESS = "brightness"  # type: ignore[attr-defined]
+        ha_light.ATTR_EFFECT = "effect"  # type: ignore[attr-defined]
+
+        class MockPlatformSchema:
+            def extend(self, extra: Any) -> MockPlatformSchema:
+                return self
+
+        ha_light.PLATFORM_SCHEMA = MockPlatformSchema()  # type: ignore[attr-defined]
+        sys.modules["homeassistant.components.light"] = ha_light
+
+        # helpers
+        ha_help = ModuleType("homeassistant.helpers")
+        sys.modules["homeassistant.helpers"] = ha_help
+
+        ha_cv = ModuleType("homeassistant.helpers.config_validation")
+        ha_cv.string = str  # type: ignore[attr-defined]
+        sys.modules["homeassistant.helpers.config_validation"] = ha_cv
+
+        ha_dr = ModuleType("homeassistant.helpers.device_registry")
+
+        class DeviceInfo(dict[str, Any]):
+            def __init__(self, **kwargs: Any) -> None:
+                super().__init__(**kwargs)
+
+        def format_mac(mac: str) -> str:
+            return mac.lower().replace(":", "")
+
+        ha_dr.DeviceInfo = DeviceInfo  # type: ignore[attr-defined]
+        ha_dr.format_mac = format_mac  # type: ignore[attr-defined]
+        sys.modules["homeassistant.helpers.device_registry"] = ha_dr
+
+        ha_ep = ModuleType("homeassistant.helpers.entity_platform")
+        ha_ep.AddEntitiesCallback = Any  # type: ignore[attr-defined]
+        sys.modules["homeassistant.helpers.entity_platform"] = ha_ep
+
+        # util.color
+        ha_util = ModuleType("homeassistant.util")
+        sys.modules["homeassistant.util"] = ha_util
+        ha_color = ModuleType("homeassistant.util.color")
+
+        def match_max_scale(scale: tuple[int, ...], color: tuple[int, ...]) -> tuple[int, ...]:
+            return color
+
+        ha_color.match_max_scale = match_max_scale  # type: ignore[attr-defined]
+        sys.modules["homeassistant.util.color"] = ha_color
+
+
+_setup_mock_modules()
+
+from pathlib import Path
+
+ROOT = Path(__file__).parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+import importlib.util
+
+cc_mod = ModuleType("custom_components")
+cc_mod.__path__ = []
+sys.modules["custom_components"] = cc_mod
+
+spec = importlib.util.spec_from_file_location(
+    "custom_components.beurer",
+    str(ROOT / "__init__.py"),
+    submodule_search_locations=[str(ROOT)],
+)
+if spec and spec.loader:
+    beurer_pkg = importlib.util.module_from_spec(spec)
+    sys.modules["custom_components.beurer"] = beurer_pkg
+    spec.loader.exec_module(beurer_pkg)
+
+
+def pytest_configure(config: Any) -> None:
+    """Register custom marks."""
+    config.addinivalue_line("markers", "asyncio: mark test to run asynchronously")
+
+
+def pytest_pyfunc_call(pyfuncitem: Any) -> bool | None:
+    """Run async test functions with asyncio.run."""
+    import asyncio
+    import inspect
+
+    if inspect.iscoroutinefunction(pyfuncitem.obj):
+        asyncio.run(pyfuncitem.obj(*[pyfuncitem.funcargs[arg] for arg in pyfuncitem._fixtureinfo.argnames]))
+        return True
+    return None
