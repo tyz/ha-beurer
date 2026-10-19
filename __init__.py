@@ -1,26 +1,30 @@
 from __future__ import annotations
 
+from homeassistant.components import bluetooth
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
 from homeassistant.const import CONF_MAC
+from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryNotReady
 
-from bleak import BleakScanner, BLEDevice
-
+from .beurer import BeurerInstance
 from .const import DOMAIN, LOGGER
-from .beurer import BeurerInstance, get_device
 
 PLATFORMS = ["light"]
 
+
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Beurer from a config entry."""
-    LOGGER.debug(f"Setting up device from __init__")
-    device = await get_device(entry.data[CONF_MAC])
-    if device == None:
-        LOGGER.error(f"Was not able to find device with mac {entry.data[CONF_MAC]}")
+    LOGGER.debug("Setting up device from __init__")
+    address = entry.data[CONF_MAC]
+    device = bluetooth.async_ble_device_from_address(hass, address, connectable=True)
+    if device is None:
+        raise ConfigEntryNotReady(f"Was not able to find device with mac {address}")
+
     instance = BeurerInstance(device)
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = instance
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
+
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""

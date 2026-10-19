@@ -3,6 +3,13 @@ from bleak import BleakClient, BleakScanner, BLEDevice, BleakGATTCharacteristic,
 import traceback
 import asyncio
 
+try:
+    from bleak_retry_connector import BleakClientWithServiceCache, establish_connection
+
+    HAVE_BLEAK_RETRY_CONNECTOR = True
+except ImportError:
+    HAVE_BLEAK_RETRY_CONNECTOR = False
+
 from homeassistant.components.light import ColorMode
 
 from .const import LOGGER
@@ -34,22 +41,23 @@ async def get_device(mac: str) -> BLEDevice:
 
 class BeurerInstance:
     def __init__(self, device: BLEDevice) -> None:
-        self._mac = device.address
-        # device = get_device(self._mac)
-        if device == None:
-            LOGGER.error(f"Was not able to find device with mac {self._mac}")
-        self._device = BleakClient(device, disconnected_callback=self.disconnected_callback)
-        self._trigger_update = None
-        self._is_on = False
-        self._light_on = None
-        self._color_on = None
-        self._rgb_color = (0, 0, 0)
-        self._brightness = None
-        self._color_brightness = None
-        self._effect = None
-        self._write_uuid = None
-        self._read_uuid = None
-        self._mode = None
+        self._ble_device = device
+        self._mac = device.address if device else ""
+        if device is None:
+            LOGGER.error("Was not able to find device with mac %s", self._mac)
+        self._device: BleakClient | None = None
+        self._connect_lock = asyncio.Lock()
+        self._trigger_update: Callable[[], None] | None = None
+        self._is_on: bool = False
+        self._light_on: bool | None = None
+        self._color_on: bool | None = None
+        self._rgb_color: tuple[int, int, int] = (0, 0, 0)
+        self._brightness: int | None = None
+        self._color_brightness: int | None = None
+        self._effect: str | None = None
+        self._write_uuid: str | None = None
+        self._read_uuid: str | None = None
+        self._mode: ColorMode | None = None
         self._supported_effects = [
             "Off",
             "Random",
@@ -63,7 +71,10 @@ class BeurerInstance:
             "Forest",
             "Summer",
         ]
-        asyncio.create_task(self.connect())
+
+    def set_device(self, device: BLEDevice) -> None:
+        """Update the underlying BLEDevice."""
+        self._ble_device = device
 
     def disconnected_callback(self, client):
         LOGGER.debug("Disconnected callback called!")
@@ -72,26 +83,31 @@ class BeurerInstance:
         self._color_on = False
         self._write_uuid = None
         self._read_uuid = None
-        asyncio.create_task(self.trigger_entity_update())
+        if self._trigger_update:
+            self._trigger_update()
 
     def set_update_callback(self, trigger_update: Callable):
-        LOGGER.debug(f"Setting update callback to {trigger_update}")
+        LOGGER.debug("Setting update callback to %s", trigger_update)
         self._trigger_update = trigger_update
 
     async def _write(self, data: bytearray):
         LOGGER.debug(
-            "Sending in write: "
-            + "".join(format(x, " 03x") for x in data)
-            + f" to characteristic {self._write_uuid}, device is {self._device.is_connected}"
+            "Sending in write: %s to characteristic %s, device is %s",
+            "".join(format(x, " 03x") for x in data),
+            self._write_uuid,
+            self._device.is_connected if self._device else False,
         )
         try:
-            if (not self._device.is_connected) or (self._write_uuid == None):
-                await self._device.connect(timeout=20)
-            await self._device.write_gatt_char(self._write_uuid, data)
+            if self._device is None or not self._device.is_connected or self._write_uuid is None:
+                if not await self.connect():
+                    LOGGER.error("Failed to connect before writing")
+                    return
+            if self._device and self._write_uuid:
+                await self._device.write_gatt_char(self._write_uuid, data)
         except BleakError as error:
             track = traceback.format_exc()
             LOGGER.debug(track)
-            LOGGER.warn(f"Error while trying to write to device: {error}")
+            LOGGER.warning("Error while trying to write to device: %s", error)
             await self.disconnect()
 
     @property
@@ -290,10 +306,27 @@ class BeurerInstance:
             return
 
     async def connect(self) -> bool:
-        LOGGER.debug(f"Going to connect to device")
-        try:
-            if not self._device.is_connected:
-                await self._device.connect(timeout=20)
+        """Connect to device and set up notifications."""
+        async with self._connect_lock:
+            if self._device is not None and self._device.is_connected and self._write_uuid is not None:
+                return True
+
+            LOGGER.debug("Going to connect to device")
+            try:
+                if HAVE_BLEAK_RETRY_CONNECTOR:
+                    self._device = await establish_connection(
+                        BleakClientWithServiceCache,
+                        self._ble_device,
+                        name=self._mac,
+                        disconnected_callback=self.disconnected_callback,
+                        max_attempts=3,
+                    )
+                else:
+                    if self._device is None:
+                        self._device = BleakClient(self._ble_device, disconnected_callback=self.disconnected_callback)
+                    if not self._device.is_connected:
+                        await self._device.connect(timeout=20)
+
                 await asyncio.sleep(0.1)
 
                 for char in self._device.services.characteristics.values():
@@ -306,49 +339,48 @@ class BeurerInstance:
                     LOGGER.error("No supported read/write UUIDs found")
                     return False
 
-                LOGGER.info(f"Read UUID: {self._read_uuid}, Write UUID: {self._write_uuid}")
+                LOGGER.info("Read UUID: %s, Write UUID: %s", self._read_uuid, self._write_uuid)
 
+                await asyncio.sleep(0.1)
+                LOGGER.info("Starting notifications")
+
+                await self._device.start_notify(self._read_uuid, self.notification_handler)
+
+                await self.triggerStatus()
+                await asyncio.sleep(0.1)
+            except Exception as error:
+                track = traceback.format_exc()
+                LOGGER.debug(track)
+                LOGGER.error("Error connecting: %s", error)
+                await self.disconnect()
+                return False
             await asyncio.sleep(0.1)
-            LOGGER.info(f"Starting notifications")
-
-            await self._device.start_notify(self._read_uuid, self.notification_handler)
-
-            await self.triggerStatus()
-            await asyncio.sleep(0.1)
-        except Exception as error:
-            track = traceback.format_exc()
-            LOGGER.debug(track)
-            LOGGER.error(f"Error connecting: {error}")
-            await self.disconnect()
-            return False
-        await asyncio.sleep(0.1)
-        return True
+            return True
 
     async def update(self):
         try:
-            if not self._device.is_connected:
+            if self._device is None or not self._device.is_connected:
                 if not await self.connect():
                     LOGGER.info("Was not able to connect to device for updates")
                     await self.disconnect()
                     return
-            await self._device.start_notify(self._read_uuid, self.notification_handler)
 
-            LOGGER.info(f"Triggering update")
-
+            LOGGER.info("Triggering update")
             await self.triggerStatus()
-            # await asyncio.sleep(0.1)
 
         except Exception as error:
             track = traceback.format_exc()
             LOGGER.debug(track)
-            LOGGER.error(f"Error getting status: {error}")
+            LOGGER.error("Error getting status: %s", error)
             await self.disconnect()
 
     async def disconnect(self):
         LOGGER.debug("Disconnecting")
-        if self._device.is_connected:
+        if self._device is not None and self._device.is_connected:
             await self._device.disconnect()
         self._is_on = False
         self._light_on = False
         self._color_on = False
+        self._write_uuid = None
+        self._read_uuid = None
         await self.trigger_entity_update()

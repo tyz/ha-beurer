@@ -13,6 +13,7 @@ DATA_SCHEMA = vol.Schema({("host"): str})
 
 MANUAL_MAC = "manual"
 
+
 class BeurerFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
     VERSION = 1
     CONNECTION_CLASS = config_entries.CONN_CLASS_LOCAL_POLL
@@ -41,7 +42,8 @@ class BeurerFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             return await self.async_step_manual()
 
         return self.async_show_form(
-            step_id="user", data_schema=vol.Schema(
+            step_id="user",
+            data_schema=vol.Schema(
                 {
                     vol.Required("mac"): vol.In(
                         {
@@ -49,10 +51,11 @@ class BeurerFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                             MANUAL_MAC: "Manually add a MAC address",
                         }
                     ),
-                    vol.Required("name"): str
+                    vol.Required("name"): str,
                 }
             ),
-            errors={})
+            errors={},
+        )
 
     async def async_step_validate(self, user_input: "dict[str, Any] | None" = None):
         if user_input is not None:
@@ -68,18 +71,10 @@ class BeurerFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
 
         if error:
             return self.async_show_form(
-                step_id="validate", data_schema=vol.Schema(
-                    {
-                        vol.Required("retry"): bool
-                    }
-                ), errors={"base": "connect"})
+                step_id="validate", data_schema=vol.Schema({vol.Required("retry"): bool}), errors={"base": "connect"}
+            )
 
-        return self.async_show_form(
-            step_id="validate", data_schema=vol.Schema(
-                {
-                    vol.Required("flicker"): bool
-                }
-            ), errors={})
+        return self.async_show_form(step_id="validate", data_schema=vol.Schema({vol.Required("flicker"): bool}), errors={})
 
     async def async_step_manual(self, user_input: "dict[str, Any] | None" = None):
         if user_input is not None:
@@ -89,16 +84,29 @@ class BeurerFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             return await self.async_step_validate()
 
         return self.async_show_form(
-            step_id="manual", data_schema=vol.Schema(
-                {
-                    vol.Required("mac"): str,
-                    vol.Required("name"): str
-                }
-            ), errors={})
+            step_id="manual", data_schema=vol.Schema({vol.Required("mac"): str, vol.Required("name"): str}), errors={}
+        )
 
     async def toggle_light(self):
+        device = None
+        if hasattr(self, "hass") and self.hass:
+            try:
+                from homeassistant.components import bluetooth
+
+                device = bluetooth.async_ble_device_from_address(self.hass, self.mac, connectable=True)
+            except Exception:
+                pass
+        if device is None:
+            device = await get_device(self.mac)
+        if device is None:
+            LOGGER.error("Was not able to find device with mac %s", self.mac)
+            return Exception(f"Was not able to find device with mac {self.mac}")
+
         if not self.beurer_instance:
-            self.beurer_instance = BeurerInstance(await get_device(self.mac))
+            self.beurer_instance = BeurerInstance(device)
+        else:
+            self.beurer_instance.set_device(device)
+
         try:
             LOGGER.debug("Going to update from config flow")
             await self.beurer_instance.update()
@@ -111,8 +119,9 @@ class BeurerFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                 await self.beurer_instance.turn_on()
                 await asyncio.sleep(2)
                 await self.beurer_instance.turn_off()
-        except (Exception) as error:
+        except Exception as error:
             LOGGER.error(f"Error while toggling light: {error}")
             return error
         finally:
-            await self.beurer_instance.disconnect()
+            if self.beurer_instance:
+                await self.beurer_instance.disconnect()
