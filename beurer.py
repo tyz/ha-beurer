@@ -242,7 +242,6 @@ class BeurerInstance:
     # So changes to the light status shall only be done in version 2 handler
     async def notification_handler(self, characteristic: BleakGATTCharacteristic, res: bytearray):
         """Simple notification handler which prints the data received."""
-        # LOGGER.info("Received notification %s: %r", characteristic.description, res)
         LOGGER.debug("Received notification: " + "".join(format(x, " 03x") for x in res))
         if len(res) < 9:
             return
@@ -252,20 +251,23 @@ class BeurerInstance:
         if reply_version == 1:
             self._light_on = True if res[9] == 1 else False
             if res[9] == 1:
-                self._brightness = int(res[10] * 255 / 100) if res[10] > 0 else None
+                self._brightness = int(res[10] * 255 / 100) if len(res) > 10 and res[10] > 0 else None
                 self._mode = ColorMode.WHITE
-            # self._is_on = self._light_on or self._color_on
+            self._is_on = bool(self._light_on or self._color_on)
             LOGGER.debug(f"Short version, on: {self._is_on}, brightness: {self._brightness}")
+            await self.trigger_entity_update()
         # Long version with color information
         elif reply_version == 2:
             self._color_on = True if res[9] == 1 else False
             if res[9] == 1:
                 self._mode = ColorMode.RGB
                 # effect will be turned off if light off, update only if light on
-                self._effect = self._supported_effects[res[16]]
-            self._color_brightness = int(res[10] * 255 / 100) if res[10] > 0 else None
-            self._rgb_color = (res[13], res[14], res[15])
-            self._is_on = self._light_on or self._color_on
+                if len(res) > 16 and res[16] < len(self._supported_effects):
+                    self._effect = self._supported_effects[res[16]]
+            self._color_brightness = int(res[10] * 255 / 100) if len(res) > 10 and res[10] > 0 else None
+            if len(res) > 15:
+                self._rgb_color = (res[13], res[14], res[15])
+            self._is_on = bool(self._light_on or self._color_on)
             LOGGER.debug(
                 f"Long version, on: {self._is_on}, brightness: {self._color_brightness}, rgb color: {self._rgb_color}, effect: {self._effect}"
             )

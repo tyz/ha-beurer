@@ -7,20 +7,28 @@ from .const import DOMAIN
 
 from homeassistant.const import CONF_MAC
 import homeassistant.helpers.config_validation as cv
-from homeassistant.components.light import (ColorMode, PLATFORM_SCHEMA,
-                                            LightEntity, ATTR_RGB_COLOR, ATTR_BRIGHTNESS, ATTR_EFFECT, ATTR_WHITE, LightEntityFeature)
-from homeassistant.util.color import (match_max_scale)
+from homeassistant.components.light import (
+    ColorMode,
+    PLATFORM_SCHEMA,
+    LightEntity,
+    ATTR_RGB_COLOR,
+    ATTR_BRIGHTNESS,
+    ATTR_EFFECT,
+    ATTR_WHITE,
+    LightEntityFeature,
+)
+from homeassistant.util.color import match_max_scale
 from homeassistant.helpers import device_registry
 from .const import LOGGER
 
-PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
-    vol.Required(CONF_MAC): cv.string
-})
+PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({vol.Required(CONF_MAC): cv.string})
+
 
 async def async_setup_entry(hass, config_entry, async_add_devices):
     LOGGER.debug(f"Setting up device from light")
     instance = hass.data[DOMAIN][config_entry.entry_id]
     async_add_devices([BeurerLight(instance, config_entry.data["name"], config_entry.entry_id)])
+
 
 class BeurerLight(LightEntity):
     def __init__(self, beurerInstance: BeurerInstance, name: str, entry_id: str) -> None:
@@ -38,14 +46,13 @@ class BeurerLight(LightEntity):
 
     def update_callback(self) -> None:
         """Schedule a state update."""
-        #self.async_schedule_update_ha_state(False)
-        self.schedule_update_ha_state(False)
+        self.async_write_ha_state()
 
     @property
     def available(self):
         return self._instance.is_on != None
 
-    #We handle update triggers manually, do not poll
+    # We handle update triggers manually, do not poll
     @property
     def should_poll(self) -> Optional[bool]:
         return False
@@ -54,9 +61,7 @@ class BeurerLight(LightEntity):
     def brightness(self):
         if self._instance.color_mode == ColorMode.WHITE:
             return self._instance.white_brightness
-        else:
-            return self._instance.color_brightness
-        return None
+        return self._instance.color_brightness
 
     @property
     def is_on(self) -> Optional[bool]:
@@ -91,11 +96,9 @@ class BeurerLight(LightEntity):
     @property
     def device_info(self):
         return {
-            "identifiers": {
-                (DOMAIN, self._instance.mac)
-            },
+            "identifiers": {(DOMAIN, self._instance.mac)},
             "name": self.name,
-            "connections": {(device_registry.CONNECTION_NETWORK_MAC, self._instance.mac)}
+            "connections": {(device_registry.CONNECTION_NETWORK_MAC, self._instance.mac)},
         }
 
     def _transform_color_brightness(self, color: Tuple[int, int, int], set_brightness: int):
@@ -105,21 +108,25 @@ class BeurerLight(LightEntity):
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         LOGGER.debug(f"Turning light on with args: {kwargs}")
-        #if not self.is_on:
-        #    await self._instance.turn_on()
         if len(kwargs) == 0:
             await self._instance.turn_on()
-
-        if ATTR_BRIGHTNESS in kwargs and kwargs[ATTR_BRIGHTNESS]:
-            await self._instance.set_white(kwargs[ATTR_BRIGHTNESS])
+            return
 
         if ATTR_RGB_COLOR in kwargs and kwargs[ATTR_RGB_COLOR]:
             color = kwargs[ATTR_RGB_COLOR]
             await self._instance.set_color(color)
+            if ATTR_BRIGHTNESS in kwargs and kwargs[ATTR_BRIGHTNESS]:
+                await self._instance.set_color_brightness(kwargs[ATTR_BRIGHTNESS])
+
+        elif ATTR_BRIGHTNESS in kwargs and kwargs[ATTR_BRIGHTNESS]:
+            brightness = kwargs[ATTR_BRIGHTNESS]
+            if self._instance.color_mode == ColorMode.RGB:
+                await self._instance.set_color_brightness(brightness)
+            else:
+                await self._instance.set_white(brightness)
 
         if ATTR_EFFECT in kwargs and kwargs[ATTR_EFFECT]:
             await self._instance.set_effect(kwargs[ATTR_EFFECT])
-
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         await self._instance.turn_off()
