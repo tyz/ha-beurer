@@ -1,30 +1,42 @@
+"""Config flow for Beurer BLE integration."""
+
+from __future__ import annotations
+
 import asyncio
-from .beurer import discover, get_device, BeurerInstance
 from typing import Any
 
+import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.const import CONF_MAC
-import voluptuous as vol
+from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers.device_registry import format_mac
 
+from .beurer import BeurerInstance, discover, get_device
 from .const import DOMAIN, LOGGER
 
-DATA_SCHEMA = vol.Schema({("host"): str})
-
-MANUAL_MAC = "manual"
+MANUAL_MAC: str = "manual"
 
 
-class BeurerFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
-    VERSION = 1
-    CONNECTION_CLASS = config_entries.CONN_CLASS_LOCAL_POLL
+class BeurerFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore[call-arg]
+    """Handle a config flow for Beurer BLE integration."""
+
+    VERSION: int = 1
 
     def __init__(self) -> None:
-        self.mac = None
-        self.beurer_instance = None
-        self.name = None
+        """Initialize the config flow."""
+        self.mac: str | None = None
+        self.beurer_instance: BeurerInstance | None = None
+        self.name: str | None = None
 
-    async def async_step_user(self, user_input=None):
-        """Handle the initial step."""
+    async def async_step_user(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+        """Handle the initial user setup step.
+
+        Args:
+            user_input: User submitted form data.
+
+        Returns:
+            FlowResult showing form or transitioning to next step.
+        """
         if user_input is not None:
             if user_input["mac"] == MANUAL_MAC:
                 return await self.async_step_manual()
@@ -57,11 +69,19 @@ class BeurerFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             errors={},
         )
 
-    async def async_step_validate(self, user_input: "dict[str, Any] | None" = None):
+    async def async_step_validate(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+        """Validate connection by blinking the light.
+
+        Args:
+            user_input: User validation feedback.
+
+        Returns:
+            FlowResult creating entry, aborting, or prompting retry.
+        """
         if user_input is not None:
             if "flicker" in user_input:
                 if user_input["flicker"]:
-                    return self.async_create_entry(title=self.name, data={CONF_MAC: self.mac, "name": self.name})
+                    return self.async_create_entry(title=self.name or "Beurer", data={CONF_MAC: self.mac, "name": self.name})
                 return self.async_abort(reason="cannot_validate")
 
             if "retry" in user_input and not user_input["retry"]:
@@ -76,7 +96,15 @@ class BeurerFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
 
         return self.async_show_form(step_id="validate", data_schema=vol.Schema({vol.Required("flicker"): bool}), errors={})
 
-    async def async_step_manual(self, user_input: "dict[str, Any] | None" = None):
+    async def async_step_manual(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+        """Manual MAC address entry step.
+
+        Args:
+            user_input: Submitted MAC and name.
+
+        Returns:
+            FlowResult showing form or proceeding to validation.
+        """
         if user_input is not None:
             self.mac = user_input["mac"]
             self.name = user_input["name"]
@@ -87,15 +115,24 @@ class BeurerFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             step_id="manual", data_schema=vol.Schema({vol.Required("mac"): str, vol.Required("name"): str}), errors={}
         )
 
-    async def toggle_light(self):
+    async def toggle_light(self) -> Exception | None:
+        """Toggle light during setup to confirm communication.
+
+        Returns:
+            None if successful, or Exception on error.
+        """
+        if not self.mac:
+            return Exception("No MAC address specified")
+
         device = None
         if hasattr(self, "hass") and self.hass:
             try:
                 from homeassistant.components import bluetooth
 
                 device = bluetooth.async_ble_device_from_address(self.hass, self.mac, connectable=True)
-            except Exception:
-                pass
+            except (ImportError, AttributeError) as err:
+                LOGGER.debug("Bluetooth component unavailable: %s", err)
+
         if device is None:
             device = await get_device(self.mac)
         if device is None:
@@ -110,7 +147,7 @@ class BeurerFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         try:
             LOGGER.debug("Going to update from config flow")
             await self.beurer_instance.update()
-            LOGGER.debug(f"Finished updating from config flow, light is {self.beurer_instance.is_on}")
+            LOGGER.debug("Finished updating from config flow, light is %s", self.beurer_instance.is_on)
             if self.beurer_instance.is_on:
                 await self.beurer_instance.turn_off()
                 await asyncio.sleep(2)
@@ -119,9 +156,10 @@ class BeurerFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                 await self.beurer_instance.turn_on()
                 await asyncio.sleep(2)
                 await self.beurer_instance.turn_off()
-        except Exception as error:
-            LOGGER.error(f"Error while toggling light: {error}")
+        except Exception as error:  # noqa: BLE001
+            LOGGER.error("Error while toggling light: %s", error)
             return error
         finally:
             if self.beurer_instance:
                 await self.beurer_instance.disconnect()
+        return None
