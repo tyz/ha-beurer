@@ -1,7 +1,7 @@
 # ha-beurer
-[![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/deadolus/ha-beurer)
-![Hassfest](https://github.com/deadolus/ha-beurer/actions/workflows/hassfest.yaml/badge.svg)
-![HACS](https://github.com/deadolus/ha-beurer/actions/workflows/hacs.yml/badge.svg)
+[![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/tyz/ha-beurer)
+![Hassfest](https://github.com/tyz/ha-beurer/actions/workflows/hassfest.yaml/badge.svg)
+![HACS](https://github.com/tyz/ha-beurer/actions/workflows/hacs.yml/badge.svg)
 
 Home Assistant integration for BLE based Beurer TL100/wellbeing/Daylight therapy lamp
 
@@ -20,7 +20,7 @@ You can manually clone this repository inside `config/custom_components/beurer`.
 For  example, from Terminal plugin:
 ```
 cd /config/custom_components
-git clone https://github.com/deadolus/ha-beurer beurer
+git clone https://github.com/tyz/ha-beurer beurer
 ```
 
 ## Setup
