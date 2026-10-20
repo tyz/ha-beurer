@@ -24,8 +24,8 @@ try:
 except ImportError:
     HAVE_BLEAK_RETRY_CONNECTOR = False
 
-WRITE_CHARACTERISTIC_UUIDS: list[str] = ["8b00ace7-eb0b-49b0-bbe9-9aee0a26e1a3"]
-READ_CHARACTERISTIC_UUIDS: list[str] = ["0734594a-a8e7-4b1a-a6b1-cd5243059a57"]
+WRITE_CHARACTERISTIC_UUIDS: set[str] = {"8b00ace7-eb0b-49b0-bbe9-9aee0a26e1a3"}
+READ_CHARACTERISTIC_UUIDS: set[str] = {"0734594a-a8e7-4b1a-a6b1-cd5243059a57"}
 
 
 async def discover() -> list[BLEDevice]:
@@ -85,6 +85,7 @@ class BeurerInstance:
             LOGGER.error("Was not able to find device with mac %s", self._mac)
         self._device: BleakClient | None = None
         self._connect_lock = asyncio.Lock()
+        self._write_lock = asyncio.Lock()
         self._trigger_update: Callable[[], None] | None = None
         self._is_on: bool = False
         self._light_on: bool | None = None
@@ -125,9 +126,7 @@ class BeurerInstance:
             client: BleakClient that was disconnected.
         """
         LOGGER.debug("Disconnected callback called!")
-        self._is_on = False
-        self._light_on = False
-        self._color_on = False
+        self._device = None
         self._write_uuid = None
         self._read_uuid = None
         if self._trigger_update:
@@ -148,23 +147,27 @@ class BeurerInstance:
         Args:
             data: Raw bytearray to write.
         """
-        LOGGER.debug(
-            "Sending in write: %s to characteristic %s, device is %s",
-            "".join(format(x, " 03x") for x in data),
-            self._write_uuid,
-            self._device.is_connected if self._device else False,
-        )
-        try:
-            if (self._device is None or not self._device.is_connected or self._write_uuid is None) and not await self.connect():
-                LOGGER.error("Failed to connect before writing")
-                return
-            if self._device and self._write_uuid:
-                await self._device.write_gatt_char(self._write_uuid, data)
-        except BleakError as error:
-            track = traceback.format_exc()
-            LOGGER.debug(track)
-            LOGGER.warning("Error while trying to write to device: %s", error)
-            await self.disconnect()
+        async with self._write_lock:
+            LOGGER.debug(
+                "Sending in write: %s to characteristic %s, device is %s",
+                "".join(format(x, " 03x") for x in data),
+                self._write_uuid,
+                self._device.is_connected if self._device else False,
+            )
+            try:
+                if (
+                    self._device is None or not self._device.is_connected or self._write_uuid is None
+                ) and not await self.connect():
+                    LOGGER.error("Failed to connect before writing")
+                    return
+                if self._device and self._write_uuid:
+                    async with asyncio.timeout(5.0):
+                        await self._device.write_gatt_char(self._write_uuid, data)
+            except (BleakError, TimeoutError, OSError) as error:
+                track = traceback.format_exc()
+                LOGGER.debug(track)
+                LOGGER.warning("Error while trying to write to device: %s", error)
+                await self.disconnect()
 
     @property
     def mac(self) -> str:
@@ -463,9 +466,10 @@ class BeurerInstance:
                 await asyncio.sleep(0.1)
 
                 for char in self._device.services.characteristics.values():
-                    if char.uuid in WRITE_CHARACTERISTIC_UUIDS:
+                    char_uuid = char.uuid.lower()
+                    if char_uuid in WRITE_CHARACTERISTIC_UUIDS:
                         self._write_uuid = char.uuid
-                    if char.uuid in READ_CHARACTERISTIC_UUIDS:
+                    if char_uuid in READ_CHARACTERISTIC_UUIDS:
                         self._read_uuid = char.uuid
 
                 if not self._read_uuid or not self._write_uuid:
@@ -478,24 +482,23 @@ class BeurerInstance:
                 LOGGER.info("Starting notifications")
 
                 await self._device.start_notify(self._read_uuid, self.notification_handler)
-
-                await self.triggerStatus()
-                await asyncio.sleep(0.1)
             except Exception as error:  # noqa: BLE001
                 track = traceback.format_exc()
                 LOGGER.debug(track)
                 LOGGER.error("Error connecting: %s", error)
                 await self.disconnect()
                 return False
-            await asyncio.sleep(0.1)
-            return True
+
+        # Request initial status outside the connect lock
+        await asyncio.sleep(0.1)
+        await self.triggerStatus()
+        return True
 
     async def update(self) -> None:
         """Connect if needed and refresh status."""
         try:
             if (self._device is None or not self._device.is_connected) and not await self.connect():
                 LOGGER.info("Was not able to connect to device for updates")
-                await self.disconnect()
                 return
 
             LOGGER.info("Triggering update")
@@ -510,11 +513,16 @@ class BeurerInstance:
     async def disconnect(self) -> None:
         """Disconnect from device and mark entity as off."""
         LOGGER.debug("Disconnecting")
-        if self._device is not None and self._device.is_connected:
-            await self._device.disconnect()
+        if self._device is not None:
+            try:
+                if self._device.is_connected:
+                    await self._device.disconnect()
+            except Exception as error:  # noqa: BLE001
+                LOGGER.debug("Error while disconnecting: %s", error)
+        self._device = None
+        self._write_uuid = None
+        self._read_uuid = None
         self._is_on = False
         self._light_on = False
         self._color_on = False
-        self._write_uuid = None
-        self._read_uuid = None
         await self.trigger_entity_update()

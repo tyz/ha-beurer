@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock
+from typing import Any
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from bleak import BLEDevice
@@ -284,3 +285,50 @@ async def test_set_color_turns_off_active_white_channel(beurer_instance: BeurerI
     assert pkt1[7] == 0x35
     assert pkt1[8] == 0x01
     assert beurer_instance.color_mode == ColorMode.RGB
+
+
+@pytest.mark.asyncio
+async def test_write_handles_timeout_gracefully(mock_device: BLEDevice) -> None:
+    """Test that _write handles timeout during GATT write without crashing."""
+    instance = BeurerInstance(mock_device)
+    mock_client = MagicMock()
+    mock_client.is_connected = True
+
+    async def mock_write_timeout(*args: Any, **kwargs: Any) -> None:
+        raise TimeoutError("GATT write timed out")
+
+    mock_client.write_gatt_char = mock_write_timeout
+    instance._device = mock_client
+    instance._write_uuid = "write-uuid"
+    instance.disconnect = AsyncMock()
+
+    # Should safely catch TimeoutError and call disconnect
+    await instance._write(bytearray([1, 2, 3]))
+    instance.disconnect.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_connect_unlocks_before_trigger_status(beurer_instance: BeurerInstance) -> None:
+    """Test that connect releases the connect lock before calling triggerStatus."""
+    mock_client = MagicMock()
+    mock_client.is_connected = True
+    char1 = MagicMock()
+    char1.uuid = "8b00ace7-eb0b-49b0-bbe9-9aee0a26e1a3"
+    char2 = MagicMock()
+    char2.uuid = "0734594A-A8E7-4B1A-A6B1-CD5243059A57"
+    mock_client.services.characteristics.values.return_value = [char1, char2]
+    mock_client.start_notify = AsyncMock()
+
+    lock_held_during_status = True
+
+    async def mock_trigger_status() -> None:
+        nonlocal lock_held_during_status
+        lock_held_during_status = beurer_instance._connect_lock.locked()
+
+    beurer_instance.triggerStatus = mock_trigger_status
+
+    with patch("custom_components.beurer.beurer.establish_connection", AsyncMock(return_value=mock_client)):
+        success = await beurer_instance.connect()
+
+    assert success is True
+    assert lock_held_during_status is False
