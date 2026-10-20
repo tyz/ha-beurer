@@ -5,7 +5,7 @@ from __future__ import annotations
 from homeassistant.components import bluetooth
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_MAC
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryNotReady
 
 from .beurer import BeurerInstance
@@ -35,6 +35,27 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     instance = BeurerInstance(device)
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = instance
+
+    @callback
+    def _async_update_ble(
+        service_info: bluetooth.BluetoothServiceInfoBleak,
+        change: bluetooth.BluetoothChange,
+    ) -> None:
+        """Update BLE device reference from Bluetooth advertisement."""
+        instance.set_device(service_info.device)
+
+    entry.async_on_unload(
+        bluetooth.async_register_callback(
+            hass,
+            _async_update_ble,
+            bluetooth.BluetoothCallbackMatcher(
+                address=address,
+                connectable=True,
+            ),
+            bluetooth.BluetoothScanningMode.PASSIVE,
+        )
+    )
+
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
 

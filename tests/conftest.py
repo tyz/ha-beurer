@@ -96,6 +96,11 @@ def _setup_mock_modules() -> None:
         # core
         ha_core = ModuleType("homeassistant.core")
         ha_core.HomeAssistant = MagicMock()  # type: ignore[attr-defined]
+
+        def callback(func: Any) -> Any:
+            return func
+
+        ha_core.callback = callback  # type: ignore[attr-defined]
         sys.modules["homeassistant.core"] = ha_core
 
         # const
@@ -119,6 +124,9 @@ def _setup_mock_modules() -> None:
             def __init__(self, entry_id: str = "test_entry", data: dict[str, Any] | None = None) -> None:
                 self.entry_id = entry_id
                 self.data = data or {}
+
+            def async_on_unload(self, func: Any) -> None:
+                pass
 
         class ConfigFlow:
             _domain: str | None = None
@@ -158,6 +166,11 @@ def _setup_mock_modules() -> None:
         # components.bluetooth
         ha_bt = ModuleType("homeassistant.components.bluetooth")
         ha_bt.async_ble_device_from_address = MagicMock(return_value=None)  # type: ignore[attr-defined]
+        ha_bt.async_register_callback = MagicMock(return_value=MagicMock())  # type: ignore[attr-defined]
+        ha_bt.BluetoothCallbackMatcher = MagicMock()  # type: ignore[attr-defined]
+        ha_bt.BluetoothScanningMode = MagicMock()  # type: ignore[attr-defined]
+        ha_bt.BluetoothServiceInfoBleak = MagicMock()  # type: ignore[attr-defined]
+        ha_bt.BluetoothChange = MagicMock()  # type: ignore[attr-defined]
         sys.modules["homeassistant.components.bluetooth"] = ha_bt
 
         # components.light

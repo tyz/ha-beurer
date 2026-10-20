@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -53,6 +54,36 @@ async def test_async_setup_entry_success(mock_hass: MagicMock, mock_entry: Confi
         assert DOMAIN in mock_hass.data
         assert "test_entry_id" in mock_hass.data[DOMAIN]
         mock_hass.config_entries.async_forward_entry_setups.assert_awaited_once_with(mock_entry, ["light"])
+
+
+@pytest.mark.asyncio
+async def test_async_setup_entry_registers_bluetooth_callback(mock_hass: MagicMock, mock_entry: ConfigEntry) -> None:
+    """Test that setup registers a bluetooth callback and updates device on advertisement."""
+    fake_ble_device = BLEDevice("57:4C:42:80:71:BA", "TL100_71BA")
+    updated_device = BLEDevice("57:4C:42:80:71:BA", "TL100_71BA_UPDATED")
+
+    registered_callback = None
+
+    def mock_register_callback(hass: Any, cb: Any, matcher: Any, mode: Any) -> MagicMock:
+        nonlocal registered_callback
+        registered_callback = cb
+        return MagicMock()
+
+    with (
+        patch.object(bluetooth, "async_ble_device_from_address", return_value=fake_ble_device),
+        patch.object(bluetooth, "async_register_callback", side_effect=mock_register_callback),
+    ):
+        result = await async_setup_entry(mock_hass, mock_entry)
+        assert result is True
+        assert registered_callback is not None
+
+        # Simulate incoming Bluetooth advertisement
+        mock_service_info = MagicMock()
+        mock_service_info.device = updated_device
+        registered_callback(mock_service_info, MagicMock())
+
+        instance = mock_hass.data[DOMAIN][mock_entry.entry_id]
+        assert instance._ble_device == updated_device
 
 
 @pytest.mark.asyncio
