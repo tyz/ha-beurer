@@ -427,7 +427,10 @@ class BeurerInstance:
             await self.trigger_entity_update()
         elif reply_version == 0:
             LOGGER.debug("Device is going to shut down")
-            await self.disconnect()
+            self._is_on = False
+            self._light_on = False
+            self._color_on = False
+            await self.trigger_entity_update()
         else:
             LOGGER.debug("Received unknown notification")
 

@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from custom_components.beurer.beurer import BeurerInstance
-from custom_components.beurer.light import BeurerLight
+from custom_components.beurer.light import SCAN_INTERVAL, BeurerLight
 from homeassistant.components.light import (
     ATTR_BRIGHTNESS,
     ATTR_EFFECT,
@@ -45,6 +45,8 @@ def test_entity_properties(mock_instance: MagicMock) -> None:
     assert light.unique_id == "57:4C:42:80:71:BA"
     assert light.is_on is True
     assert light.brightness == 200
+    assert light.should_poll is True
+    assert SCAN_INTERVAL.total_seconds() == 60
     assert light.device_info["manufacturer"] == "Beurer"
     assert light.device_info["model"] == "TL 100"
 

@@ -195,6 +195,22 @@ async def test_notification_handler_reply_version_255_off(beurer_instance: Beure
 
 
 @pytest.mark.asyncio
+async def test_notification_handler_reply_version_0_shutdown(beurer_instance: BeurerInstance) -> None:
+    """Test handling status reply version 0 (device shutdown notification)."""
+    beurer_instance._is_on = True
+    beurer_instance._light_on = True
+    beurer_instance._color_on = True
+
+    payload = bytearray([0] * 8 + [0])
+    char = MagicMock()
+    await beurer_instance.notification_handler(char, payload)
+
+    assert beurer_instance.is_on is False
+    assert beurer_instance._light_on is False
+    assert beurer_instance._color_on is False
+
+
+@pytest.mark.asyncio
 async def test_notification_handler_short_packet(beurer_instance: BeurerInstance) -> None:
     """Test handling malformed short packets without raising exceptions."""
     char = MagicMock()

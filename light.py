@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import timedelta
 from typing import Any
 
 import voluptuous as vol
@@ -27,6 +28,7 @@ from .beurer import BeurerInstance
 from .const import DOMAIN, LOGGER
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({vol.Required(CONF_MAC): cv.string})
+SCAN_INTERVAL = timedelta(seconds=60)
 
 
 async def async_setup_entry(
@@ -79,8 +81,8 @@ class BeurerLight(LightEntity):
 
     @property
     def should_poll(self) -> bool:
-        """Return False as we receive state notifications push-style."""
-        return False
+        """Return True to poll as a fallback for offline/missed state updates."""
+        return True
 
     @property
     def brightness(self) -> int | None:
