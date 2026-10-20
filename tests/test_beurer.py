@@ -332,3 +332,23 @@ async def test_connect_unlocks_before_trigger_status(beurer_instance: BeurerInst
 
     assert success is True
     assert lock_held_during_status is False
+
+
+@pytest.mark.asyncio
+async def test_trigger_status_debounced(beurer_instance: BeurerInstance) -> None:
+    """Test that triggerStatus debounces multiple rapid calls."""
+    sent_packets: list[list[int]] = []
+
+    async def mock_send(packet: list[int]) -> None:
+        sent_packets.append(packet)
+
+    beurer_instance.sendPacket = mock_send
+    beurer_instance._last_status_trigger = 0.0
+
+    # First call: should send two status packets [0x30, 0x01] and [0x30, 0x02]
+    await beurer_instance.triggerStatus()
+    assert len(sent_packets) == 2
+
+    # Second immediate call: should be debounced and not send more packets
+    await beurer_instance.triggerStatus()
+    assert len(sent_packets) == 2

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import time
 import traceback
 from collections.abc import Callable
 
@@ -96,6 +97,7 @@ class BeurerInstance:
         self._effect: str | None = None
         self._write_uuid: str | None = None
         self._read_uuid: str | None = None
+        self._last_status_trigger: float = 0.0
         self._mode: ColorMode | None = ColorMode.WHITE
         self._supported_effects: list[str] = [
             "Off",
@@ -269,8 +271,9 @@ class BeurerInstance:
         if not self._color_on:
             await self.turn_on()
         await self.sendPacket([0x32, r, g, b])
-        await asyncio.sleep(0.1)
-        await self.triggerStatus()
+        self._color_on = True
+        self._is_on = True
+        await self.trigger_entity_update()
 
     async def set_color_brightness(self, brightness: int) -> None:
         """Set brightness for RGB color channel.
@@ -284,8 +287,10 @@ class BeurerInstance:
             await self.turn_on()
         brightness_percent = max(0, min(100, int(brightness / 255 * 100)))
         await self.sendPacket([0x31, 0x02, brightness_percent])
-        await asyncio.sleep(0.1)
-        await self.triggerStatus()
+        self._color_brightness = brightness
+        self._color_on = True
+        self._is_on = True
+        await self.trigger_entity_update()
 
     async def set_white(self, intensity: int) -> None:
         """Set white daylight intensity.
@@ -308,8 +313,10 @@ class BeurerInstance:
         if intensity_percent == 100:
             intensity_percent = 99
         await self.sendPacket([0x31, 0x01, intensity_percent])
-        await asyncio.sleep(0.2)
-        await self.triggerStatus()
+        self._brightness = intensity
+        self._light_on = True
+        self._is_on = True
+        await self.trigger_entity_update()
 
     async def set_effect(self, effect: str) -> None:
         """Set effect mode on the lamp.
@@ -327,7 +334,10 @@ class BeurerInstance:
         if not self._color_on:
             await self.turn_on()
         await self.sendPacket([0x34, self.find_effect_position(effect)])
-        await self.triggerStatus()
+        self._effect = effect
+        self._color_on = True
+        self._is_on = True
+        await self.trigger_entity_update()
 
     async def turn_on(self) -> None:
         """Turn on the light in the current or saved mode."""
@@ -353,11 +363,13 @@ class BeurerInstance:
                 await self.set_color(self._rgb_color)
                 if self._color_brightness:
                     await self.set_color_brightness(self._color_brightness)
+            self._color_on = True
         else:
             self._mode = ColorMode.WHITE
+            self._light_on = True
             await self.sendPacket([0x37, 0x01])
-        await asyncio.sleep(0.2)
-        await self.triggerStatus()
+        self._is_on = True
+        await self.trigger_entity_update()
 
     async def turn_off(self) -> None:
         """Turn off both white and color channels."""
@@ -365,11 +377,18 @@ class BeurerInstance:
         await self.sendPacket([0x35, 0x01])
         await self.sendPacket([0x35, 0x02])
         self._mode = ColorMode.WHITE
-        await asyncio.sleep(0.1)
-        await self.triggerStatus()
+        self._is_on = False
+        self._light_on = False
+        self._color_on = False
+        await self.trigger_entity_update()
 
     async def triggerStatus(self) -> None:
-        """Request status updates from the device."""
+        """Request status updates from the device with debouncing."""
+        now = time.monotonic()
+        if now - self._last_status_trigger < 2.0:
+            LOGGER.debug("Skipping triggerStatus, called too recently")
+            return
+        self._last_status_trigger = now
         await self.sendPacket([0x30, 0x01])
         await asyncio.sleep(0.2)
         await self.sendPacket([0x30, 0x02])
