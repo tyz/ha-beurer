@@ -464,23 +464,33 @@ class BeurerInstance:
             if self._status_response_event is None:
                 self._status_response_event = asyncio.Event()
 
-            self._last_queried_channel = 1
-            self._status_response_event.clear()
-            await self.sendPacket([0x30, 0x01])
             try:
-                await asyncio.wait_for(self._status_response_event.wait(), timeout=0.3)
-            except TimeoutError:
-                pass
-            await asyncio.sleep(0.05)
+                self._last_queried_channel = 1
+                self._status_response_event.clear()
+                await self.sendPacket([0x30, 0x01])
+                try:
+                    await asyncio.wait_for(self._status_response_event.wait(), timeout=0.3)
+                except TimeoutError:
+                    pass
+                await asyncio.sleep(0.05)
 
-            self._last_queried_channel = 2
-            self._status_response_event.clear()
-            await self.sendPacket([0x30, 0x02])
-            try:
-                await asyncio.wait_for(self._status_response_event.wait(), timeout=0.3)
-            except TimeoutError:
-                pass
-            LOGGER.info("Triggered update")
+                self._last_queried_channel = 2
+                self._status_response_event.clear()
+                await self.sendPacket([0x30, 0x02])
+                try:
+                    await asyncio.wait_for(self._status_response_event.wait(), timeout=0.3)
+                except TimeoutError:
+                    pass
+            finally:
+                self._last_queried_channel = None
+                self._is_on = bool(self._light_on or self._color_on)
+                if self._is_on:
+                    if self._light_on:
+                        self._mode = ColorMode.WHITE
+                    elif self._color_on:
+                        self._mode = ColorMode.RGB
+                LOGGER.info("Triggered update")
+                await self.trigger_entity_update()
 
     async def trigger_entity_update(self) -> None:
         """Notify the entity callback of a state change."""
@@ -522,6 +532,7 @@ class BeurerInstance:
                 self._color_on = False
             else:
                 self._light_on = True
+                self._color_on = False
                 self._mode = ColorMode.WHITE
                 if self._brightness is None:
                     self._brightness = 255
@@ -567,7 +578,8 @@ class BeurerInstance:
                 self._light_on,
                 self._brightness,
             )
-            await self.trigger_entity_update()
+            if not self._status_lock.locked():
+                await self.trigger_entity_update()
         elif reply_version == 2:
             if len(res) < 10:
                 return
@@ -594,7 +606,8 @@ class BeurerInstance:
                 self._light_on,
                 self._color_on,
             )
-            await self.trigger_entity_update()
+            if not self._status_lock.locked():
+                await self.trigger_entity_update()
         elif reply_version == 255:
             if self._last_queried_channel == 1:
                 self._light_on = False
@@ -611,7 +624,8 @@ class BeurerInstance:
                 self._light_on,
                 self._color_on,
             )
-            await self.trigger_entity_update()
+            if not self._status_lock.locked():
+                await self.trigger_entity_update()
         elif reply_version == 0:
             LOGGER.debug("Device is going to shut down (reply_version 0)")
             self._is_on = False
@@ -685,7 +699,11 @@ class BeurerInstance:
                 await self.disconnect()
                 return False
 
-        if self._reconnect_task is not None and not self._reconnect_task.done():
+        if (
+            self._reconnect_task is not None
+            and not self._reconnect_task.done()
+            and asyncio.current_task() != self._reconnect_task
+        ):
             self._reconnect_task.cancel()
             self._reconnect_task = None
         return True

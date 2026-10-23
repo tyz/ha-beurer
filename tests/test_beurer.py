@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -550,6 +551,127 @@ async def test_connect_cancels_active_reconnect_task(beurer_instance: BeurerInst
     assert success is True
     mock_task.cancel.assert_called_once()
     assert beurer_instance._reconnect_task is None
+
+
+@pytest.mark.asyncio
+async def test_connect_does_not_cancel_own_reconnect_task(beurer_instance: BeurerInstance) -> None:
+    """Test that connect does not cancel its own task when run as auto-reconnect task."""
+    mock_client = MagicMock()
+    mock_client.is_connected = True
+    char1 = MagicMock()
+    char1.uuid = "8b00ace7-eb0b-49b0-bbe9-9aee0a26e1a3"
+    char2 = MagicMock()
+    char2.uuid = "0734594A-A8E7-4B1A-A6B1-CD5243059A57"
+    mock_client.services.characteristics.values.return_value = [char1, char2]
+    mock_client.start_notify = AsyncMock()
+
+    current_task = asyncio.current_task()
+    beurer_instance._reconnect_task = current_task
+
+    with patch("custom_components.beurer.beurer.establish_connection", AsyncMock(return_value=mock_client)):
+        success = await beurer_instance.connect()
+
+    assert success is True
+    assert beurer_instance._reconnect_task is current_task
+
+
+@pytest.mark.asyncio
+async def test_trigger_status_defers_entity_update_until_complete(
+    beurer_instance: BeurerInstance,
+) -> None:
+    """Test that triggerStatus updates entity once after both channels are queried without mid-query off flicker."""
+    update_calls: list[bool] = []
+
+    def update_callback() -> None:
+        update_calls.append(beurer_instance.is_on)
+
+    beurer_instance.set_update_callback(update_callback)
+    beurer_instance._is_on = True
+    beurer_instance._light_on = True
+    beurer_instance._color_on = None
+
+    payload_ch1_off = bytearray([0xFE, 0xEF, 0x0C, 0x09, 0xAB, 0xBB, 0x04, 0xD0, 0xFF, 0x2B, 0x55, 0x0D, 0x0A])
+    payload_ch2_on = bytearray(
+        [
+            0xFE,
+            0xEF,
+            0x0C,
+            0x13,
+            0xAB,
+            0xBB,
+            0x0E,
+            0xD0,
+            0x02,
+            0x01,
+            0x3C,
+            0x00,
+            0x00,
+            0xFF,
+            0x00,
+            0x00,
+            0x00,
+            0x55,
+            0x0D,
+            0x0A,
+        ]
+    )
+
+    async def mock_send(packet: list[int]) -> None:
+        char = MagicMock()
+        if packet == [0x30, 0x01]:
+            await beurer_instance.notification_handler(char, payload_ch1_off)
+        elif packet == [0x30, 0x02]:
+            await beurer_instance.notification_handler(char, payload_ch2_on)
+
+    beurer_instance.sendPacket = mock_send
+    beurer_instance._last_status_trigger = 0.0
+
+    await beurer_instance.triggerStatus()
+
+    # Callback must be called exactly once at the end of triggerStatus
+    assert len(update_calls) == 1
+    assert update_calls == [True]
+    assert beurer_instance.is_on is True
+    assert beurer_instance._light_on is False
+    assert beurer_instance._color_on is True
+    assert beurer_instance.color_mode == ColorMode.RGB
+
+
+@pytest.mark.asyncio
+async def test_auto_reconnect_queries_both_channels(beurer_instance: BeurerInstance) -> None:
+    """Test that auto-reconnect does not cancel itself and successfully queries both channels."""
+    mock_client = MagicMock()
+    mock_client.is_connected = True
+    char1 = MagicMock()
+    char1.uuid = "8b00ace7-eb0b-49b0-bbe9-9aee0a26e1a3"
+    char2 = MagicMock()
+    char2.uuid = "0734594A-A8E7-4B1A-A6B1-CD5243059A57"
+    mock_client.services.characteristics.values.return_value = [char1, char2]
+    mock_client.start_notify = AsyncMock()
+
+    sent_packets: list[list[int]] = []
+
+    async def mock_send(packet: list[int]) -> None:
+        sent_packets.append(packet)
+        if beurer_instance._status_response_event is not None:
+            beurer_instance._status_response_event.set()
+
+    beurer_instance.sendPacket = mock_send
+    beurer_instance._device = None
+    beurer_instance._write_uuid = None
+    beurer_instance._read_uuid = None
+
+    with (
+        patch("custom_components.beurer.beurer.establish_connection", AsyncMock(return_value=mock_client)),
+        patch("asyncio.sleep", AsyncMock()),
+    ):
+        task = asyncio.create_task(beurer_instance._auto_reconnect())
+        beurer_instance._reconnect_task = task
+        await task
+
+    assert sent_packets == [[0x30, 0x01], [0x30, 0x02]]
+    assert task.done() is True
+    assert not task.cancelled()
 
 
 @pytest.mark.asyncio
