@@ -92,19 +92,22 @@ The lamp sends notifications for queries and spontaneous physical interactions:
 Returned in response to `0x30` query or after parameter adjustments:
 
 - `res[7]` = `0xD0` (Response opcode)
-- `res[8]` = **Channel Type**:
-  - `0x01`: White / Daylight
-  - `0x02`: Moodlight / RGB
-  - `0xFF`: All channels off
-- `res[9]` = **State**: `0x01` = Enabled / ON, `0x00` = Disabled / OFF
-- `res[10]` = **Brightness**: Percentage `1` to `100` (or `0` when off)
-- `res[11]` = **Timer Active**: `0x01` = Active, `0x00` = Inactive
-- `res[12]` = **Timer Minutes Remaining**: `0` to `120` minutes
-- *(Channel 2 / RGB only)*:
-  - `res[13]` = **Red**: `0` to `255`
-  - `res[14]` = **Green**: `0` to `255`
-  - `res[15]` = **Blue**: `0` to `255`
-  - `res[16]` = **Scene Index**: `0` to `10`
+- `res[8]` = **Channel Type / Subcode**:
+  - `0x01`: White / Daylight full status packet:
+    - `res[9]` = **State**: `0x01` = Enabled / ON, `0x00` = Disabled / OFF
+    - `res[10]` = **Brightness**: Percentage `1` to `100` (or `0` when off)
+    - `res[11]` = **Timer Active**: `0x01` = Active, `0x00` = Inactive
+    - `res[12]` = **Timer Minutes Remaining**: `0` to `120` minutes
+  - `0x02`: Moodlight / RGB full status packet:
+    - `res[9]` = **State**: `0x01` = Enabled / ON, `0x00` = Disabled / OFF
+    - `res[10]` = **Brightness**: Percentage `1` to `100`
+    - `res[11]` = **Timer Active**: `0x01` = Active, `0x00` = Inactive
+    - `res[12]` = **Timer Minutes Remaining**: `0` to `120` minutes
+    - `res[13]` = **Red**: `0` to `255`
+    - `res[14]` = **Green**: `0` to `255`
+    - `res[15]` = **Blue**: `0` to `255`
+    - `res[16]` = **Scene Index**: `0` to `10`
+  - `0xFF`: Hardware-mode / inactive BLE session ACK (`04 D0 FF`). Sent when querying a channel that has no active BLE session (for example when the lamp operates in standalone/hardware mode after being toggled via physical button, or when querying the inactive channel). Contains no channel state or brightness data; clients must preserve existing channel states rather than assuming the device is off.
 
 ### 5.2 Device Events
 
