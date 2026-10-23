@@ -1,65 +1,88 @@
-# ha-beurer
-[![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/tyz/ha-beurer)
-![Hassfest](https://github.com/tyz/ha-beurer/actions/workflows/hassfest.yaml/badge.svg)
-![HACS](https://github.com/tyz/ha-beurer/actions/workflows/hacs.yml/badge.svg)
+# Beurer TL 100 for Home Assistant
 
-Home Assistant integration for BLE based Beurer TL100/wellbeing/Daylight therapy lamp
+A custom Home Assistant integration for controlling the **Beurer TL 100** daylight therapy and moodlight lamp (as well as compatible models like the WL 90 and WL 75) over Bluetooth Low Energy (BLE).
 
-Supports controlling BLE based lights controllable through the Beurer LightUp app.
+This repository is an actively maintained fork of [Deadolus/ha-beurer](https://github.com/Deadolus/ha-beurer), updated to meet modern Home Assistant architectural standards and resolve long-standing connection and protocol bugs.
+
+---
+
+## What's New & Fixed (vs. Deadolus's Version)
+
+* **Modern Home Assistant Bluetooth Architecture**: Completely migrated to the standard Home Assistant Bluetooth subsystem (`homeassistant.components.bluetooth`) and `bleak-retry-connector`.
+* **ESPHome Bluetooth Proxy & Multi-Adapter Support**: Uses BLE advertisement callbacks (`async_register_callback`) so the lamp seamlessly roams across ESPHome Bluetooth Proxies and local Bluetooth adapters without losing connection.
+* **Physical Button State Synchronization**: Correctly handles hardware power button events (`0xE8`). When the lamp is turned on or off using its physical button, Home Assistant updates immediately and retains its state through subsequent BLE reconnections.
+* **Decoupled Daylight and Moodlight Channels**: White daylight (channel 1) and RGB moodlight (channel 2) are fully decoupled. Turning on white light correctly disables color mode, and vice versa, matching the lamp's physical hardware behavior.
+* **Fixed 100% White Brightness Firmware Bug**: The lamp firmware has a known bug where setting white brightness to 100% (`0x64`) causes an unintended red tint shift. The integration caps white brightness at 99% (`0x63`) under the hood, ensuring pure daylight output.
+* **Independent Brightness & State Retention**: White daylight and RGB moodlight brightness levels are tracked and scaled independently (0–255 in Home Assistant, 1–100% on hardware).
+* **Full Moodlight Scenes / Effects**: Support for all 11 built-in moodlight effect presets (Rainbow, Rainbow Slow, Pulse, Wave, Forest, Summer, etc.).
+* **Reliable Connection Management & Serialization**: BLE writes are serialized using asynchronous locks and status queries are debounced to prevent packet collision and connection drops.
+* **Graceful Shutdown & Unload**: Properly cancels background reconnection tasks and disconnects cleanly when Home Assistant stops or the integration is reloaded.
+* **Protocol Documentation**: Added a comprehensive BLE protocol specification in [`README.bluetooth.md`](README.bluetooth.md).
+* **Automated Unit Tests**: Added a full test suite with mock fixtures covering BLE communication, state parsing, and Home Assistant entity lifecycles.
+
+---
 
 ## Installation
 
-Note: Restart is always required after installation.
+### Method 1: HACS (Recommended)
 
-### [HACS](https://hacs.xyz/) (recommended)
-Installation can be done through [HACS custom repository](https://hacs.xyz/docs/faq/custom_repositories).
+1. Ensure [HACS](https://hacs.xyz/) is installed and configured in Home Assistant.
+2. In Home Assistant, navigate to **HACS** > **Integrations**.
+3. Click the three dots icon (**⋮**) in the top right corner and select **Custom repositories**.
+4. Enter:
+   * **Repository**: `https://github.com/tyz/ha-beurer`
+   * **Type**: `Integration`
+5. Click **Add**.
+6. Search for **Beurer** in HACS and click **Download**.
+7. Restart Home Assistant.
 
-### Manual installation
-You can manually clone this repository inside `config/custom_components/beurer`.
+### Method 2: Manual Installation
 
-For  example, from Terminal plugin:
-```
-cd /config/custom_components
-git clone https://github.com/tyz/ha-beurer beurer
-```
+1. Clone or download this repository.
+2. Copy all files into your Home Assistant configuration directory under `custom_components/beurer/`:
+   ```bash
+   cd /config/custom_components
+   git clone https://github.com/tyz/ha-beurer beurer
+   ```
+3. Restart Home Assistant.
 
-## Setup
-After installation, you should find Beurer under the Configuration -> Integrations -> Add integration.
+---
 
-The setup step includes discovery which will list out all Beurer lights discovered. The setup will validate connection by toggling the selected light. Make sure your light is in-sight to validate this.
+## Configuration & Setup
 
-The setup needs to be repeated for each light.
+1. In Home Assistant, go to **Settings** > **Devices & services**.
+2. Click **Add integration** and search for **Beurer**.
+3. The setup flow will automatically scan for nearby Beurer lamps advertising over BLE. Select your lamp from the list, or select **Configure manually** to enter the Bluetooth MAC address directly.
+4. During setup, the integration will briefly toggle the lamp to confirm communication.
+5. If you have multiple Beurer lamps, repeat the setup process for each device.
 
-## Features
-1. Discovery: Automatically discover Beurer based lights without manually hunting for Bluetooth MAC address
-2. On/Off/RGB/Brightness support
-3. Multiple light support
-4. Light modes (Rainbow, Pulse, Forest, ..) as found in the app
+---
 
-## Known issues
-1. Light connection may fail a few times after Home Assistant reboot. The integration will usually reconnect and the issue will resolve itself.
-2. The rightmost LED, which signals Bluetooth connection, on the lamp will always be on.
-   This is because HomeAssistant will always be connected to the lamp, use black duct tape if you want the lamp to be completely dark.
+## Supported Features
 
-## Not supported
-Timers for automatic turn off of the lamp are currently not supported.
-Use HomeAssistant automations if you need this functionality.
+* **Daylight Therapy (White Mode)**: Full on/off and brightness control.
+* **Moodlight (RGB Mode)**: Color picker, independent color brightness control, and scene selection.
+* **Physical Controls**: State stays in sync when using the buttons on the lamp.
+* **Bluetooth Proxy Compatibility**: Works with standard Linux Bluetooth adapters and ESPHome Bluetooth Proxies.
 
-## Debugging
-Add the following to `configuration.yml` to show debugging logs. Please make sure to include debug logs when filing an issue.
+---
 
-See [logger intergration docs](https://www.home-assistant.io/integrations/logger/) for more information to configure logging.
+## Debugging & Logs
 
-```yml
+To enable verbose debug logging for troubleshooting, add the following to your `configuration.yaml`:
+
+```yaml
 logger:
-  default: warn
+  default: warning
   logs:
     custom_components.beurer: debug
 ```
 
-## Credits
-This integration will is a fork of [sysofwan ha-triones integration](https://github.com/sysofwan/ha-triones), whose framework I used for this Beurer integration.
+---
 
-Additional help by:
-- [@pyromaniac2k](https://github.com/pyromaniac2k)
-- [@ALandOfDodd](https://github.com/LandOfDodd)
+## Credits & History
+
+* Forked and maintained by [Mathijs Maassen](https://github.com/tyz).
+* Original integration by [Simon Egli (Deadolus)](https://github.com/Deadolus/ha-beurer). See [`README.Deadolus.md`](README.Deadolus.md) for the original documentation.
+* Originally inspired by the [ha-triones](https://github.com/sysofwan/ha-triones) integration by sysofwan.
+* Additional contributions from [@pyromaniac2k](https://github.com/pyromaniac2k) and [@ALandOfDodd](https://github.com/LandOfDodd).
