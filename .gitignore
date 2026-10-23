@@ -7,3 +7,5 @@ dist/
 __pycache__/
 com.beurer.connect.lightup-decoded-apk/
 TODO.md
+BUGS.md
+FEATURES.md
