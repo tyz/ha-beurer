@@ -98,6 +98,7 @@ class BeurerInstance:
         self._write_uuid: str | None = None
         self._read_uuid: str | None = None
         self._last_status_trigger: float = 0.0
+        self._last_notification_cmd: int | None = None
         self._reconnect_task: asyncio.Task[None] | None = None
         self._closing: bool = False
         self._mode: ColorMode | None = ColorMode.WHITE
@@ -149,6 +150,7 @@ class BeurerInstance:
         self._device = None
         self._write_uuid = None
         self._read_uuid = None
+        self._last_notification_cmd = None
         if self._trigger_update:
             self._trigger_update()
         if self._reconnect_task is None or self._reconnect_task.done():
@@ -467,6 +469,10 @@ class BeurerInstance:
         cmd = res[7]
 
         if cmd == 0xE8:
+            if self._last_notification_cmd == 0xE8:
+                LOGGER.debug("Ignoring duplicate 0xE8 burst notification")
+                return
+            self._last_notification_cmd = 0xE8
             new_state = not self._is_on
             LOGGER.debug(
                 "Received device event 0xE8 (button toggle, is_on was %s -> now %s)",
@@ -484,6 +490,8 @@ class BeurerInstance:
                     self._brightness = 255
             await self.trigger_entity_update()
             return
+
+        self._last_notification_cmd = cmd
 
         if cmd == 0xF0:
             perm = res[8] if len(res) > 8 else None
@@ -571,6 +579,7 @@ class BeurerInstance:
             True if connection was successful, False otherwise.
         """
         self._closing = False
+        self._last_notification_cmd = None
         async with self._connect_lock:
             if self._device is not None and self._device.is_connected and self._write_uuid is not None:
                 return True
@@ -659,6 +668,7 @@ class BeurerInstance:
         self._device = None
         self._write_uuid = None
         self._read_uuid = None
+        self._last_notification_cmd = None
         self._is_on = False
         self._light_on = False
         self._color_on = False

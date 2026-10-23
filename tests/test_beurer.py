@@ -247,6 +247,45 @@ async def test_notification_handler_event_e8_toggles_off(
     assert beurer_instance._color_on is False
 
 
+@pytest.mark.asyncio
+async def test_notification_handler_event_e8_ignores_duplicate_burst(
+    beurer_instance: BeurerInstance,
+) -> None:
+    """Test that rapid consecutive 0xE8 burst notifications are ignored."""
+    beurer_instance._is_on = False
+    update_count = 0
+
+    def update_callback() -> None:
+        nonlocal update_count
+        update_count += 1
+
+    beurer_instance.set_update_callback(update_callback)
+
+    payload = bytearray([0xFE, 0xEF, 0x0C, 0x0B, 0xAB, 0xBB, 0x06, 0xE8, 0x00, 0x00, 0x00, 0xEE, 0x55, 0x0D, 0x0A])
+    char = MagicMock()
+
+    # First 0xE8 packet turns on
+    await beurer_instance.notification_handler(char, payload)
+    assert beurer_instance.is_on is True
+    assert update_count == 1
+
+    # Burst of identical 0xE8 notifications in quick succession should be ignored
+    for _ in range(10):
+        await beurer_instance.notification_handler(char, payload)
+
+    assert beurer_instance.is_on is True
+    assert update_count == 1
+
+    # A non-0xE8 packet arrives (e.g. permission or status ACK)
+    non_e8_payload = bytearray([0xFE, 0xEF, 0x0A, 0x08, 0xAB, 0xBB, 0x03, 0xF0, 0x02, 0x22, 0x55, 0x0D, 0x0A])
+    await beurer_instance.notification_handler(char, non_e8_payload)
+
+    # Next 0xE8 packet is now accepted and toggles off
+    await beurer_instance.notification_handler(char, payload)
+    assert beurer_instance.is_on is False
+    assert update_count == 2
+
+
 def test_disconnected_callback_preserves_state(beurer_instance: BeurerInstance) -> None:
     """Test that disconnected callback resets connection without marking light as off."""
     mock_client = MagicMock()
@@ -261,6 +300,7 @@ def test_disconnected_callback_preserves_state(beurer_instance: BeurerInstance) 
     assert beurer_instance._light_on is True
     assert beurer_instance._color_on is False
     assert beurer_instance._device is None
+    assert beurer_instance._last_notification_cmd is None
 
 
 def test_disconnected_callback_ignores_inactive_client(beurer_instance: BeurerInstance) -> None:
