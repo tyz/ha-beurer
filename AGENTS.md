@@ -52,6 +52,11 @@ them off (`[ ]` becomes `[x]`).
 * `BUGS.md`: Contains additional information about bugs you need to look into.
 * `FEATURES.md`: Contains a list of features that need to be implemented.
 
+## Bluetooth
+
+- See `README.bluetooth.md` for the BLE protocol specification used by this
+  lamp. Please update it you think there's some info missing.
+
 ## External Resources
 
 * The Beurer LightUp app APK is located in the `com.beurer.connect.lightup-decoded-apk` directory
