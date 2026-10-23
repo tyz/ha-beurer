@@ -589,3 +589,58 @@ async def test_auto_reconnect_aborts_when_closing(beurer_instance: BeurerInstanc
         await beurer_instance._auto_reconnect()
 
     beurer_instance.connect.assert_not_called()
+
+
+def test_is_connected_property(beurer_instance: BeurerInstance) -> None:
+    """Test that is_connected reflects the connection state of the BleakClient."""
+    assert beurer_instance.is_connected is True
+
+    beurer_instance._device = None
+    assert beurer_instance.is_connected is False
+
+    mock_client = MagicMock()
+    mock_client.is_connected = False
+    beurer_instance._device = mock_client
+    assert beurer_instance.is_connected is False
+
+    mock_client.is_connected = True
+    assert beurer_instance.is_connected is True
+
+
+@pytest.mark.asyncio
+async def test_update_skips_when_disconnected(beurer_instance: BeurerInstance) -> None:
+    """Test that update returns immediately without connecting when disconnected."""
+    beurer_instance._device = None
+    beurer_instance.connect = AsyncMock()
+    beurer_instance.triggerStatus = AsyncMock()
+
+    await beurer_instance.update()
+
+    beurer_instance.connect.assert_not_called()
+    beurer_instance.triggerStatus.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_update_queries_status_when_connected(beurer_instance: BeurerInstance) -> None:
+    """Test that update queries status when the device is connected."""
+    mock_client = MagicMock()
+    mock_client.is_connected = True
+    beurer_instance._device = mock_client
+    beurer_instance.triggerStatus = AsyncMock()
+
+    await beurer_instance.update()
+
+    beurer_instance.triggerStatus.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_trigger_reconnect_lifecycle(beurer_instance: BeurerInstance) -> None:
+    """Test trigger_reconnect scheduling and closing guard."""
+    beurer_instance._closing = True
+    beurer_instance.trigger_reconnect()
+    assert beurer_instance._reconnect_task is None
+
+    beurer_instance._closing = False
+    beurer_instance.trigger_reconnect()
+    assert beurer_instance._reconnect_task is not None
+    beurer_instance._reconnect_task.cancel()

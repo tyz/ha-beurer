@@ -69,7 +69,10 @@ class BeurerLight(LightEntity):
     async def async_added_to_hass(self) -> None:
         """Register callbacks after being added to Home Assistant."""
         self._instance.set_update_callback(self.update_callback)
-        await self._instance.update()
+        if not self._instance.is_connected:
+            self._instance.trigger_reconnect()
+        else:
+            await self._instance.update()
 
     def update_callback(self) -> None:
         """Write updated state to Home Assistant state machine."""

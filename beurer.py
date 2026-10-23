@@ -124,6 +124,27 @@ class BeurerInstance:
         """
         self._ble_device = device
 
+    @property
+    def is_connected(self) -> bool:
+        """Return True if the BLE device is currently connected."""
+        return self._device is not None and self._device.is_connected
+
+    @property
+    def is_closing(self) -> bool:
+        """Return True if the instance is closing or disconnecting."""
+        return self._closing
+
+    def trigger_reconnect(self) -> None:
+        """Schedule an auto-reconnect task if not already reconnecting."""
+        if self._closing:
+            return
+        if self._reconnect_task is None or self._reconnect_task.done():
+            try:
+                loop = asyncio.get_running_loop()
+                self._reconnect_task = loop.create_task(self._auto_reconnect())
+            except RuntimeError:
+                pass
+
     def disconnected_callback(self, client: BleakClient) -> None:
         """Handle disconnection event from Bleak.
 
@@ -153,12 +174,7 @@ class BeurerInstance:
         self._last_notification_cmd = None
         if self._trigger_update:
             self._trigger_update()
-        if self._reconnect_task is None or self._reconnect_task.done():
-            try:
-                loop = asyncio.get_running_loop()
-                self._reconnect_task = loop.create_task(self._auto_reconnect())
-            except RuntimeError:
-                pass
+        self.trigger_reconnect()
 
     async def _auto_reconnect(self) -> None:
         """Attempt to reconnect after a short delay following disconnection."""
@@ -166,12 +182,12 @@ class BeurerInstance:
         await asyncio.sleep(1)
         if self._closing:
             return
-        if self._device is not None and self._device.is_connected:
+        if self.is_connected:
             return
         LOGGER.debug("Executing auto-reconnect")
         try:
             if await self.connect():
-                await self.triggerStatus()
+                await self.triggerStatus(force=True)
         except Exception as error:  # noqa: BLE001
             LOGGER.debug("Auto-reconnect attempt failed: %s", error)
 
@@ -633,12 +649,12 @@ class BeurerInstance:
         return True
 
     async def update(self) -> None:
-        """Connect if needed and refresh status."""
-        try:
-            if (self._device is None or not self._device.is_connected) and not await self.connect():
-                LOGGER.info("Was not able to connect to device for updates")
-                return
+        """Refresh device status if connected."""
+        if not self.is_connected:
+            LOGGER.debug("Device is not connected, skipping status update")
+            return
 
+        try:
             LOGGER.info("Triggering update")
             await self.triggerStatus()
 
