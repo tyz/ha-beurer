@@ -206,6 +206,7 @@ def _setup_mock_modules() -> None:
         ha_light.ATTR_BRIGHTNESS = "brightness"  # type: ignore[attr-defined]
         ha_light.ATTR_EFFECT = "effect"  # type: ignore[attr-defined]
         ha_light.ATTR_WHITE = "white"  # type: ignore[attr-defined]
+        ha_light.ATTR_COLOR_MODE = "color_mode"  # type: ignore[attr-defined]
 
         class MockPlatformSchema:
             def extend(self, extra: Any) -> MockPlatformSchema:

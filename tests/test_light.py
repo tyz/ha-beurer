@@ -9,6 +9,7 @@ from custom_components.beurer.beurer import BeurerInstance
 from custom_components.beurer.light import SCAN_INTERVAL, BeurerLight
 from homeassistant.components.light import (
     ATTR_BRIGHTNESS,
+    ATTR_COLOR_MODE,
     ATTR_EFFECT,
     ATTR_RGB_COLOR,
     ATTR_WHITE,
@@ -105,6 +106,39 @@ async def test_async_turn_on_with_white_attr(mock_instance: MagicMock) -> None:
     await light.async_turn_on(**{ATTR_WHITE: 180})
     mock_instance.set_white.assert_awaited_once_with(180)
     mock_instance.set_color_brightness.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_async_turn_on_color_mode_white_no_brightness(mock_instance: MagicMock) -> None:
+    """Test switching to white mode without explicit brightness uses saved brightness."""
+    mock_instance.color_mode = ColorMode.RGB
+    mock_instance.white_brightness = 220
+    light = BeurerLight(mock_instance, "My Lamp", "entry_123")
+    await light.async_turn_on(**{ATTR_COLOR_MODE: ColorMode.WHITE})
+    mock_instance.set_white.assert_awaited_once_with(220)
+    mock_instance.set_color_brightness.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_async_turn_on_color_mode_white_with_brightness(mock_instance: MagicMock) -> None:
+    """Test switching to white mode with brightness sets white intensity."""
+    mock_instance.color_mode = ColorMode.RGB
+    light = BeurerLight(mock_instance, "My Lamp", "entry_123")
+    await light.async_turn_on(**{ATTR_COLOR_MODE: ColorMode.WHITE, ATTR_BRIGHTNESS: 120})
+    mock_instance.set_white.assert_awaited_once_with(120)
+    mock_instance.set_color_brightness.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_async_turn_on_color_mode_rgb(mock_instance: MagicMock) -> None:
+    """Test switching to RGB color mode without explicit color sets default or last color."""
+    mock_instance.color_mode = ColorMode.WHITE
+    mock_instance._color_on = False
+    mock_instance.rgb_color = (128, 64, 255)
+    light = BeurerLight(mock_instance, "My Lamp", "entry_123")
+    await light.async_turn_on(**{ATTR_COLOR_MODE: ColorMode.RGB, ATTR_BRIGHTNESS: 90})
+    mock_instance.set_color.assert_awaited_once_with((128, 64, 255))
+    mock_instance.set_color_brightness.assert_awaited_once_with(90)
 
 
 @pytest.mark.asyncio
