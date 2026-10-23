@@ -99,6 +99,7 @@ class BeurerInstance:
         self._read_uuid: str | None = None
         self._last_status_trigger: float = 0.0
         self._reconnect_task: asyncio.Task[None] | None = None
+        self._closing: bool = False
         self._mode: ColorMode | None = ColorMode.WHITE
         self._supported_effects: list[str] = [
             "Off",
@@ -128,6 +129,10 @@ class BeurerInstance:
         Args:
             client: BleakClient that was disconnected.
         """
+        if self._closing:
+            LOGGER.debug("Ignoring disconnect callback because instance is closing/disconnected")
+            return
+
         if self._device is None or client is not self._device:
             LOGGER.debug(
                 "Ignoring disconnect callback from inactive client: %s (active: %s)",
@@ -155,8 +160,10 @@ class BeurerInstance:
 
     async def _auto_reconnect(self) -> None:
         """Attempt to reconnect after a short delay following disconnection."""
-        LOGGER.debug("Scheduling auto-reconnect in 5 seconds")
-        await asyncio.sleep(5)
+        LOGGER.debug("Scheduling auto-reconnect in 1 second")
+        await asyncio.sleep(1)
+        if self._closing:
+            return
         if self._device is not None and self._device.is_connected:
             return
         LOGGER.debug("Executing auto-reconnect")
@@ -563,6 +570,7 @@ class BeurerInstance:
         Returns:
             True if connection was successful, False otherwise.
         """
+        self._closing = False
         async with self._connect_lock:
             if self._device is not None and self._device.is_connected and self._write_uuid is not None:
                 return True
@@ -633,11 +641,17 @@ class BeurerInstance:
     async def disconnect(self) -> None:
         """Disconnect from device and mark entity as off."""
         LOGGER.debug("Disconnecting")
+        self._closing = True
         if self._reconnect_task is not None and not self._reconnect_task.done():
             self._reconnect_task.cancel()
             self._reconnect_task = None
         if self._device is not None:
             try:
+                if self._read_uuid is not None and self._device.is_connected:
+                    try:
+                        await self._device.stop_notify(self._read_uuid)
+                    except Exception as error:  # noqa: BLE001
+                        LOGGER.debug("Error while stopping notifications: %s", error)
                 if self._device.is_connected:
                     await self._device.disconnect()
             except Exception as error:  # noqa: BLE001

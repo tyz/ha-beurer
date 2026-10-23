@@ -478,3 +478,53 @@ async def test_trigger_status_debounced(beurer_instance: BeurerInstance) -> None
     # Second immediate call: should be debounced and not send more packets
     await beurer_instance.triggerStatus()
     assert len(sent_packets) == 2
+
+
+@pytest.mark.asyncio
+async def test_disconnect_stops_notifications_and_disconnects_cleanly(
+    beurer_instance: BeurerInstance,
+) -> None:
+    """Test that disconnect stops notifications and cleanly disconnects active client."""
+    mock_client = MagicMock()
+    mock_client.is_connected = True
+    mock_client.stop_notify = AsyncMock()
+    mock_client.disconnect = AsyncMock()
+
+    beurer_instance._device = mock_client
+    beurer_instance._read_uuid = "0734594A-A8E7-4B1A-A6B1-CD5243059A57"
+    beurer_instance._write_uuid = "8b00ace7-eb0b-49b0-bbe9-9aee0a26e1a3"
+    beurer_instance._is_on = True
+
+    await beurer_instance.disconnect()
+
+    mock_client.stop_notify.assert_awaited_once_with("0734594A-A8E7-4B1A-A6B1-CD5243059A57")
+    mock_client.disconnect.assert_awaited_once()
+    assert beurer_instance._closing is True
+    assert beurer_instance._device is None
+    assert beurer_instance.is_on is False
+
+
+@pytest.mark.asyncio
+async def test_disconnect_prevents_auto_reconnect_on_subsequent_callbacks(
+    beurer_instance: BeurerInstance,
+) -> None:
+    """Test that disconnect prevents auto-reconnect from being scheduled."""
+    beurer_instance._closing = True
+    mock_client = MagicMock()
+    beurer_instance._device = mock_client
+
+    beurer_instance.disconnected_callback(mock_client)
+
+    assert beurer_instance._reconnect_task is None
+
+
+@pytest.mark.asyncio
+async def test_auto_reconnect_aborts_when_closing(beurer_instance: BeurerInstance) -> None:
+    """Test that auto-reconnect aborts if instance is marked as closing."""
+    beurer_instance._closing = True
+    beurer_instance.connect = AsyncMock()
+
+    with patch("asyncio.sleep", AsyncMock()):
+        await beurer_instance._auto_reconnect()
+
+    beurer_instance.connect.assert_not_called()
