@@ -593,6 +593,7 @@ class BeurerInstance:
                         name=self._mac,
                         disconnected_callback=self.disconnected_callback,
                         max_attempts=3,
+                        use_services_cache=False,
                     )
                 else:
                     if self._device is None:

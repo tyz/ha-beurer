@@ -500,6 +500,27 @@ async def test_connect_cancels_active_reconnect_task(beurer_instance: BeurerInst
 
 
 @pytest.mark.asyncio
+async def test_connect_disables_services_cache(beurer_instance: BeurerInstance) -> None:
+    """Test that connect calls establish_connection with use_services_cache=False."""
+    mock_client = MagicMock()
+    mock_client.is_connected = True
+    char1 = MagicMock()
+    char1.uuid = "8B00ACE7-EB0B-49B0-BBE9-9AEE0A26E1A3"
+    char2 = MagicMock()
+    char2.uuid = "0734594A-A8E7-4B1A-A6B1-CD5243059A57"
+    mock_client.services.characteristics.values.return_value = [char1, char2]
+    mock_client.start_notify = AsyncMock()
+
+    mock_establish = AsyncMock(return_value=mock_client)
+    with patch("custom_components.beurer.beurer.establish_connection", mock_establish):
+        success = await beurer_instance.connect()
+
+    assert success is True
+    mock_establish.assert_called_once()
+    assert mock_establish.call_args.kwargs.get("use_services_cache") is False
+
+
+@pytest.mark.asyncio
 async def test_trigger_status_debounced(beurer_instance: BeurerInstance) -> None:
     """Test that triggerStatus debounces multiple rapid calls."""
     sent_packets: list[list[int]] = []
