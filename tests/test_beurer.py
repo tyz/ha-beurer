@@ -249,10 +249,11 @@ async def test_notification_handler_event_e8_toggles_off(
 
 def test_disconnected_callback_preserves_state(beurer_instance: BeurerInstance) -> None:
     """Test that disconnected callback resets connection without marking light as off."""
+    mock_client = MagicMock()
+    beurer_instance._device = mock_client
     beurer_instance._is_on = True
     beurer_instance._light_on = True
     beurer_instance._color_on = False
-    mock_client = MagicMock()
 
     beurer_instance.disconnected_callback(mock_client)
 
@@ -260,6 +261,31 @@ def test_disconnected_callback_preserves_state(beurer_instance: BeurerInstance) 
     assert beurer_instance._light_on is True
     assert beurer_instance._color_on is False
     assert beurer_instance._device is None
+
+
+def test_disconnected_callback_ignores_inactive_client(beurer_instance: BeurerInstance) -> None:
+    """Test that disconnected callback ignores disconnects from non-active client instances."""
+    active_client = MagicMock()
+    inactive_client = MagicMock()
+    beurer_instance._device = active_client
+    beurer_instance._is_on = True
+
+    beurer_instance.disconnected_callback(inactive_client)
+
+    assert beurer_instance._device is active_client
+    assert beurer_instance.is_on is True
+
+
+@pytest.mark.asyncio
+async def test_disconnected_callback_ignores_when_connect_locked(beurer_instance: BeurerInstance) -> None:
+    """Test that disconnected callback is ignored while connect lock is held."""
+    active_client = MagicMock()
+    beurer_instance._device = active_client
+
+    async with beurer_instance._connect_lock:
+        beurer_instance.disconnected_callback(active_client)
+
+    assert beurer_instance._device is active_client
 
 
 @pytest.mark.asyncio
