@@ -571,6 +571,7 @@ class BeurerInstance:
             if res[9] == 1:
                 self._brightness = int(res[10] * 255 / 100) if len(res) > 10 and res[10] > 0 else None
                 self._mode = ColorMode.WHITE
+                self._color_on = False
             self._is_on = bool(self._light_on or self._color_on)
             LOGGER.debug(
                 "White status: is_on=%s, light_on=%s, brightness=%s",
@@ -586,6 +587,7 @@ class BeurerInstance:
             self._color_on = res[9] == 1
             if res[9] == 1:
                 self._mode = ColorMode.RGB
+                self._light_on = False
                 if len(res) > 16 and res[16] < len(self._supported_effects):
                     self._effect = self._supported_effects[res[16]]
                 self._color_brightness = int(res[10] * 255 / 100) if len(res) > 10 and res[10] > 0 else None
@@ -609,23 +611,17 @@ class BeurerInstance:
             if not self._status_lock.locked():
                 await self.trigger_entity_update()
         elif reply_version == 255:
-            if self._last_queried_channel == 1:
-                self._light_on = False
-            elif self._last_queried_channel == 2:
-                self._color_on = False
-            else:
-                self._light_on = False
-                self._color_on = False
-            self._is_on = bool(self._light_on or self._color_on)
+            # reply_version 255 (04 D0 FF) is an empty/hardware-mode ACK with no channel
+            # state data (sent e.g. when the lamp is operating in standalone/hardware mode
+            # after being toggled via physical button, or for an inactive BLE channel).
+            # It must not force channels off or overwrite the existing state.
             LOGGER.debug(
-                "Channel %s off (reply_version 255): is_on=%s, light_on=%s, color_on=%s",
+                "Received empty/hardware ACK (reply_version 255) for channel %s - preserving state (is_on=%s, light_on=%s, color_on=%s)",
                 self._last_queried_channel,
                 self._is_on,
                 self._light_on,
                 self._color_on,
             )
-            if not self._status_lock.locked():
-                await self.trigger_entity_update()
         elif reply_version == 0:
             LOGGER.debug("Device is going to shut down (reply_version 0)")
             self._is_on = False

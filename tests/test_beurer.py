@@ -181,18 +181,20 @@ async def test_notification_handler_reply_version_2(beurer_instance: BeurerInsta
 
 
 @pytest.mark.asyncio
-async def test_notification_handler_reply_version_255_off(beurer_instance: BeurerInstance) -> None:
-    """Test handling status reply version 255 (device turns off)."""
+async def test_notification_handler_reply_version_255_preserves_state(
+    beurer_instance: BeurerInstance,
+) -> None:
+    """Test handling status reply version 255 (empty/hardware ACK preserves state)."""
     beurer_instance._is_on = True
     beurer_instance._light_on = True
-    beurer_instance._color_on = True
+    beurer_instance._color_on = False
 
     payload = bytearray([0] * 8 + [255])
     char = MagicMock()
     await beurer_instance.notification_handler(char, payload)
 
-    assert beurer_instance.is_on is False
-    assert beurer_instance._light_on is False
+    assert beurer_instance.is_on is True
+    assert beurer_instance._light_on is True
     assert beurer_instance._color_on is False
 
 
@@ -400,22 +402,104 @@ async def test_notification_handler_short_status_packet_updates_state(
 
 
 @pytest.mark.asyncio
-async def test_notification_handler_full_off_packet_turns_device_off(
+async def test_notification_handler_channel_1_off_status_packet(
     beurer_instance: BeurerInstance,
 ) -> None:
-    """Test that a full status packet with reply_version 255 turns the device off."""
+    """Test that a status packet with reply_version 1 and state 0 turns off daylight."""
     beurer_instance._is_on = True
     beurer_instance._light_on = True
     beurer_instance._color_on = False
 
-    # Framed full status packet: payload_len = 8 (cmd 0xD0, reply_version 255, state 0, ...)
-    payload = bytearray([0xFE, 0xEF, 0x0C, 0x0D, 0xAB, 0xBB, 0x08, 0xD0, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x2B, 0x55, 0x0D, 0x0A])
+    # Status packet: cmd 0xD0, reply_version 1 (daylight), state 0 (off), brightness 40
+    payload = bytearray([0xFE, 0xEF, 0x0C, 0x0D, 0xAB, 0xBB, 0x08, 0xD0, 0x01, 0x00, 0x28, 0x00, 0x78, 0x2B, 0x55, 0x0D, 0x0A])
     char = MagicMock()
     await beurer_instance.notification_handler(char, payload)
 
     assert beurer_instance.is_on is False
     assert beurer_instance._light_on is False
     assert beurer_instance._color_on is False
+
+
+@pytest.mark.asyncio
+async def test_notification_handler_channel_2_off_status_packet(
+    beurer_instance: BeurerInstance,
+) -> None:
+    """Test that a status packet with reply_version 2 and state 0 turns off moodlight."""
+    beurer_instance._is_on = True
+    beurer_instance._light_on = False
+    beurer_instance._color_on = True
+
+    # Status packet: cmd 0xD0, reply_version 2 (moodlight), state 0 (off), brightness 100
+    payload = bytearray(
+        [
+            0xFE,
+            0xEF,
+            0x0C,
+            0x11,
+            0xAB,
+            0xBB,
+            0x0C,
+            0xD0,
+            0x02,
+            0x00,
+            0x64,
+            0x00,
+            0x78,
+            0xFF,
+            0x00,
+            0x00,
+            0x00,
+            0x2B,
+            0x55,
+            0x0D,
+            0x0A,
+        ]
+    )
+    char = MagicMock()
+    await beurer_instance.notification_handler(char, payload)
+
+    assert beurer_instance.is_on is False
+    assert beurer_instance._light_on is False
+    assert beurer_instance._color_on is False
+
+
+@pytest.mark.asyncio
+async def test_button_turn_on_followed_by_reconnect_and_status_query_preserves_on_state(
+    beurer_instance: BeurerInstance,
+) -> None:
+    """Test physical button turn on preserves ON state through BLE disconnect and status query."""
+    beurer_instance._is_on = False
+    beurer_instance._light_on = False
+    beurer_instance._color_on = False
+
+    # 1. Physical button pressed: emits 0xE8
+    e8_payload = bytearray([0xFE, 0xEF, 0x0C, 0x0B, 0xAB, 0xBB, 0x06, 0xE8, 0x00, 0x00, 0x00, 0xEE, 0x55, 0x0D, 0x0A])
+    char = MagicMock()
+    await beurer_instance.notification_handler(char, e8_payload)
+
+    assert beurer_instance.is_on is True
+    assert beurer_instance._light_on is True
+
+    # 2. Lamp disconnects ~9s later, disconnected_callback called
+    mock_client = MagicMock()
+    beurer_instance._device = mock_client
+    beurer_instance.disconnected_callback(mock_client)
+    assert beurer_instance.is_on is True
+
+    # 3. Auto-reconnect queries channels 1 and 2, lamp returns 04 D0 FF for both
+    d0_ff_payload = bytearray([0xFE, 0xEF, 0x0C, 0x09, 0xAB, 0xBB, 0x04, 0xD0, 0xFF, 0x2B, 0x55, 0x0D, 0x0A])
+
+    # Query channel 1
+    beurer_instance._last_queried_channel = 1
+    await beurer_instance.notification_handler(char, d0_ff_payload)
+    assert beurer_instance.is_on is True
+    assert beurer_instance._light_on is True
+
+    # Query channel 2
+    beurer_instance._last_queried_channel = 2
+    await beurer_instance.notification_handler(char, d0_ff_payload)
+    assert beurer_instance.is_on is True
+    assert beurer_instance._light_on is True
 
 
 @pytest.mark.asyncio
