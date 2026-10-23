@@ -25,7 +25,9 @@ oorspronkelijke repository.
 ## Version control
 
 - Je mag je changes in `git` committen met een duidelijke commit message.
+- Elke soort wijziging een commit, probeer te voorkomen dat er meerdere tasks/changes in 1 commit zitten.
 - Behalve een `commit` doe je in `git` niks zonder mijn toestemming.
+- Gebruik de Conventional Commits standaard voor commit messages.
 
 ## Beperkingen & Constraints
 
