@@ -266,7 +266,25 @@ def test_disconnected_callback_preserves_state(beurer_instance: BeurerInstance) 
 async def test_notification_handler_short_ack_packet_preserves_state(
     beurer_instance: BeurerInstance,
 ) -> None:
-    """Test that short ACK packets (04 d0 ff) do not turn the device off."""
+    """Test that short write-ACK packets (e.g. cmd 0x37) do not turn the device off."""
+    beurer_instance._is_on = True
+    beurer_instance._light_on = True
+    beurer_instance._color_on = False
+
+    payload = bytearray([0xFE, 0xEF, 0x0C, 0x09, 0xAB, 0xBB, 0x04, 0x37, 0x01, 0x2B, 0x55, 0x0D, 0x0A])
+    char = MagicMock()
+    await beurer_instance.notification_handler(char, payload)
+
+    assert beurer_instance.is_on is True
+    assert beurer_instance._light_on is True
+    assert beurer_instance._color_on is False
+
+
+@pytest.mark.asyncio
+async def test_notification_handler_real_off_packet_turns_device_off(
+    beurer_instance: BeurerInstance,
+) -> None:
+    """Test that real device status packet (04 d0 ff) turns the device off."""
     beurer_instance._is_on = True
     beurer_instance._light_on = True
     beurer_instance._color_on = False
@@ -275,8 +293,8 @@ async def test_notification_handler_short_ack_packet_preserves_state(
     char = MagicMock()
     await beurer_instance.notification_handler(char, payload)
 
-    assert beurer_instance.is_on is True
-    assert beurer_instance._light_on is True
+    assert beurer_instance.is_on is False
+    assert beurer_instance._light_on is False
     assert beurer_instance._color_on is False
 
 

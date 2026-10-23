@@ -471,7 +471,8 @@ class BeurerInstance:
             LOGGER.debug("Received device permission response 0xF0: %s (2=granted)", perm)
             return
 
-        if is_packet and payload_len < 8:
+        # Short ACK packets for non-status commands (e.g. write confirmations)
+        if is_packet and cmd != 0xD0 and payload_len < 8:
             LOGGER.debug(
                 "Received short ACK/notification (cmd=0x%02X, payload_len=%d, data=%s) - not updating state",
                 cmd,
