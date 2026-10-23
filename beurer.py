@@ -98,6 +98,7 @@ class BeurerInstance:
         self._write_uuid: str | None = None
         self._read_uuid: str | None = None
         self._last_status_trigger: float = 0.0
+        self._reconnect_task: asyncio.Task[None] | None = None
         self._mode: ColorMode | None = ColorMode.WHITE
         self._supported_effects: list[str] = [
             "Off",
@@ -133,6 +134,25 @@ class BeurerInstance:
         self._read_uuid = None
         if self._trigger_update:
             self._trigger_update()
+        if self._reconnect_task is None or self._reconnect_task.done():
+            try:
+                loop = asyncio.get_running_loop()
+                self._reconnect_task = loop.create_task(self._auto_reconnect())
+            except RuntimeError:
+                pass
+
+    async def _auto_reconnect(self) -> None:
+        """Attempt to reconnect after a short delay following disconnection."""
+        LOGGER.debug("Scheduling auto-reconnect in 5 seconds")
+        await asyncio.sleep(5)
+        if self._device is not None and self._device.is_connected:
+            return
+        LOGGER.debug("Executing auto-reconnect")
+        try:
+            if await self.connect():
+                await self.triggerStatus()
+        except Exception as error:  # noqa: BLE001
+            LOGGER.debug("Auto-reconnect attempt failed: %s", error)
 
     def set_update_callback(self, trigger_update: Callable[[], None]) -> None:
         """Register the entity update callback.
@@ -269,7 +289,9 @@ class BeurerInstance:
             self._light_on = False
             await asyncio.sleep(0.1)
         if not self._color_on:
-            await self.turn_on()
+            await self.sendPacket([0x37, 0x02])
+            self._color_on = True
+            await asyncio.sleep(0.1)
         await self.sendPacket([0x32, r, g, b])
         self._color_on = True
         self._is_on = True
@@ -284,7 +306,9 @@ class BeurerInstance:
         LOGGER.debug("Setting to brightness %s", brightness)
         self._mode = ColorMode.RGB
         if not self._color_on:
-            await self.turn_on()
+            await self.sendPacket([0x37, 0x02])
+            self._color_on = True
+            await asyncio.sleep(0.1)
         brightness_percent = max(0, min(100, int(brightness / 255 * 100)))
         await self.sendPacket([0x31, 0x02, brightness_percent])
         self._color_brightness = brightness
@@ -292,7 +316,7 @@ class BeurerInstance:
         self._is_on = True
         await self.trigger_entity_update()
 
-    async def set_white(self, intensity: int) -> None:
+    async def set_white(self, intensity: int = 255) -> None:
         """Set white daylight intensity.
 
         Args:
@@ -306,7 +330,9 @@ class BeurerInstance:
             self._color_on = False
             await asyncio.sleep(0.1)
         if not self._light_on:
-            await self.turn_on()
+            await self.sendPacket([0x37, 0x01])
+            self._light_on = True
+            await asyncio.sleep(0.1)
         intensity_percent = max(0, min(100, int(intensity / 255 * 100)))
         # Cap at 99% to work around firmware bug where 100% in white mode
         # causes the device to switch to red/RGB mode (Deadolus#11)
@@ -332,7 +358,9 @@ class BeurerInstance:
             self._light_on = False
             await asyncio.sleep(0.1)
         if not self._color_on:
-            await self.turn_on()
+            await self.sendPacket([0x37, 0x02])
+            self._color_on = True
+            await asyncio.sleep(0.1)
         await self.sendPacket([0x34, self.find_effect_position(effect)])
         self._effect = effect
         self._color_on = True
@@ -346,28 +374,26 @@ class BeurerInstance:
             await self.connect()
         if self._mode == ColorMode.RGB:
             await self.sendPacket([0x37, 0x02])
-            LOGGER.debug(
-                "Current color state: %s, %s, %s, %s",
-                self._color_on,
-                self._rgb_color,
-                self._color_brightness,
-                self._effect,
-            )
-            if not self._color_on:
-                LOGGER.debug("Restoring last known color state")
-                self._color_on = True
-                await asyncio.sleep(0.2)
-                if self._effect:
-                    await self.set_effect(self._effect)
-                    await asyncio.sleep(0.2)
-                await self.set_color(self._rgb_color)
-                if self._color_brightness:
-                    await self.set_color_brightness(self._color_brightness)
             self._color_on = True
+            if self._effect and self._effect != "Off":
+                await asyncio.sleep(0.1)
+                await self.sendPacket([0x34, self.find_effect_position(self._effect)])
+            elif self._rgb_color:
+                await asyncio.sleep(0.1)
+                await self.sendPacket([0x32, self._rgb_color[0], self._rgb_color[1], self._rgb_color[2]])
+            if self._color_brightness is not None:
+                await asyncio.sleep(0.1)
+                brightness_percent = max(0, min(100, int(self._color_brightness / 255 * 100)))
+                await self.sendPacket([0x31, 0x02, brightness_percent])
         else:
             self._mode = ColorMode.WHITE
             self._light_on = True
+            if self._brightness is None:
+                self._brightness = 255
             await self.sendPacket([0x37, 0x01])
+            await asyncio.sleep(0.1)
+            intensity_percent = max(0, min(99, int(self._brightness / 255 * 100)))
+            await self.sendPacket([0x31, 0x01, intensity_percent])
         self._is_on = True
         await self.trigger_entity_update()
 
@@ -382,10 +408,14 @@ class BeurerInstance:
         self._color_on = False
         await self.trigger_entity_update()
 
-    async def triggerStatus(self) -> None:
-        """Request status updates from the device with debouncing."""
+    async def triggerStatus(self, force: bool = False) -> None:
+        """Request status updates from the device with debouncing.
+
+        Args:
+            force: If True, bypass the debouncing cooldown.
+        """
         now = time.monotonic()
-        if now - self._last_status_trigger < 2.0:
+        if not force and now - self._last_status_trigger < 2.0:
             LOGGER.debug("Skipping triggerStatus, called too recently")
             return
         self._last_status_trigger = now
@@ -410,8 +440,49 @@ class BeurerInstance:
             res: Notification payload bytes.
         """
         LOGGER.debug("Received notification: %s", "".join(format(x, " 03x") for x in res))
+        if len(res) < 8:
+            return
+
+        is_packet = len(res) >= 6 and res[0] == 0xFE and res[1] == 0xEF
+        payload_len = res[6] if is_packet else len(res) - 7
+        cmd = res[7]
+
+        if cmd == 0xE8:
+            new_state = not self._is_on
+            LOGGER.debug(
+                "Received device event 0xE8 (button toggle, is_on was %s -> now %s)",
+                self._is_on,
+                new_state,
+            )
+            self._is_on = new_state
+            if not new_state:
+                self._light_on = False
+                self._color_on = False
+            else:
+                self._light_on = True
+                self._mode = ColorMode.WHITE
+                if self._brightness is None:
+                    self._brightness = 255
+            await self.trigger_entity_update()
+            return
+
+        if cmd == 0xF0:
+            perm = res[8] if len(res) > 8 else None
+            LOGGER.debug("Received device permission response 0xF0: %s (2=granted)", perm)
+            return
+
+        if is_packet and payload_len < 8:
+            LOGGER.debug(
+                "Received short ACK/notification (cmd=0x%02X, payload_len=%d, data=%s) - not updating state",
+                cmd,
+                payload_len,
+                "".join(format(x, " 02x") for x in res[7:]),
+            )
+            return
+
         if len(res) < 9:
             return
+
         reply_version = res[8]
         LOGGER.debug("Reply version is %s", reply_version)
         if reply_version == 1:
@@ -420,7 +491,12 @@ class BeurerInstance:
                 self._brightness = int(res[10] * 255 / 100) if len(res) > 10 and res[10] > 0 else None
                 self._mode = ColorMode.WHITE
             self._is_on = bool(self._light_on or self._color_on)
-            LOGGER.debug("Short version, on: %s, brightness: %s", self._is_on, self._brightness)
+            LOGGER.debug(
+                "White status: is_on=%s, light_on=%s, brightness=%s",
+                self._is_on,
+                self._light_on,
+                self._brightness,
+            )
             await self.trigger_entity_update()
         elif reply_version == 2:
             self._color_on = res[9] == 1
@@ -433,28 +509,40 @@ class BeurerInstance:
                 self._rgb_color = (res[13], res[14], res[15])
             self._is_on = bool(self._light_on or self._color_on)
             LOGGER.debug(
-                "Long version, on: %s, brightness: %s, rgb color: %s, effect: %s",
+                "RGB status: is_on=%s, color_on=%s, brightness=%s, rgb color=%s, effect=%s",
                 self._is_on,
+                self._color_on,
                 self._color_brightness,
                 self._rgb_color,
                 self._effect,
             )
-            LOGGER.debug("res: %s, light_on %s, color_on %s", res[9] if len(res) > 9 else None, self._light_on, self._color_on)
+            LOGGER.debug(
+                "res: %s, light_on %s, color_on %s",
+                res[9] if len(res) > 9 else None,
+                self._light_on,
+                self._color_on,
+            )
             await self.trigger_entity_update()
         elif reply_version == 255:
             self._is_on = False
             self._light_on = False
             self._color_on = False
-            LOGGER.debug("Device off")
+            LOGGER.debug("Device off (reply_version 255)")
             await self.trigger_entity_update()
         elif reply_version == 0:
-            LOGGER.debug("Device is going to shut down")
+            LOGGER.debug("Device is going to shut down (reply_version 0)")
             self._is_on = False
             self._light_on = False
             self._color_on = False
             await self.trigger_entity_update()
         else:
-            LOGGER.debug("Received unknown notification")
+            LOGGER.debug(
+                "Received unknown notification version %s (cmd=0x%02X, len=%d): %s",
+                reply_version,
+                cmd,
+                len(res),
+                "".join(format(x, " 02x") for x in res),
+            )
 
     async def connect(self) -> bool:
         """Connect to device and set up notifications.
@@ -508,9 +596,9 @@ class BeurerInstance:
                 await self.disconnect()
                 return False
 
-        # Request initial status outside the connect lock
-        await asyncio.sleep(0.1)
-        await self.triggerStatus()
+        if self._reconnect_task is not None and not self._reconnect_task.done():
+            self._reconnect_task.cancel()
+            self._reconnect_task = None
         return True
 
     async def update(self) -> None:
@@ -532,6 +620,9 @@ class BeurerInstance:
     async def disconnect(self) -> None:
         """Disconnect from device and mark entity as off."""
         LOGGER.debug("Disconnecting")
+        if self._reconnect_task is not None and not self._reconnect_task.done():
+            self._reconnect_task.cancel()
+            self._reconnect_task = None
         if self._device is not None:
             try:
                 if self._device.is_connected:

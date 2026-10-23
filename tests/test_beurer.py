@@ -212,6 +212,86 @@ async def test_notification_handler_reply_version_0_shutdown(beurer_instance: Be
 
 
 @pytest.mark.asyncio
+async def test_notification_handler_event_e8_turns_on_sets_brightness(
+    beurer_instance: BeurerInstance,
+) -> None:
+    """Test handling event 0xE8 toggles light on and initializes brightness."""
+    beurer_instance._is_on = False
+    beurer_instance._brightness = None
+
+    payload = bytearray([0xFE, 0xEF, 0x0C, 0x0B, 0xAB, 0xBB, 0x06, 0xE8, 0x00, 0x00, 0x00, 0xEE, 0x55, 0x0D, 0x0A])
+    char = MagicMock()
+    await beurer_instance.notification_handler(char, payload)
+
+    assert beurer_instance.is_on is True
+    assert beurer_instance._light_on is True
+    assert beurer_instance._mode == ColorMode.WHITE
+    assert beurer_instance._brightness == 255
+
+
+@pytest.mark.asyncio
+async def test_notification_handler_event_e8_toggles_off(
+    beurer_instance: BeurerInstance,
+) -> None:
+    """Test handling event 0xE8 toggles light off when already on."""
+    beurer_instance._is_on = True
+    beurer_instance._light_on = True
+    beurer_instance._color_on = False
+
+    payload = bytearray([0xFE, 0xEF, 0x0C, 0x0B, 0xAB, 0xBB, 0x06, 0xE8, 0x00, 0x00, 0x00, 0xEE, 0x55, 0x0D, 0x0A])
+    char = MagicMock()
+    await beurer_instance.notification_handler(char, payload)
+
+    assert beurer_instance.is_on is False
+    assert beurer_instance._light_on is False
+    assert beurer_instance._color_on is False
+
+
+def test_disconnected_callback_preserves_state(beurer_instance: BeurerInstance) -> None:
+    """Test that disconnected callback resets connection without marking light as off."""
+    beurer_instance._is_on = True
+    beurer_instance._light_on = True
+    beurer_instance._color_on = False
+    mock_client = MagicMock()
+
+    beurer_instance.disconnected_callback(mock_client)
+
+    assert beurer_instance.is_on is True
+    assert beurer_instance._light_on is True
+    assert beurer_instance._color_on is False
+    assert beurer_instance._device is None
+
+
+@pytest.mark.asyncio
+async def test_notification_handler_short_ack_packet_preserves_state(
+    beurer_instance: BeurerInstance,
+) -> None:
+    """Test that short ACK packets (04 d0 ff) do not turn the device off."""
+    beurer_instance._is_on = True
+    beurer_instance._light_on = True
+    beurer_instance._color_on = False
+
+    payload = bytearray([0xFE, 0xEF, 0x0C, 0x09, 0xAB, 0xBB, 0x04, 0xD0, 0xFF, 0x2B, 0x55, 0x0D, 0x0A])
+    char = MagicMock()
+    await beurer_instance.notification_handler(char, payload)
+
+    assert beurer_instance.is_on is True
+    assert beurer_instance._light_on is True
+    assert beurer_instance._color_on is False
+
+
+@pytest.mark.asyncio
+async def test_notification_handler_permission_response(beurer_instance: BeurerInstance) -> None:
+    """Test that permission responses (0xF0) are handled safely without corrupting state."""
+    beurer_instance._is_on = False
+    payload = bytearray([0xFE, 0xEF, 0x0C, 0x09, 0xAB, 0xBB, 0x04, 0xF0, 0x02, 0x2B, 0x55, 0x0D, 0x0A])
+    char = MagicMock()
+    await beurer_instance.notification_handler(char, payload)
+
+    assert beurer_instance.is_on is False
+
+
+@pytest.mark.asyncio
 async def test_notification_handler_short_packet(beurer_instance: BeurerInstance) -> None:
     """Test handling malformed short packets without raising exceptions."""
     char = MagicMock()
@@ -221,7 +301,7 @@ async def test_notification_handler_short_packet(beurer_instance: BeurerInstance
 
 @pytest.mark.asyncio
 async def test_turn_on_defaults_to_white_mode(beurer_instance: BeurerInstance) -> None:
-    """Test that turn_on defaults to white daylight channel."""
+    """Test that turn_on defaults to white daylight channel and initializes brightness."""
     sent_packets: list[bytearray] = []
 
     async def mock_write(data: bytearray) -> None:
@@ -232,11 +312,15 @@ async def test_turn_on_defaults_to_white_mode(beurer_instance: BeurerInstance) -
 
     await beurer_instance.turn_on()
 
-    assert len(sent_packets) == 1
-    packet = list(sent_packets[0])
-    assert packet[7] == 0x37
-    assert packet[8] == 0x01
+    assert len(sent_packets) == 2
+    pkt1 = list(sent_packets[0])
+    assert pkt1[7] == 0x37
+    assert pkt1[8] == 0x01
+    pkt2 = list(sent_packets[1])
+    assert pkt2[7] == 0x31
+    assert pkt2[8] == 0x01
     assert beurer_instance.color_mode == ColorMode.WHITE
+    assert beurer_instance.white_brightness == 255
 
 
 @pytest.mark.asyncio
@@ -308,8 +392,8 @@ async def test_write_handles_timeout_gracefully(mock_device: BLEDevice) -> None:
 
 
 @pytest.mark.asyncio
-async def test_connect_unlocks_before_trigger_status(beurer_instance: BeurerInstance) -> None:
-    """Test that connect releases the connect lock before calling triggerStatus."""
+async def test_connect_cancels_active_reconnect_task(beurer_instance: BeurerInstance) -> None:
+    """Test that a successful connect cancels any pending auto-reconnect task."""
     mock_client = MagicMock()
     mock_client.is_connected = True
     char1 = MagicMock()
@@ -319,19 +403,16 @@ async def test_connect_unlocks_before_trigger_status(beurer_instance: BeurerInst
     mock_client.services.characteristics.values.return_value = [char1, char2]
     mock_client.start_notify = AsyncMock()
 
-    lock_held_during_status = True
-
-    async def mock_trigger_status() -> None:
-        nonlocal lock_held_during_status
-        lock_held_during_status = beurer_instance._connect_lock.locked()
-
-    beurer_instance.triggerStatus = mock_trigger_status
+    mock_task = MagicMock()
+    mock_task.done.return_value = False
+    beurer_instance._reconnect_task = mock_task
 
     with patch("custom_components.beurer.beurer.establish_connection", AsyncMock(return_value=mock_client)):
         success = await beurer_instance.connect()
 
     assert success is True
-    assert lock_held_during_status is False
+    mock_task.cancel.assert_called_once()
+    assert beurer_instance._reconnect_task is None
 
 
 @pytest.mark.asyncio
@@ -348,6 +429,7 @@ async def test_trigger_status_debounced(beurer_instance: BeurerInstance) -> None
     # First call: should send two status packets [0x30, 0x01] and [0x30, 0x02]
     await beurer_instance.triggerStatus()
     assert len(sent_packets) == 2
+    assert sent_packets == [[0x30, 0x01], [0x30, 0x02]]
 
     # Second immediate call: should be debounced and not send more packets
     await beurer_instance.triggerStatus()

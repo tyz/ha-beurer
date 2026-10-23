@@ -42,6 +42,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         change: bluetooth.BluetoothChange,
     ) -> None:
         """Update BLE device reference from Bluetooth advertisement."""
+        mfr_data = service_info.manufacturer_data if isinstance(service_info.manufacturer_data, dict) else {}
+        svc_data = service_info.service_data if isinstance(service_info.service_data, dict) else {}
+        LOGGER.debug(
+            "BLE advertisement from %s: name=%s, RSSI=%s, mfr_data=%s, service_data=%s, uuids=%s",
+            getattr(service_info, "address", None),
+            getattr(service_info, "name", None),
+            getattr(service_info, "rssi", None),
+            {k: v.hex() if isinstance(v, (bytes, bytearray)) else v for k, v in mfr_data.items()},
+            {k: v.hex() if isinstance(v, (bytes, bytearray)) else v for k, v in svc_data.items()},
+            getattr(service_info, "service_uuids", None),
+        )
         instance.set_device(service_info.device)
 
     entry.async_on_unload(
@@ -50,7 +61,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             _async_update_ble,
             bluetooth.BluetoothCallbackMatcher(
                 address=address,
-                connectable=True,
             ),
             bluetooth.BluetoothScanningMode.PASSIVE,
         )
