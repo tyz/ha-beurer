@@ -332,12 +332,32 @@ async def test_disconnected_callback_ignores_when_connect_locked(beurer_instance
 async def test_notification_handler_short_ack_packet_preserves_state(
     beurer_instance: BeurerInstance,
 ) -> None:
-    """Test that short ACK packets (04 d0 ff, 04 37 01) do not turn the device off."""
+    """Test that short write-ACK packets (e.g. 04 37 01) do not modify state."""
     beurer_instance._is_on = True
     beurer_instance._light_on = True
     beurer_instance._color_on = False
 
-    # Short D0 FF ACK packet from query response
+    # Short 37 01 write ACK packet
+    payload_37 = bytearray([0xFE, 0xEF, 0x0C, 0x09, 0xAB, 0xBB, 0x04, 0x37, 0x01, 0x2B, 0x55, 0x0D, 0x0A])
+    char = MagicMock()
+    await beurer_instance.notification_handler(char, payload_37)
+
+    assert beurer_instance.is_on is True
+    assert beurer_instance._light_on is True
+    assert beurer_instance._color_on is False
+
+
+@pytest.mark.asyncio
+async def test_notification_handler_channel_off_preserves_other_active_channel(
+    beurer_instance: BeurerInstance,
+) -> None:
+    """Test that receiving 04 D0 FF for an inactive channel preserves the active channel."""
+    # When white light is active, querying channel 2 (moodlight) returns 04 D0 FF
+    beurer_instance._is_on = True
+    beurer_instance._light_on = True
+    beurer_instance._color_on = False
+    beurer_instance._last_queried_channel = 2
+
     payload_d0 = bytearray([0xFE, 0xEF, 0x0C, 0x09, 0xAB, 0xBB, 0x04, 0xD0, 0xFF, 0x2B, 0x55, 0x0D, 0x0A])
     char = MagicMock()
     await beurer_instance.notification_handler(char, payload_d0)
@@ -346,13 +366,36 @@ async def test_notification_handler_short_ack_packet_preserves_state(
     assert beurer_instance._light_on is True
     assert beurer_instance._color_on is False
 
-    # Short 37 01 write ACK packet
-    payload_37 = bytearray([0xFE, 0xEF, 0x0C, 0x09, 0xAB, 0xBB, 0x04, 0x37, 0x01, 0x2B, 0x55, 0x0D, 0x0A])
-    await beurer_instance.notification_handler(char, payload_37)
+    # When moodlight is active, querying channel 1 (daylight) returns 04 D0 FF
+    beurer_instance._is_on = True
+    beurer_instance._light_on = False
+    beurer_instance._color_on = True
+    beurer_instance._last_queried_channel = 1
+
+    await beurer_instance.notification_handler(char, payload_d0)
+
+    assert beurer_instance.is_on is True
+    assert beurer_instance._light_on is False
+    assert beurer_instance._color_on is True
+
+
+@pytest.mark.asyncio
+async def test_notification_handler_short_status_packet_updates_state(
+    beurer_instance: BeurerInstance,
+) -> None:
+    """Test that a short status packet (payload_len=6) updates state correctly."""
+    beurer_instance._is_on = False
+    beurer_instance._light_on = False
+
+    # payload_len = 6 (cmd 0xD0, reply_version 1, state 1, brightness 50)
+    payload = bytearray([0xFE, 0xEF, 0x0C, 0x0B, 0xAB, 0xBB, 0x06, 0xD0, 0x01, 0x01, 0x32, 0x00, 0x55, 0x0D, 0x0A])
+    char = MagicMock()
+    await beurer_instance.notification_handler(char, payload)
 
     assert beurer_instance.is_on is True
     assert beurer_instance._light_on is True
-    assert beurer_instance._color_on is False
+    assert beurer_instance.color_mode == ColorMode.WHITE
+    assert beurer_instance.white_brightness == int(50 * 255 / 100)
 
 
 @pytest.mark.asyncio
@@ -537,6 +580,8 @@ async def test_trigger_status_debounced(beurer_instance: BeurerInstance) -> None
 
     async def mock_send(packet: list[int]) -> None:
         sent_packets.append(packet)
+        if beurer_instance._status_response_event is not None:
+            beurer_instance._status_response_event.set()
 
     beurer_instance.sendPacket = mock_send
     beurer_instance._last_status_trigger = 0.0
