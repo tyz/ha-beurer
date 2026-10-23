@@ -6,7 +6,7 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from bleak import BLEDevice
+from bleak import BleakError, BLEDevice
 from custom_components.beurer.beurer import BeurerInstance
 from homeassistant.components.light import ColorMode
 
@@ -644,3 +644,19 @@ async def test_trigger_reconnect_lifecycle(beurer_instance: BeurerInstance) -> N
     beurer_instance.trigger_reconnect()
     assert beurer_instance._reconnect_task is not None
     beurer_instance._reconnect_task.cancel()
+
+
+@pytest.mark.asyncio
+async def test_connect_suppresses_already_shutdown_error(beurer_instance: BeurerInstance) -> None:
+    """Test that connection error during shutdown is logged as debug instead of error."""
+    with (
+        patch(
+            "custom_components.beurer.beurer.establish_connection",
+            side_effect=BleakError("Failed to connect after 3 attempt(s): Bluetooth is already shutdown"),
+        ),
+        patch("custom_components.beurer.beurer.LOGGER") as mock_logger,
+    ):
+        result = await beurer_instance.connect()
+        assert result is False
+        mock_logger.error.assert_not_called()
+        assert any("shutdown" in str(call).lower() for call in mock_logger.debug.call_args_list)

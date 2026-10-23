@@ -20,6 +20,8 @@ def mock_hass() -> MagicMock:
     """Return a mock HomeAssistant instance."""
     hass = MagicMock()
     hass.data = {}
+    hass.bus = MagicMock()
+    hass.bus.async_listen_once = MagicMock()
     hass.config_entries = MagicMock()
     hass.config_entries.async_forward_entry_setups = AsyncMock(return_value=True)
     hass.config_entries.async_unload_platforms = AsyncMock(return_value=True)
@@ -97,3 +99,28 @@ async def test_async_unload_entry(mock_hass: MagicMock, mock_entry: ConfigEntry)
     assert result is True
     assert mock_entry.entry_id not in mock_hass.data[DOMAIN]
     mock_instance.disconnect.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_async_setup_entry_registers_stop_listener(mock_hass: MagicMock, mock_entry: ConfigEntry) -> None:
+    """Test that setup registers a stop event listener to disconnect on shutdown."""
+    fake_ble_device = BLEDevice("57:4C:42:80:71:BA", "TL100_71BA")
+    stop_callback = None
+
+    def mock_listen_once(event: str, cb: Any) -> MagicMock:
+        nonlocal stop_callback
+        if event == "homeassistant_stop":
+            stop_callback = cb
+        return MagicMock()
+
+    mock_hass.bus.async_listen_once.side_effect = mock_listen_once
+
+    with patch.object(bluetooth, "async_ble_device_from_address", return_value=fake_ble_device):
+        result = await async_setup_entry(mock_hass, mock_entry)
+        assert result is True
+        assert stop_callback is not None
+
+        instance = mock_hass.data[DOMAIN][mock_entry.entry_id]
+        with patch.object(instance, "disconnect", new_callable=AsyncMock) as mock_disconnect:
+            await stop_callback(MagicMock())
+            mock_disconnect.assert_awaited_once()

@@ -638,8 +638,11 @@ class BeurerInstance:
                 await self._device.start_notify(self._read_uuid, self.notification_handler)
             except Exception as error:  # noqa: BLE001
                 track = traceback.format_exc()
-                LOGGER.debug(track)
-                LOGGER.error("Error connecting: %s", error)
+                if "already shutdown" in str(error).lower() or self._closing:
+                    LOGGER.debug("Connection aborted during shutdown: %s", error)
+                else:
+                    LOGGER.debug(track)
+                    LOGGER.error("Error connecting: %s", error)
                 await self.disconnect()
                 return False
 

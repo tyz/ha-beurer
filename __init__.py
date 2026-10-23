@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from homeassistant.components import bluetooth
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_MAC
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.const import CONF_MAC, EVENT_HOMEASSISTANT_STOP
+from homeassistant.core import Event, HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryNotReady
 
 from .beurer import BeurerInstance
@@ -65,6 +65,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             bluetooth.BluetoothScanningMode.PASSIVE,
         )
     )
+
+    async def _async_stop(event: Event) -> None:
+        """Close connection on Home Assistant stop."""
+        await instance.disconnect()
+
+    entry.async_on_unload(hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, _async_stop))
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True

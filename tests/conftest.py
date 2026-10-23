@@ -70,11 +70,18 @@ def _setup_mock_modules() -> None:
         bleak_mod.BleakScanner = MockBleakScanner  # type: ignore[attr-defined]
         sys.modules["bleak"] = bleak_mod
 
+        bleak_exc = ModuleType("bleak.exc")
+        bleak_exc.BleakError = MockBleakError  # type: ignore[attr-defined]
+        sys.modules["bleak.exc"] = bleak_exc
+
     # Mock bleak_retry_connector
     if "bleak_retry_connector" not in sys.modules:
         brc_mod = ModuleType("bleak_retry_connector")
 
         class MockBleakClientWithServiceCache(sys.modules["bleak"].BleakClient):  # type: ignore[misc]
+            pass
+
+        class MockBleakConnectionError(Exception):
             pass
 
         async def mock_establish_connection(
@@ -85,6 +92,7 @@ def _setup_mock_modules() -> None:
             return client
 
         brc_mod.BleakClientWithServiceCache = MockBleakClientWithServiceCache  # type: ignore[attr-defined]
+        brc_mod.BleakConnectionError = MockBleakConnectionError  # type: ignore[attr-defined]
         brc_mod.establish_connection = mock_establish_connection  # type: ignore[attr-defined]
         sys.modules["bleak_retry_connector"] = brc_mod
 
@@ -101,11 +109,13 @@ def _setup_mock_modules() -> None:
             return func
 
         ha_core.callback = callback  # type: ignore[attr-defined]
+        ha_core.Event = MagicMock()  # type: ignore[attr-defined]
         sys.modules["homeassistant.core"] = ha_core
 
         # const
         ha_const = ModuleType("homeassistant.const")
         ha_const.CONF_MAC = "mac"  # type: ignore[attr-defined]
+        ha_const.EVENT_HOMEASSISTANT_STOP = "homeassistant_stop"  # type: ignore[attr-defined]
         sys.modules["homeassistant.const"] = ha_const
 
         # exceptions
