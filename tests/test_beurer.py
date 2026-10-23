@@ -332,14 +332,23 @@ async def test_disconnected_callback_ignores_when_connect_locked(beurer_instance
 async def test_notification_handler_short_ack_packet_preserves_state(
     beurer_instance: BeurerInstance,
 ) -> None:
-    """Test that short write-ACK packets (e.g. cmd 0x37) do not turn the device off."""
+    """Test that short ACK packets (04 d0 ff, 04 37 01) do not turn the device off."""
     beurer_instance._is_on = True
     beurer_instance._light_on = True
     beurer_instance._color_on = False
 
-    payload = bytearray([0xFE, 0xEF, 0x0C, 0x09, 0xAB, 0xBB, 0x04, 0x37, 0x01, 0x2B, 0x55, 0x0D, 0x0A])
+    # Short D0 FF ACK packet from query response
+    payload_d0 = bytearray([0xFE, 0xEF, 0x0C, 0x09, 0xAB, 0xBB, 0x04, 0xD0, 0xFF, 0x2B, 0x55, 0x0D, 0x0A])
     char = MagicMock()
-    await beurer_instance.notification_handler(char, payload)
+    await beurer_instance.notification_handler(char, payload_d0)
+
+    assert beurer_instance.is_on is True
+    assert beurer_instance._light_on is True
+    assert beurer_instance._color_on is False
+
+    # Short 37 01 write ACK packet
+    payload_37 = bytearray([0xFE, 0xEF, 0x0C, 0x09, 0xAB, 0xBB, 0x04, 0x37, 0x01, 0x2B, 0x55, 0x0D, 0x0A])
+    await beurer_instance.notification_handler(char, payload_37)
 
     assert beurer_instance.is_on is True
     assert beurer_instance._light_on is True
@@ -347,15 +356,16 @@ async def test_notification_handler_short_ack_packet_preserves_state(
 
 
 @pytest.mark.asyncio
-async def test_notification_handler_real_off_packet_turns_device_off(
+async def test_notification_handler_full_off_packet_turns_device_off(
     beurer_instance: BeurerInstance,
 ) -> None:
-    """Test that real device status packet (04 d0 ff) turns the device off."""
+    """Test that a full status packet with reply_version 255 turns the device off."""
     beurer_instance._is_on = True
     beurer_instance._light_on = True
     beurer_instance._color_on = False
 
-    payload = bytearray([0xFE, 0xEF, 0x0C, 0x09, 0xAB, 0xBB, 0x04, 0xD0, 0xFF, 0x2B, 0x55, 0x0D, 0x0A])
+    # Framed full status packet: payload_len = 8 (cmd 0xD0, reply_version 255, state 0, ...)
+    payload = bytearray([0xFE, 0xEF, 0x0C, 0x0D, 0xAB, 0xBB, 0x08, 0xD0, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x2B, 0x55, 0x0D, 0x0A])
     char = MagicMock()
     await beurer_instance.notification_handler(char, payload)
 
