@@ -570,12 +570,15 @@ class BeurerInstance:
             if not new_state:
                 self._light_on = False
                 self._color_on = False
+                await self.sendPacket([CMD_DISABLE_CHANNEL, CHANNEL_WHITE])
+                await self.sendPacket([CMD_DISABLE_CHANNEL, CHANNEL_COLOR])
             else:
                 self._light_on = True
                 self._color_on = False
                 self._mode = ColorMode.WHITE
                 if self._brightness is None:
                     self._brightness = 255
+                await self.sendPacket([CMD_ENABLE_CHANNEL, CHANNEL_WHITE])
             await self.trigger_entity_update()
             return
 
@@ -677,17 +680,27 @@ class BeurerInstance:
             if not self._status_lock.locked():
                 await self.trigger_entity_update()
         elif channel == CHANNEL_OFF:
-            # channel 255 (04 D0 FF) is an empty/hardware-mode ACK with no channel
-            # state data (sent e.g. when the lamp is operating in standalone/hardware mode
-            # after being toggled via physical button, or for an inactive BLE channel).
-            # It must not force channels off or overwrite the existing state.
             LOGGER.debug(
-                "Received empty/hardware ACK (channel 255) for channel %s - preserving state (is_on=%s, light_on=%s, color_on=%s)",
+                "Received channel off (channel 255) for queried channel %s",
+                self._last_queried_channel,
+            )
+            if self._last_queried_channel == CHANNEL_WHITE:
+                self._light_on = False
+            elif self._last_queried_channel == CHANNEL_COLOR:
+                self._color_on = False
+            else:
+                self._light_on = False
+                self._color_on = False
+            self._is_on = bool(self._light_on or self._color_on)
+            LOGGER.debug(
+                "Channel %s off (channel 255): is_on=%s, light_on=%s, color_on=%s",
                 self._last_queried_channel,
                 self._is_on,
                 self._light_on,
                 self._color_on,
             )
+            if not self._status_lock.locked():
+                await self.trigger_entity_update()
         elif channel == CHANNEL_SHUTDOWN:
             LOGGER.debug("Device is going to shut down (channel 0)")
             self._is_on = False
