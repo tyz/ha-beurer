@@ -29,10 +29,11 @@ the rest comes from the original repository.
 * **Architecture Separation:** Keep the underlying device communication / API logic cleanly decoupled from Home Assistant entity classes (preferably wrapped in an external client library or dedicated coordinator).
 * **Error Handling:** Catch raw protocol/socket/BLE exceptions at the boundary and translate them into standard Home Assistant exceptions (such as `HomeAssistantError` or `ConfigEntryNotReady`).
 * **Naming Conventions:** Always use "Home Assistant" (two words, never hyphenated) in code, comments, and documentation.
+* **Quality Scale:** Although it's not a requirement for custom integration it would be nice to try to aim for the Platinum tier. (for details see https://www.home-assistant.io/docs/quality_scale/)
 
 ## Version Control
 
-* You may commit your changes in `git` to the `main` branch with a clear commit message.
+* You may commit your changes in `git` to the `main` branch with a clear commit message. Preferably a multi-line commit messages with a summary line followed by an explanatory body describing the context and key changes.
 * Use the Conventional Commits standard for commit messages.
 * One commit per type of change; try to avoid grouping multiple tasks/changes into a single commit.
 * Other than a `commit`, do not perform any actions in `git` without my permission.
@@ -49,11 +50,11 @@ These optional files contain tasks that need to be done (not necessarily right
 away!). Once you have completed them and I have approved them, you may check
 them off (`[ ]` becomes `[x]`).
 
-* `BUGS.md`: Contains additional information about bugs you need to look into.
-* `FEATURES.md`: Contains a list of features that need to be implemented.
+* `TODO.md`: Contains the 3 sections **New features**, **Improvements** and **Bugs**
 
-## Bluetooth
+## Documentation
 
+- `README.md` contains a list of instructions and features. Keep it up to date when adding new features.
 - See `README.bluetooth.md` for the BLE protocol specification used by this
   lamp. Please update it you think there's some info incorrect or missing.
 
