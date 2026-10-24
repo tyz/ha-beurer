@@ -12,9 +12,10 @@ The device advertises with the name prefix `TL100` (or `TL 100`) and exposes the
 | **Write Characteristic** | `8B00ACE7-EB0B-49B0-BBE9-9AEE0A26E1A3` | Write / Write Without Response | Commands from client to lamp |
 | **Notify Characteristic** | `0734594A-A8E7-4B1A-A6B1-CD5243059A57` | Notify / Read | Status notifications and spontaneous events from lamp |
 
-Standard Device Information Service is also exposed:
-- **Service**: `0000180A-0000-1000-8000-00805F9B34FB`
-- **Software Revision Characteristic**: `00002A28-0000-1000-8000-00805F9B34FB` (GATT Read: ASCII string of firmware version)
+### 1.1 Device Information & Firmware Revision
+
+- **WL 75**: Exposes the standard Bluetooth Device Information Service (`0000180A-0000-1000-8000-00805F9B34FB`) and Software Revision characteristic (`00002A28-0000-1000-8000-00805F9B34FB`), which the official Beurer LightUp app reads upon connection.
+- **TL 100**: Does **not** expose the Device Information Service (`0x180A`) or revision characteristics (`0x2A28` / `0x2A26`), nor any proprietary protocol command to query firmware version. The official Beurer LightUp app does not query or display firmware version for the TL 100. Its GATT table exposes only the vendor service above, vendor auxiliary characteristics (`BA04C4B2-...`, `E06D5EFB-...`), and the Telink OTA update service (`00010203-0405-0607-0809-0A0B0C0D2B12`).
 
 ---
 

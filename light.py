@@ -21,6 +21,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_MAC
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.util.color import match_max_scale
@@ -69,6 +70,7 @@ class BeurerLight(LightEntity):
     async def async_added_to_hass(self) -> None:
         """Register callbacks after being added to Home Assistant."""
         self._instance.set_update_callback(self.update_callback)
+        self._async_update_device_info()
         if not self._instance.is_connected:
             self._instance.trigger_reconnect()
         else:
@@ -76,7 +78,30 @@ class BeurerLight(LightEntity):
 
     def update_callback(self) -> None:
         """Write updated state to Home Assistant state machine."""
+        self._async_update_device_info()
         self.async_write_ha_state()
+
+    def _async_update_device_info(self) -> None:
+        """Update device registry if firmware version is now known."""
+        if not self.hass or not self._instance.firmware_version:
+            return
+        dev_reg = dr.async_get(self.hass)
+        device_entry = dev_reg.async_get_device(identifiers={(DOMAIN, self._instance.mac)})
+        if device_entry:
+            if device_entry.sw_version != self._instance.firmware_version:
+                dev_reg.async_update_device(
+                    device_entry.id,
+                    sw_version=self._instance.firmware_version,
+                )
+        else:
+            dev_reg.async_get_or_create(
+                config_entry_id=self._entry_id,
+                identifiers={(DOMAIN, self._instance.mac)},
+                manufacturer="Beurer",
+                model="TL 100",
+                name=self.name,
+                sw_version=self._instance.firmware_version,
+            )
 
     @property
     def available(self) -> bool:
@@ -132,12 +157,15 @@ class BeurerLight(LightEntity):
     @property
     def device_info(self) -> DeviceInfo:
         """Return device registry information."""
-        return DeviceInfo(
+        info = DeviceInfo(
             identifiers={(DOMAIN, self._instance.mac)},
             name=self.name,
             manufacturer="Beurer",
             model="TL 100",
         )
+        if self._instance.firmware_version:
+            info["sw_version"] = self._instance.firmware_version
+        return info
 
     def _transform_color_brightness(self, color: tuple[int, int, int], set_brightness: int) -> tuple[int, ...]:
         """Scale RGB colors according to desired brightness.

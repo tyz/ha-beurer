@@ -242,7 +242,63 @@ def _setup_mock_modules() -> None:
         def format_mac(mac: str) -> str:
             return mac.lower().replace(":", "")
 
+        class DeviceEntry:
+            def __init__(
+                self,
+                id: str = "mock_device_id",
+                identifiers: set[tuple[str, str]] | None = None,
+                sw_version: str | None = None,
+                manufacturer: str | None = None,
+                model: str | None = None,
+                name: str | None = None,
+                **kwargs: Any,
+            ) -> None:
+                self.id = id
+                self.identifiers = identifiers or set()
+                self.sw_version = sw_version
+                self.manufacturer = manufacturer
+                self.model = model
+                self.name = name
+                for key, val in kwargs.items():
+                    setattr(self, key, val)
+
+        class MockDeviceRegistry:
+            def __init__(self) -> None:
+                self.devices: dict[str, DeviceEntry] = {}
+
+            def async_get_device(self, identifiers: set[tuple[str, str]]) -> DeviceEntry | None:
+                for device in self.devices.values():
+                    if device.identifiers & identifiers:
+                        return device
+                return None
+
+            def async_update_device(self, device_id: str, **kwargs: Any) -> DeviceEntry | None:
+                device = self.devices.get(device_id)
+                if device:
+                    for key, val in kwargs.items():
+                        setattr(device, key, val)
+                return device
+
+            def async_get_or_create(self, **kwargs: Any) -> DeviceEntry:
+                identifiers = kwargs.get("identifiers", set())
+                device = self.async_get_device(identifiers)
+                if device:
+                    self.async_update_device(device.id, **kwargs)
+                    return device
+                dev_id = f"dev_{len(self.devices) + 1}"
+                new_device = DeviceEntry(id=dev_id, **kwargs)
+                self.devices[dev_id] = new_device
+                return new_device
+
+        _mock_dr_instance = MockDeviceRegistry()
+
+        def async_get(hass: Any) -> MockDeviceRegistry:
+            return _mock_dr_instance
+
         ha_dr.DeviceInfo = DeviceInfo  # type: ignore[attr-defined]
+        ha_dr.DeviceEntry = DeviceEntry  # type: ignore[attr-defined]
+        ha_dr.DeviceRegistry = MockDeviceRegistry  # type: ignore[attr-defined]
+        ha_dr.async_get = async_get  # type: ignore[attr-defined]
         ha_dr.format_mac = format_mac  # type: ignore[attr-defined]
         sys.modules["homeassistant.helpers.device_registry"] = ha_dr
 

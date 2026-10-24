@@ -780,6 +780,78 @@ async def test_connect_disables_services_cache(beurer_instance: BeurerInstance) 
 
 
 @pytest.mark.asyncio
+async def test_connect_reads_firmware_version(beurer_instance: BeurerInstance) -> None:
+    """Test that connect reads the software revision characteristic and populates firmware_version."""
+    mock_client = MagicMock()
+    mock_client.is_connected = True
+    char1 = MagicMock()
+    char1.uuid = "8B00ACE7-EB0B-49B0-BBE9-9AEE0A26E1A3"
+    char2 = MagicMock()
+    char2.uuid = "0734594A-A8E7-4B1A-A6B1-CD5243059A57"
+    char3 = MagicMock()
+    char3.uuid = "00002A28-0000-1000-8000-00805F9B34FB"
+    mock_client.services.characteristics.values.return_value = [char1, char2, char3]
+    mock_client.start_notify = AsyncMock()
+    mock_client.read_gatt_char = AsyncMock(return_value=b"V1.35\x00\n")
+
+    with patch("custom_components.beurer.beurer.establish_connection", AsyncMock(return_value=mock_client)):
+        success = await beurer_instance.connect()
+
+    assert success is True
+    mock_client.read_gatt_char.assert_awaited_once_with(char3.uuid)
+    assert beurer_instance.firmware_version == "V1.35"
+
+
+@pytest.mark.asyncio
+async def test_connect_handles_firmware_version_read_error(beurer_instance: BeurerInstance) -> None:
+    """Test that connect succeeds even if reading firmware version fails."""
+    mock_client = MagicMock()
+    mock_client.is_connected = True
+    char1 = MagicMock()
+    char1.uuid = "8B00ACE7-EB0B-49B0-BBE9-9AEE0A26E1A3"
+    char2 = MagicMock()
+    char2.uuid = "0734594A-A8E7-4B1A-A6B1-CD5243059A57"
+    char3 = MagicMock()
+    char3.uuid = "00002A28-0000-1000-8000-00805F9B34FB"
+    mock_client.services.characteristics.values.return_value = [char1, char2, char3]
+    mock_client.start_notify = AsyncMock()
+    mock_client.read_gatt_char = AsyncMock(side_effect=BleakError("Read failed"))
+
+    with patch("custom_components.beurer.beurer.establish_connection", AsyncMock(return_value=mock_client)):
+        success = await beurer_instance.connect()
+
+    assert success is True
+    mock_client.read_gatt_char.assert_awaited_once_with(char3.uuid)
+    assert beurer_instance.firmware_version is None
+
+
+@pytest.mark.asyncio
+async def test_connect_when_version_characteristic_missing(
+    beurer_instance: BeurerInstance,
+) -> None:
+    """Test that connect succeeds and leaves firmware_version as None when characteristic is missing."""
+    mock_client = MagicMock()
+    mock_client.is_connected = True
+    char1 = MagicMock()
+    char1.uuid = "8B00ACE7-EB0B-49B0-BBE9-9AEE0A26E1A3"
+    char2 = MagicMock()
+    char2.uuid = "0734594A-A8E7-4B1A-A6B1-CD5243059A57"
+    char3 = MagicMock()
+    char3.uuid = "e06d5efb-4f4a-45c0-9eb1-371ae5a14ad4"
+    char3.properties = ["read"]
+    mock_client.services.characteristics.values.return_value = [char1, char2, char3]
+    mock_client.start_notify = AsyncMock()
+    mock_client.read_gatt_char = AsyncMock()
+
+    with patch("custom_components.beurer.beurer.establish_connection", AsyncMock(return_value=mock_client)):
+        success = await beurer_instance.connect()
+
+    assert success is True
+    mock_client.read_gatt_char.assert_not_awaited()
+    assert beurer_instance.firmware_version is None
+
+
+@pytest.mark.asyncio
 async def test_trigger_status_debounced(beurer_instance: BeurerInstance) -> None:
     """Test that triggerStatus debounces multiple rapid calls."""
     sent_packets: list[list[int]] = []

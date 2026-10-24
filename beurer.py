@@ -27,6 +27,14 @@ except ImportError:
 
 WRITE_CHARACTERISTIC_UUIDS: set[str] = {"8b00ace7-eb0b-49b0-bbe9-9aee0a26e1a3"}
 READ_CHARACTERISTIC_UUIDS: set[str] = {"0734594a-a8e7-4b1a-a6b1-cd5243059a57"}
+VERSION_CHARACTERISTIC_UUIDS: set[str] = {
+    "00002a28-0000-1000-8000-00805f9b34fb",
+    "00002a28",
+    "2a28",
+    "00002a26-0000-1000-8000-00805f9b34fb",
+    "00002a26",
+    "2a26",
+}
 
 
 async def discover() -> list[BLEDevice]:
@@ -97,6 +105,8 @@ class BeurerInstance:
         self._effect: str | None = None
         self._write_uuid: str | None = None
         self._read_uuid: str | None = None
+        self._version_uuid: str | None = None
+        self._firmware_version: str | None = None
         self._last_status_trigger: float = 0.0
         self._last_queried_channel: int | None = None
         self._status_response_event: asyncio.Event | None = None
@@ -238,6 +248,11 @@ class BeurerInstance:
     def mac(self) -> str:
         """Return the device MAC address."""
         return self._mac
+
+    @property
+    def firmware_version(self) -> str | None:
+        """Return device firmware version if known."""
+        return self._firmware_version
 
     @property
     def is_on(self) -> bool:
@@ -677,6 +692,8 @@ class BeurerInstance:
                         self._write_uuid = char.uuid
                     if char_uuid in READ_CHARACTERISTIC_UUIDS:
                         self._read_uuid = char.uuid
+                    if char_uuid in VERSION_CHARACTERISTIC_UUIDS:
+                        self._version_uuid = char.uuid
 
                 if not self._read_uuid or not self._write_uuid:
                     LOGGER.error("No supported read/write UUIDs found")
@@ -688,6 +705,20 @@ class BeurerInstance:
                 LOGGER.info("Starting notifications")
 
                 await self._device.start_notify(self._read_uuid, self.notification_handler)
+
+                if self._version_uuid:
+                    try:
+                        version_bytes = await self._device.read_gatt_char(self._version_uuid)
+                        self._firmware_version = version_bytes.decode("utf-8", errors="replace").strip("\x00 \t\r\n")
+                        LOGGER.info("Firmware version: %s", self._firmware_version)
+                        await self.trigger_entity_update()
+                    except Exception as error:  # noqa: BLE001
+                        LOGGER.debug("Could not read firmware version: %s", error)
+                else:
+                    LOGGER.debug(
+                        "No standard firmware version characteristic found on device (discovered: %s)",
+                        [char.uuid for char in self._device.services.characteristics.values()],
+                    )
             except Exception as error:  # noqa: BLE001
                 track = traceback.format_exc()
                 if "already shutdown" in str(error).lower() or self._closing:
@@ -745,6 +776,7 @@ class BeurerInstance:
         self._device = None
         self._write_uuid = None
         self._read_uuid = None
+        self._version_uuid = None
         self._last_notification_cmd = None
         self._last_queried_channel = None
         self._is_on = False
