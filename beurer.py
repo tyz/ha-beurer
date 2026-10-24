@@ -176,7 +176,7 @@ class BeurerInstance:
     def _hardware_mode(self, value: bool) -> None:
         """Set hardware-mode grace period."""
         if value:
-            self._hardware_mode_until = time.monotonic() + 15.0
+            self._hardware_mode_until = time.monotonic() + 45.0
         else:
             self._hardware_mode_until = 0.0
 

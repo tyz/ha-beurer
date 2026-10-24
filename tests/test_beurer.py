@@ -688,6 +688,63 @@ async def test_button_turn_on_followed_by_reconnect_and_status_query_preserves_o
 
 
 @pytest.mark.asyncio
+async def test_button_turn_off_followed_by_reconnect_does_not_turn_on(
+    beurer_instance: BeurerInstance,
+) -> None:
+    """Test physical button turn off keeps lamp off through BLE disconnect and reconnect without sending turn-on."""
+    beurer_instance._is_on = True
+    beurer_instance._light_on = True
+    beurer_instance._color_on = False
+
+    # 1. Physical button pressed while lamp is on: emits 0xE8
+    e8_payload = bytearray([0xFE, 0xEF, 0x0C, 0x0B, 0xAB, 0xBB, 0x06, 0xE8, 0x00, 0x00, 0x00, 0xEE, 0x55, 0x0D, 0x0A])
+    char = MagicMock()
+    await beurer_instance.notification_handler(char, e8_payload)
+
+    # State is turned off, sync flag cleared, hardware mode false
+    assert beurer_instance.is_on is False
+    assert beurer_instance._light_on is False
+    assert beurer_instance._hardware_mode is False
+    assert beurer_instance._sync_channel_on_connect is False
+    assert not beurer_instance._write.called
+
+    # 2. Lamp disconnects ~2.2s later, disconnected_callback triggers auto-reconnect
+    mock_client = MagicMock()
+    mock_client.is_connected = True
+    char1 = MagicMock()
+    char1.uuid = "8b00ace7-eb0b-49b0-bbe9-9aee0a26e1a3"
+    char2 = MagicMock()
+    char2.uuid = "0734594A-A8E7-4B1A-A6B1-CD5243059A57"
+    mock_client.services.characteristics.values.return_value = [char1, char2]
+    mock_client.start_notify = AsyncMock()
+
+    sent_packets: list[list[int]] = []
+
+    async def mock_send(packet: list[int]) -> None:
+        sent_packets.append(packet)
+        if beurer_instance._status_response_event is not None:
+            beurer_instance._status_response_event.set()
+
+    beurer_instance.sendPacket = mock_send
+    beurer_instance._device = mock_client
+
+    with (
+        patch("custom_components.beurer.beurer.establish_connection", AsyncMock(return_value=mock_client)),
+        patch("asyncio.sleep", AsyncMock()),
+    ):
+        beurer_instance.disconnected_callback(mock_client)
+        assert beurer_instance.is_on is False
+        assert beurer_instance._reconnect_task is not None
+        await beurer_instance._reconnect_task
+
+    # Crucial: CMD_ENABLE_CHANNEL (0x37 0x01) was NOT sent, only status queries
+    assert sent_packets == [[0x30, 0x01], [0x30, 0x02]]
+    assert beurer_instance.is_on is False
+    assert beurer_instance._light_on is False
+    assert beurer_instance._color_on is False
+
+
+@pytest.mark.asyncio
 async def test_polling_channels_off_after_timer_turns_off_light(
     beurer_instance: BeurerInstance,
 ) -> None:
