@@ -1,6 +1,6 @@
 # Project Context & Agent Guidelines
 
-This is a Home Assistant integration for the Beurer TL-100 lamp that is no
+This is a Home Assistant integration for the Beurer TL 100 lamp that is no
 longer receiving the attention it needs. I have now forked it and want to
 maintain it so that it remains usable in the future. The latest commit is mine;
 the rest comes from the original repository.
@@ -55,7 +55,7 @@ them off (`[ ]` becomes `[x]`).
 ## Bluetooth
 
 - See `README.bluetooth.md` for the BLE protocol specification used by this
-  lamp. Please update it you think there's some info missing.
+  lamp. Please update it you think there's some info incorrect or missing.
 
 ## External Resources
 
@@ -71,4 +71,4 @@ them off (`[ ]` becomes `[x]`).
 
 * Linux, Debian/RaspberryPi OS
 * Architecture arm64
-* The agent runs in an OCI container; let me know if anything is missing.
+* You run in an OCI container; let me know if anything is missing.
