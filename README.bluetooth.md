@@ -108,15 +108,15 @@ Returned in response to `0x30` query or after parameter adjustments:
     - `res[14]` = **Green**: `0` to `255`
     - `res[15]` = **Blue**: `0` to `255`
     - `res[16]` = **Scene Index**: `0` to `10`
-  - `0xFF`: Channel disabled / inactive BLE session response (`04 D0 FF`). Sent when querying a channel that is inactive or disabled (such as when the lamp has turned off, or during a brief grace period right after a physical button press before BLE channel synchronization). Contains no payload data beyond `0xD0 0xFF`. Clients should treat this response as channel OFF, except during a brief transient grace period immediately following a physical button toggle (`0xE8`) where the lamp hardware turns on before the BLE channel is synced.
+  - `0xFF`: Empty / hardware-mode ACK (`04 D0 FF`). Sent when querying a channel that is inactive over BLE or when the lamp is operating under standalone hardware MCU control (e.g. after being toggled via physical buttons). Contains no channel state data beyond `0xD0 0xFF`. Clients should treat this response as an empty acknowledgment that preserves existing state, rather than forcing channels off or overwriting active states.
 
 ### 5.2 Device Events
 
 | Opcode | Event | Meaning & Expected Handling |
 |---|---|---|
-| `0xE8` | `TL100_DEVICE_SHUTDOWN` | Broadcast when physical power/toggle button is pressed. When turning off, device immediately drops the BLE connection. When turning on physically, the device will briefly disconnect and restart its BLE stack within ~2 seconds; clients should avoid immediate GATT writes (to prevent MCU freeze) and synchronize the channel state via `0x37 0x01` upon reconnect. |
-| `0xEB` | `RESPONSE_LIGHT_TIMER_END` | Daylight hardware timer set via BLE has elapsed; daylight channel turned off automatically. Note: When the physical timer set directly via the lamp button expires, the lamp silently turns off without broadcasting `0xEB`, but subsequent status queries return `04 D0 FF` (`CHANNEL_OFF`). |
-| `0xEC` | `RESPONSE_MOONLIGHT_TIMER_END` | Moodlight hardware timer has elapsed; moodlight channel turned off automatically. |
+| `0xE8` | `TL100_DEVICE_SHUTDOWN` | Broadcast when physical power/toggle button is pressed (emitted in bursts of up to 5 duplicate packets). Toggles lamp power state. When turning off physically, the device drops the BLE connection shortly after. When turning on physically, the device operates in hardware mode and may restart its BLE stack within ~2 seconds; clients must handle this as a local state toggle without sending GATT writes (such as `0x37 0x01`), to prevent MCU freeze or conflicts. |
+| `0xEB` | `RESPONSE_LIGHT_TIMER_END` | Daylight hardware timer set via BLE has elapsed; daylight channel turned off automatically. Clients should turn off daylight mode in state. |
+| `0xEC` | `RESPONSE_MOONLIGHT_TIMER_END` | Moodlight hardware timer set via BLE has elapsed; moodlight channel turned off automatically. Clients should turn off moodlight mode in state. |
 | `0xF0` | `RESPONSE_DEVICE_PERMISSION` | Permission response (`res[8] == 0x02` indicates control permission granted). |
 
 ---

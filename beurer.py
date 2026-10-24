@@ -140,9 +140,6 @@ class BeurerInstance:
         self._last_notification_cmd: int | None = None
         self._last_notification_data: bytearray | None = None
         self._last_notification_time: float = 0.0
-        self._hardware_mode_until: float = 0.0
-        self._sync_channel_on_connect: bool = False
-        self._channel_sync_task: asyncio.Task[None] | None = None
         self._reconnect_task: asyncio.Task[None] | None = None
         self._closing: bool = False
         self._last_reconnect_time: float = 0.0
@@ -166,19 +163,6 @@ class BeurerInstance:
     def is_closing(self) -> bool:
         """Return True if the instance is closing or disconnecting."""
         return self._closing
-
-    @property
-    def _hardware_mode(self) -> bool:
-        """Return True if within the hardware-mode grace period following a physical toggle."""
-        return time.monotonic() < self._hardware_mode_until
-
-    @_hardware_mode.setter
-    def _hardware_mode(self, value: bool) -> None:
-        """Set hardware-mode grace period."""
-        if value:
-            self._hardware_mode_until = time.monotonic() + 45.0
-        else:
-            self._hardware_mode_until = 0.0
 
     def trigger_reconnect(self) -> None:
         """Schedule an auto-reconnect task if not already reconnecting."""
@@ -214,9 +198,6 @@ class BeurerInstance:
             return
 
         LOGGER.debug("Disconnected callback called for active client")
-        if self._channel_sync_task is not None and not self._channel_sync_task.done():
-            self._channel_sync_task.cancel()
-            self._channel_sync_task = None
         self._device = None
         self._write_uuid = None
         self._read_uuid = None
@@ -225,30 +206,6 @@ class BeurerInstance:
         if self._trigger_update:
             self._trigger_update()
         self.trigger_reconnect()
-
-    def _cancel_channel_sync(self) -> None:
-        """Cancel any pending deferred channel sync task and clear the sync flag."""
-        self._sync_channel_on_connect = False
-        if (
-            self._channel_sync_task is not None
-            and not self._channel_sync_task.done()
-            and asyncio.current_task() != self._channel_sync_task
-        ):
-            self._channel_sync_task.cancel()
-            self._channel_sync_task = None
-
-    async def _deferred_channel_sync(self) -> None:
-        """Sync channel state if device remains connected after physical button toggle."""
-        await asyncio.sleep(2.5)
-        if self._sync_channel_on_connect and self.is_connected:
-            self._sync_channel_on_connect = False
-            LOGGER.debug("Device remained connected after physical turn-on; syncing channel state")
-            try:
-                await self.sendPacket([CMD_ENABLE_CHANNEL, CHANNEL_WHITE])
-                await asyncio.sleep(0.15)
-                await self.triggerStatus(force=True)
-            except Exception as err:  # noqa: BLE001
-                LOGGER.debug("Deferred channel sync failed: %s", err)
 
     async def _auto_reconnect(self) -> None:
         """Attempt to reconnect after a short delay following disconnection."""
@@ -263,14 +220,6 @@ class BeurerInstance:
         LOGGER.debug("Executing auto-reconnect")
         try:
             if await self.connect():
-                if self._sync_channel_on_connect:
-                    self._sync_channel_on_connect = False
-                    LOGGER.debug("Syncing white daylight channel state to BLE controller after physical turn on")
-                    try:
-                        await self.sendPacket([CMD_ENABLE_CHANNEL, CHANNEL_WHITE])
-                        await asyncio.sleep(0.15)
-                    except Exception as err:  # noqa: BLE001
-                        LOGGER.debug("Channel sync after reconnect failed: %s", err)
                 await self.triggerStatus(force=True)
         except Exception as error:  # noqa: BLE001
             LOGGER.debug("Auto-reconnect attempt failed: %s", error)
@@ -417,8 +366,6 @@ class BeurerInstance:
         LOGGER.debug("Setting to color: %s, %s, %s", r, g, b)
         self._mode = ColorMode.RGB
         self._rgb_color = (r, g, b)
-        self._hardware_mode = False
-        self._cancel_channel_sync()
         if self._light_on:
             # Turn off white daylight channel when switching to color mode
             await self.sendPacket([CMD_DISABLE_CHANNEL, CHANNEL_WHITE])
@@ -441,8 +388,6 @@ class BeurerInstance:
         """
         LOGGER.debug("Setting to brightness %s", brightness)
         self._mode = ColorMode.RGB
-        self._hardware_mode = False
-        self._cancel_channel_sync()
         if not self._color_on:
             await self.sendPacket([CMD_ENABLE_CHANNEL, CHANNEL_COLOR])
             self._color_on = True
@@ -462,8 +407,6 @@ class BeurerInstance:
         """
         LOGGER.debug("Setting white to intensity: %s", intensity)
         self._mode = ColorMode.WHITE
-        self._hardware_mode = False
-        self._cancel_channel_sync()
         if self._color_on:
             # Turn off color mode channel when switching to white daylight
             await self.sendPacket([CMD_DISABLE_CHANNEL, CHANNEL_COLOR])
@@ -492,8 +435,6 @@ class BeurerInstance:
         """
         LOGGER.debug("Setting effect %s", effect)
         self._mode = ColorMode.RGB
-        self._hardware_mode = False
-        self._cancel_channel_sync()
         if self._light_on:
             # Turn off white daylight channel when switching to color mode
             await self.sendPacket([CMD_DISABLE_CHANNEL, CHANNEL_WHITE])
@@ -512,8 +453,6 @@ class BeurerInstance:
     async def turn_on(self) -> None:
         """Turn on the light in the current or saved mode."""
         LOGGER.debug("Turning on")
-        self._hardware_mode = False
-        self._cancel_channel_sync()
         if self._device is None or not self._device.is_connected:
             await self.connect()
         if self._mode == ColorMode.RGB:
@@ -544,8 +483,6 @@ class BeurerInstance:
     async def turn_off(self) -> None:
         """Turn off both white and color channels."""
         LOGGER.debug("Turning off")
-        self._hardware_mode = False
-        self._cancel_channel_sync()
         await self.sendPacket([CMD_DISABLE_CHANNEL, CHANNEL_WHITE])
         await self.sendPacket([CMD_DISABLE_CHANNEL, CHANNEL_COLOR])
         self._mode = ColorMode.WHITE
@@ -648,26 +585,10 @@ class BeurerInstance:
             if not new_state:
                 self._light_on = False
                 self._color_on = False
-                self._hardware_mode = False
-                self._cancel_channel_sync()
             else:
                 self._light_on = True
                 self._color_on = False
                 self._mode = ColorMode.WHITE
-                self._hardware_mode = True
-                self._sync_channel_on_connect = True
-                if (
-                    self._channel_sync_task is not None
-                    and not self._channel_sync_task.done()
-                    and asyncio.current_task() != self._channel_sync_task
-                ):
-                    self._channel_sync_task.cancel()
-                    self._channel_sync_task = None
-                try:
-                    loop = asyncio.get_running_loop()
-                    self._channel_sync_task = loop.create_task(self._deferred_channel_sync())
-                except RuntimeError:
-                    pass
                 if self._brightness is None:
                     self._brightness = 255
             await self.trigger_entity_update()
@@ -724,7 +645,6 @@ class BeurerInstance:
                 return
             self._light_on = data[IDX_STATE] == 1
             if data[IDX_STATE] == 1:
-                self._hardware_mode = False
                 self._brightness = (
                     int(data[IDX_BRIGHTNESS] * 255 / 100) if len(data) > IDX_BRIGHTNESS and data[IDX_BRIGHTNESS] > 0 else None
                 )
@@ -744,7 +664,6 @@ class BeurerInstance:
                 return
             self._color_on = data[IDX_STATE] == 1
             if data[IDX_STATE] == 1:
-                self._hardware_mode = False
                 self._mode = ColorMode.RGB
                 self._light_on = False
                 if len(data) > IDX_SCENE and data[IDX_SCENE] < len(self._supported_effects):
@@ -772,34 +691,19 @@ class BeurerInstance:
             if not self._status_lock.locked():
                 await self.trigger_entity_update()
         elif channel == CHANNEL_OFF:
+            # channel 255 (04 D0 FF) is an empty/hardware-mode ACK with no channel
+            # state data (sent e.g. when the lamp is operating in standalone/hardware mode
+            # after being toggled via physical button, or for an inactive BLE channel).
+            # It must not force channels off or overwrite the existing state.
             LOGGER.debug(
-                "Received channel off (channel 255) for queried channel %s (hardware_mode=%s)",
+                "Received empty/hardware ACK (channel 255) for channel %s - preserving state (is_on=%s, light_on=%s, color_on=%s)",
                 self._last_queried_channel,
-                self._hardware_mode,
+                self._is_on,
+                self._light_on,
+                self._color_on,
             )
-            if self._hardware_mode:
-                LOGGER.debug("In hardware mode; preserving state on channel 255 response")
-            else:
-                if self._last_queried_channel == CHANNEL_WHITE:
-                    self._light_on = False
-                elif self._last_queried_channel == CHANNEL_COLOR:
-                    self._color_on = False
-                else:
-                    self._light_on = False
-                    self._color_on = False
-                self._is_on = bool(self._light_on or self._color_on)
-                LOGGER.debug(
-                    "Channel %s off (channel 255): is_on=%s, light_on=%s, color_on=%s",
-                    self._last_queried_channel,
-                    self._is_on,
-                    self._light_on,
-                    self._color_on,
-                )
-                if not self._status_lock.locked():
-                    await self.trigger_entity_update()
         elif channel == CHANNEL_SHUTDOWN:
             LOGGER.debug("Device is going to shut down (channel 0)")
-            self._hardware_mode = False
             self._is_on = False
             self._light_on = False
             self._color_on = False
@@ -922,7 +826,6 @@ class BeurerInstance:
         LOGGER.debug("Disconnecting (closing=%s)", closing)
         if closing:
             self._closing = True
-        self._cancel_channel_sync()
         if (
             self._reconnect_task is not None
             and not self._reconnect_task.done()
@@ -939,7 +842,6 @@ class BeurerInstance:
         self._last_notification_cmd = None
         self._last_notification_data = None
         self._last_notification_time = 0.0
-        self._hardware_mode = False
         self._last_queried_channel = None
         self._is_on = False
         self._light_on = False
