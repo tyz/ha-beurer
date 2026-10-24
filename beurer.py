@@ -16,7 +16,42 @@ from bleak import (
 )
 from homeassistant.components.light import ColorMode
 
-from .const import LOGGER
+from .const import (
+    CHANNEL_COLOR,
+    CHANNEL_OFF,
+    CHANNEL_SHUTDOWN,
+    CHANNEL_WHITE,
+    CMD_DISABLE_CHANNEL,
+    CMD_ENABLE_CHANNEL,
+    CMD_EVENT_SHUTDOWN,
+    CMD_PERMISSION_RESPONSE,
+    CMD_QUERY_STATUS,
+    CMD_SET_BRIGHTNESS,
+    CMD_SET_COLOR,
+    CMD_SET_EFFECT,
+    CMD_STATUS_RESPONSE,
+    EFFECTS,
+    IDX_BLUE,
+    IDX_BRIGHTNESS,
+    IDX_CHANNEL,
+    IDX_GREEN,
+    IDX_HEADER_0,
+    IDX_HEADER_1,
+    IDX_OPCODE,
+    IDX_PAYLOAD_LEN,
+    IDX_RED,
+    IDX_SCENE,
+    IDX_STATE,
+    LOGGER,
+    PACKET_FOOTER,
+    PACKET_HEADER,
+    PACKET_SYNC_COMMAND,
+    PACKET_TYPE_COMMAND,
+    READ_CHARACTERISTIC_UUIDS,
+    VERSION_CHARACTERISTIC_UUIDS,
+    WRITE_CHARACTERISTIC_UUIDS,
+    Channel,
+)
 
 try:
     from bleak_retry_connector import BleakClientWithServiceCache, establish_connection
@@ -24,17 +59,6 @@ try:
     HAVE_BLEAK_RETRY_CONNECTOR = True
 except ImportError:
     HAVE_BLEAK_RETRY_CONNECTOR = False
-
-WRITE_CHARACTERISTIC_UUIDS: set[str] = {"8b00ace7-eb0b-49b0-bbe9-9aee0a26e1a3"}
-READ_CHARACTERISTIC_UUIDS: set[str] = {"0734594a-a8e7-4b1a-a6b1-cd5243059a57"}
-VERSION_CHARACTERISTIC_UUIDS: set[str] = {
-    "00002a28-0000-1000-8000-00805f9b34fb",
-    "00002a28",
-    "2a28",
-    "00002a26-0000-1000-8000-00805f9b34fb",
-    "00002a26",
-    "2a26",
-}
 
 
 async def discover() -> list[BLEDevice]:
@@ -108,7 +132,7 @@ class BeurerInstance:
         self._version_uuid: str | None = None
         self._firmware_version: str | None = None
         self._last_status_trigger: float = 0.0
-        self._last_queried_channel: int | None = None
+        self._last_queried_channel: Channel | int | None = None
         self._status_response_event: asyncio.Event | None = None
         self._status_lock: asyncio.Lock = asyncio.Lock()
         self._last_notification_cmd: int | None = None
@@ -116,19 +140,7 @@ class BeurerInstance:
         self._closing: bool = False
         self._last_reconnect_time: float = 0.0
         self._mode: ColorMode | None = ColorMode.WHITE
-        self._supported_effects: list[str] = [
-            "Off",
-            "Random",
-            "Rainbow",
-            "Rainbow Slow",
-            "Fusion",
-            "Pulse",
-            "Wave",
-            "Chill",
-            "Action",
-            "Forest",
-            "Summer",
-        ]
+        self._supported_effects: list[str] = list(EFFECTS)
 
     def set_device(self, device: BLEDevice) -> None:
         """Update the underlying BLEDevice.
@@ -327,7 +339,15 @@ class BeurerInstance:
             await self.connect()
         length = len(message)
         checksum = self.makeChecksum(length + 2, message)
-        packet = [0xFE, 0xEF, 0x0A, length + 7, 0xAB, 0xAA, length + 2] + message + [checksum, 0x55, 0x0D, 0x0A]
+        packet = (
+            PACKET_HEADER
+            + [PACKET_TYPE_COMMAND, length + 7]
+            + PACKET_SYNC_COMMAND
+            + [length + 2]
+            + message
+            + [checksum]
+            + PACKET_FOOTER
+        )
         LOGGER.debug("Sending message: %s", "".join(format(x, " 03x") for x in packet))
         await self._write(bytearray(packet))
 
@@ -343,14 +363,14 @@ class BeurerInstance:
         self._rgb_color = (r, g, b)
         if self._light_on:
             # Turn off white daylight channel when switching to color mode
-            await self.sendPacket([0x35, 0x01])
+            await self.sendPacket([CMD_DISABLE_CHANNEL, CHANNEL_WHITE])
             self._light_on = False
             await asyncio.sleep(0.1)
         if not self._color_on:
-            await self.sendPacket([0x37, 0x02])
+            await self.sendPacket([CMD_ENABLE_CHANNEL, CHANNEL_COLOR])
             self._color_on = True
             await asyncio.sleep(0.1)
-        await self.sendPacket([0x32, r, g, b])
+        await self.sendPacket([CMD_SET_COLOR, r, g, b])
         self._color_on = True
         self._is_on = True
         await self.trigger_entity_update()
@@ -364,11 +384,11 @@ class BeurerInstance:
         LOGGER.debug("Setting to brightness %s", brightness)
         self._mode = ColorMode.RGB
         if not self._color_on:
-            await self.sendPacket([0x37, 0x02])
+            await self.sendPacket([CMD_ENABLE_CHANNEL, CHANNEL_COLOR])
             self._color_on = True
             await asyncio.sleep(0.1)
         brightness_percent = max(0, min(100, int(brightness / 255 * 100)))
-        await self.sendPacket([0x31, 0x02, brightness_percent])
+        await self.sendPacket([CMD_SET_BRIGHTNESS, CHANNEL_COLOR, brightness_percent])
         self._color_brightness = brightness
         self._color_on = True
         self._is_on = True
@@ -384,11 +404,11 @@ class BeurerInstance:
         self._mode = ColorMode.WHITE
         if self._color_on:
             # Turn off color mode channel when switching to white daylight
-            await self.sendPacket([0x35, 0x02])
+            await self.sendPacket([CMD_DISABLE_CHANNEL, CHANNEL_COLOR])
             self._color_on = False
             await asyncio.sleep(0.1)
         if not self._light_on:
-            await self.sendPacket([0x37, 0x01])
+            await self.sendPacket([CMD_ENABLE_CHANNEL, CHANNEL_WHITE])
             self._light_on = True
             await asyncio.sleep(0.1)
         intensity_percent = max(0, min(100, int(intensity / 255 * 100)))
@@ -396,7 +416,7 @@ class BeurerInstance:
         # causes the device to switch to red/RGB mode (Deadolus#11)
         if intensity_percent == 100:
             intensity_percent = 99
-        await self.sendPacket([0x31, 0x01, intensity_percent])
+        await self.sendPacket([CMD_SET_BRIGHTNESS, CHANNEL_WHITE, intensity_percent])
         self._brightness = intensity
         self._light_on = True
         self._is_on = True
@@ -412,14 +432,14 @@ class BeurerInstance:
         self._mode = ColorMode.RGB
         if self._light_on:
             # Turn off white daylight channel when switching to color mode
-            await self.sendPacket([0x35, 0x01])
+            await self.sendPacket([CMD_DISABLE_CHANNEL, CHANNEL_WHITE])
             self._light_on = False
             await asyncio.sleep(0.1)
         if not self._color_on:
-            await self.sendPacket([0x37, 0x02])
+            await self.sendPacket([CMD_ENABLE_CHANNEL, CHANNEL_COLOR])
             self._color_on = True
             await asyncio.sleep(0.1)
-        await self.sendPacket([0x34, self.find_effect_position(effect)])
+        await self.sendPacket([CMD_SET_EFFECT, self.find_effect_position(effect)])
         self._effect = effect
         self._color_on = True
         self._is_on = True
@@ -431,35 +451,35 @@ class BeurerInstance:
         if self._device is None or not self._device.is_connected:
             await self.connect()
         if self._mode == ColorMode.RGB:
-            await self.sendPacket([0x37, 0x02])
+            await self.sendPacket([CMD_ENABLE_CHANNEL, CHANNEL_COLOR])
             self._color_on = True
             if self._effect and self._effect != "Off":
                 await asyncio.sleep(0.1)
-                await self.sendPacket([0x34, self.find_effect_position(self._effect)])
+                await self.sendPacket([CMD_SET_EFFECT, self.find_effect_position(self._effect)])
             elif self._rgb_color:
                 await asyncio.sleep(0.1)
-                await self.sendPacket([0x32, self._rgb_color[0], self._rgb_color[1], self._rgb_color[2]])
+                await self.sendPacket([CMD_SET_COLOR, self._rgb_color[0], self._rgb_color[1], self._rgb_color[2]])
             if self._color_brightness is not None:
                 await asyncio.sleep(0.1)
                 brightness_percent = max(0, min(100, int(self._color_brightness / 255 * 100)))
-                await self.sendPacket([0x31, 0x02, brightness_percent])
+                await self.sendPacket([CMD_SET_BRIGHTNESS, CHANNEL_COLOR, brightness_percent])
         else:
             self._mode = ColorMode.WHITE
             self._light_on = True
             if self._brightness is None:
                 self._brightness = 255
-            await self.sendPacket([0x37, 0x01])
+            await self.sendPacket([CMD_ENABLE_CHANNEL, CHANNEL_WHITE])
             await asyncio.sleep(0.1)
             intensity_percent = max(0, min(99, int(self._brightness / 255 * 100)))
-            await self.sendPacket([0x31, 0x01, intensity_percent])
+            await self.sendPacket([CMD_SET_BRIGHTNESS, CHANNEL_WHITE, intensity_percent])
         self._is_on = True
         await self.trigger_entity_update()
 
     async def turn_off(self) -> None:
         """Turn off both white and color channels."""
         LOGGER.debug("Turning off")
-        await self.sendPacket([0x35, 0x01])
-        await self.sendPacket([0x35, 0x02])
+        await self.sendPacket([CMD_DISABLE_CHANNEL, CHANNEL_WHITE])
+        await self.sendPacket([CMD_DISABLE_CHANNEL, CHANNEL_COLOR])
         self._mode = ColorMode.WHITE
         self._is_on = False
         self._light_on = False
@@ -483,18 +503,18 @@ class BeurerInstance:
                 self._status_response_event = asyncio.Event()
 
             try:
-                self._last_queried_channel = 1
+                self._last_queried_channel = CHANNEL_WHITE
                 self._status_response_event.clear()
-                await self.sendPacket([0x30, 0x01])
+                await self.sendPacket([CMD_QUERY_STATUS, CHANNEL_WHITE])
                 try:
                     await asyncio.wait_for(self._status_response_event.wait(), timeout=0.3)
                 except TimeoutError:
                     pass
                 await asyncio.sleep(0.05)
 
-                self._last_queried_channel = 2
+                self._last_queried_channel = CHANNEL_COLOR
                 self._status_response_event.clear()
-                await self.sendPacket([0x30, 0x02])
+                await self.sendPacket([CMD_QUERY_STATUS, CHANNEL_COLOR])
                 try:
                     await asyncio.wait_for(self._status_response_event.wait(), timeout=0.3)
                 except TimeoutError:
@@ -518,26 +538,26 @@ class BeurerInstance:
         else:
             LOGGER.warning("No async update function provided: %s", self._trigger_update)
 
-    async def notification_handler(self, characteristic: BleakGATTCharacteristic, res: bytearray) -> None:
+    async def notification_handler(self, characteristic: BleakGATTCharacteristic, data: bytearray) -> None:
         """Handle incoming GATT notifications from the device.
 
         Args:
             characteristic: Characteristic that produced the notification.
-            res: Notification payload bytes.
+            data: Notification payload bytes.
         """
-        LOGGER.debug("Received notification: %s", "".join(format(x, " 03x") for x in res))
-        if len(res) < 8:
+        LOGGER.debug("Received notification: %s", "".join(format(x, " 03x") for x in data))
+        if len(data) <= IDX_OPCODE:
             return
 
-        is_packet = len(res) >= 6 and res[0] == 0xFE and res[1] == 0xEF
-        payload_len = res[6] if is_packet else len(res) - 7
-        cmd = res[7]
+        is_packet = len(data) >= 6 and data[IDX_HEADER_0] == PACKET_HEADER[0] and data[IDX_HEADER_1] == PACKET_HEADER[1]
+        payload_len = data[IDX_PAYLOAD_LEN] if is_packet else len(data) - 7
+        cmd = data[IDX_OPCODE]
 
-        if cmd == 0xE8:
-            if self._last_notification_cmd == 0xE8:
+        if cmd == CMD_EVENT_SHUTDOWN:
+            if self._last_notification_cmd == CMD_EVENT_SHUTDOWN:
                 LOGGER.debug("Ignoring duplicate 0xE8 burst notification")
                 return
-            self._last_notification_cmd = 0xE8
+            self._last_notification_cmd = CMD_EVENT_SHUTDOWN
             new_state = not self._is_on
             LOGGER.debug(
                 "Received device event 0xE8 (button toggle, is_on was %s -> now %s)",
@@ -559,35 +579,37 @@ class BeurerInstance:
 
         self._last_notification_cmd = cmd
 
-        if cmd == 0xF0:
-            perm = res[8] if len(res) > 8 else None
+        if cmd == CMD_PERMISSION_RESPONSE:
+            perm = data[IDX_CHANNEL] if len(data) > IDX_CHANNEL else None
             LOGGER.debug("Received device permission response 0xF0: %s (2=granted)", perm)
             return
 
-        if cmd == 0xD0 and self._status_response_event is not None:
+        if cmd == CMD_STATUS_RESPONSE and self._status_response_event is not None:
             self._status_response_event.set()
 
         # Short ACK packets for non-status commands (e.g. write confirmations)
-        if is_packet and cmd != 0xD0 and payload_len <= 4:
+        if is_packet and cmd != CMD_STATUS_RESPONSE and payload_len <= 4:
             LOGGER.debug(
                 "Received short ACK/notification (cmd=0x%02X, payload_len=%d, data=%s) - not updating state",
                 cmd,
                 payload_len,
-                "".join(format(x, " 02x") for x in res[7:]),
+                "".join(format(x, " 02x") for x in data[IDX_OPCODE:]),
             )
             return
 
-        if len(res) < 9:
+        if len(data) <= IDX_CHANNEL:
             return
 
-        reply_version = res[8]
-        LOGGER.debug("Reply version is %s", reply_version)
-        if reply_version == 1:
-            if len(res) < 10:
+        channel = data[IDX_CHANNEL]
+        LOGGER.debug("Channel is %s", channel)
+        if channel == CHANNEL_WHITE:
+            if len(data) <= IDX_STATE:
                 return
-            self._light_on = res[9] == 1
-            if res[9] == 1:
-                self._brightness = int(res[10] * 255 / 100) if len(res) > 10 and res[10] > 0 else None
+            self._light_on = data[IDX_STATE] == 1
+            if data[IDX_STATE] == 1:
+                self._brightness = (
+                    int(data[IDX_BRIGHTNESS] * 255 / 100) if len(data) > IDX_BRIGHTNESS and data[IDX_BRIGHTNESS] > 0 else None
+                )
                 self._mode = ColorMode.WHITE
                 self._color_on = False
             self._is_on = bool(self._light_on or self._color_on)
@@ -599,18 +621,20 @@ class BeurerInstance:
             )
             if not self._status_lock.locked():
                 await self.trigger_entity_update()
-        elif reply_version == 2:
-            if len(res) < 10:
+        elif channel == CHANNEL_COLOR:
+            if len(data) <= IDX_STATE:
                 return
-            self._color_on = res[9] == 1
-            if res[9] == 1:
+            self._color_on = data[IDX_STATE] == 1
+            if data[IDX_STATE] == 1:
                 self._mode = ColorMode.RGB
                 self._light_on = False
-                if len(res) > 16 and res[16] < len(self._supported_effects):
-                    self._effect = self._supported_effects[res[16]]
-                self._color_brightness = int(res[10] * 255 / 100) if len(res) > 10 and res[10] > 0 else None
-                if len(res) > 15:
-                    self._rgb_color = (res[13], res[14], res[15])
+                if len(data) > IDX_SCENE and data[IDX_SCENE] < len(self._supported_effects):
+                    self._effect = self._supported_effects[data[IDX_SCENE]]
+                self._color_brightness = (
+                    int(data[IDX_BRIGHTNESS] * 255 / 100) if len(data) > IDX_BRIGHTNESS and data[IDX_BRIGHTNESS] > 0 else None
+                )
+                if len(data) > IDX_BLUE:
+                    self._rgb_color = (data[IDX_RED], data[IDX_GREEN], data[IDX_BLUE])
             self._is_on = bool(self._light_on or self._color_on)
             LOGGER.debug(
                 "RGB status: is_on=%s, color_on=%s, brightness=%s, rgb color=%s, effect=%s",
@@ -621,38 +645,38 @@ class BeurerInstance:
                 self._effect,
             )
             LOGGER.debug(
-                "res: %s, light_on %s, color_on %s",
-                res[9] if len(res) > 9 else None,
+                "state: %s, light_on %s, color_on %s",
+                data[IDX_STATE] if len(data) > IDX_STATE else None,
                 self._light_on,
                 self._color_on,
             )
             if not self._status_lock.locked():
                 await self.trigger_entity_update()
-        elif reply_version == 255:
-            # reply_version 255 (04 D0 FF) is an empty/hardware-mode ACK with no channel
+        elif channel == CHANNEL_OFF:
+            # channel 255 (04 D0 FF) is an empty/hardware-mode ACK with no channel
             # state data (sent e.g. when the lamp is operating in standalone/hardware mode
             # after being toggled via physical button, or for an inactive BLE channel).
             # It must not force channels off or overwrite the existing state.
             LOGGER.debug(
-                "Received empty/hardware ACK (reply_version 255) for channel %s - preserving state (is_on=%s, light_on=%s, color_on=%s)",
+                "Received empty/hardware ACK (channel 255) for channel %s - preserving state (is_on=%s, light_on=%s, color_on=%s)",
                 self._last_queried_channel,
                 self._is_on,
                 self._light_on,
                 self._color_on,
             )
-        elif reply_version == 0:
-            LOGGER.debug("Device is going to shut down (reply_version 0)")
+        elif channel == CHANNEL_SHUTDOWN:
+            LOGGER.debug("Device is going to shut down (channel 0)")
             self._is_on = False
             self._light_on = False
             self._color_on = False
             await self.trigger_entity_update()
         else:
             LOGGER.debug(
-                "Received unknown notification version %s (cmd=0x%02X, len=%d): %s",
-                reply_version,
+                "Received unknown notification channel %s (cmd=0x%02X, len=%d): %s",
+                channel,
                 cmd,
-                len(res),
-                "".join(format(x, " 02x") for x in res),
+                len(data),
+                "".join(format(x, " 02x") for x in data),
             )
 
     async def connect(self) -> bool:

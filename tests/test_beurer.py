@@ -9,6 +9,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from bleak import BleakError, BLEDevice
 from custom_components.beurer.beurer import BeurerInstance
+from custom_components.beurer.const import (
+    CHANNEL_COLOR,
+    CHANNEL_OFF,
+    CHANNEL_SHUTDOWN,
+    CHANNEL_WHITE,
+)
 from homeassistant.components.light import ColorMode
 
 
@@ -134,8 +140,8 @@ async def test_set_color_brightness(beurer_instance: BeurerInstance) -> None:
 
 
 @pytest.mark.asyncio
-async def test_notification_handler_reply_version_1(beurer_instance: BeurerInstance) -> None:
-    """Test handling status reply version 1 (white daylight state)."""
+async def test_notification_handler_channel_white(beurer_instance: BeurerInstance) -> None:
+    """Test handling status channel 1 (white daylight state)."""
     callback_called = False
 
     def update_callback() -> None:
@@ -144,8 +150,8 @@ async def test_notification_handler_reply_version_1(beurer_instance: BeurerInsta
 
     beurer_instance.set_update_callback(update_callback)
 
-    # res: [..., ..., ..., ..., ..., ..., ..., ..., reply_version=1, is_on=1, brightness=50]
-    payload = bytearray([0] * 8 + [1, 1, 50])
+    # res: [..., ..., ..., ..., ..., ..., ..., ..., channel=1, is_on=1, brightness=50]
+    payload = bytearray([0] * 8 + [CHANNEL_WHITE, 1, 50])
     char = MagicMock()
     await beurer_instance.notification_handler(char, payload)
 
@@ -157,8 +163,8 @@ async def test_notification_handler_reply_version_1(beurer_instance: BeurerInsta
 
 
 @pytest.mark.asyncio
-async def test_notification_handler_reply_version_2(beurer_instance: BeurerInstance) -> None:
-    """Test handling status reply version 2 (RGB color state)."""
+async def test_notification_handler_channel_color(beurer_instance: BeurerInstance) -> None:
+    """Test handling status channel 2 (RGB color state)."""
     callback_called = False
 
     def update_callback() -> None:
@@ -167,8 +173,8 @@ async def test_notification_handler_reply_version_2(beurer_instance: BeurerInsta
 
     beurer_instance.set_update_callback(update_callback)
 
-    # reply_version=2, color_on=1, brightness=80, _, _, r=10, g=20, b=30, effect=2 (Rainbow)
-    payload = bytearray([0] * 8 + [2, 1, 80, 0, 0, 10, 20, 30, 2])
+    # channel=2, color_on=1, brightness=80, _, _, r=10, g=20, b=30, effect=2 (Rainbow)
+    payload = bytearray([0] * 8 + [CHANNEL_COLOR, 1, 80, 0, 0, 10, 20, 30, 2])
     char = MagicMock()
     await beurer_instance.notification_handler(char, payload)
 
@@ -181,15 +187,15 @@ async def test_notification_handler_reply_version_2(beurer_instance: BeurerInsta
 
 
 @pytest.mark.asyncio
-async def test_notification_handler_reply_version_255_preserves_state(
+async def test_notification_handler_channel_off_preserves_state(
     beurer_instance: BeurerInstance,
 ) -> None:
-    """Test handling status reply version 255 (empty/hardware ACK preserves state)."""
+    """Test handling status channel 255 (empty/hardware ACK preserves state)."""
     beurer_instance._is_on = True
     beurer_instance._light_on = True
     beurer_instance._color_on = False
 
-    payload = bytearray([0] * 8 + [255])
+    payload = bytearray([0] * 8 + [CHANNEL_OFF])
     char = MagicMock()
     await beurer_instance.notification_handler(char, payload)
 
@@ -199,13 +205,13 @@ async def test_notification_handler_reply_version_255_preserves_state(
 
 
 @pytest.mark.asyncio
-async def test_notification_handler_reply_version_0_shutdown(beurer_instance: BeurerInstance) -> None:
-    """Test handling status reply version 0 (device shutdown notification)."""
+async def test_notification_handler_channel_shutdown(beurer_instance: BeurerInstance) -> None:
+    """Test handling status channel 0 (device shutdown notification)."""
     beurer_instance._is_on = True
     beurer_instance._light_on = True
     beurer_instance._color_on = True
 
-    payload = bytearray([0] * 8 + [0])
+    payload = bytearray([0] * 8 + [CHANNEL_SHUTDOWN])
     char = MagicMock()
     await beurer_instance.notification_handler(char, payload)
 
@@ -390,7 +396,7 @@ async def test_notification_handler_short_status_packet_updates_state(
     beurer_instance._is_on = False
     beurer_instance._light_on = False
 
-    # payload_len = 6 (cmd 0xD0, reply_version 1, state 1, brightness 50)
+    # payload_len = 6 (cmd 0xD0, channel 1, state 1, brightness 50)
     payload = bytearray([0xFE, 0xEF, 0x0C, 0x0B, 0xAB, 0xBB, 0x06, 0xD0, 0x01, 0x01, 0x32, 0x00, 0x55, 0x0D, 0x0A])
     char = MagicMock()
     await beurer_instance.notification_handler(char, payload)
@@ -405,12 +411,12 @@ async def test_notification_handler_short_status_packet_updates_state(
 async def test_notification_handler_channel_1_off_status_packet(
     beurer_instance: BeurerInstance,
 ) -> None:
-    """Test that a status packet with reply_version 1 and state 0 turns off daylight."""
+    """Test that a status packet with channel 1 and state 0 turns off daylight."""
     beurer_instance._is_on = True
     beurer_instance._light_on = True
     beurer_instance._color_on = False
 
-    # Status packet: cmd 0xD0, reply_version 1 (daylight), state 0 (off), brightness 40
+    # Status packet: cmd 0xD0, channel 1 (daylight), state 0 (off), brightness 40
     payload = bytearray([0xFE, 0xEF, 0x0C, 0x0D, 0xAB, 0xBB, 0x08, 0xD0, 0x01, 0x00, 0x28, 0x00, 0x78, 0x2B, 0x55, 0x0D, 0x0A])
     char = MagicMock()
     await beurer_instance.notification_handler(char, payload)
@@ -424,12 +430,12 @@ async def test_notification_handler_channel_1_off_status_packet(
 async def test_notification_handler_channel_2_off_status_packet(
     beurer_instance: BeurerInstance,
 ) -> None:
-    """Test that a status packet with reply_version 2 and state 0 turns off moodlight."""
+    """Test that a status packet with channel 2 and state 0 turns off moodlight."""
     beurer_instance._is_on = True
     beurer_instance._light_on = False
     beurer_instance._color_on = True
 
-    # Status packet: cmd 0xD0, reply_version 2 (moodlight), state 0 (off), brightness 100
+    # Status packet: cmd 0xD0, channel 2 (moodlight), state 0 (off), brightness 100
     payload = bytearray(
         [
             0xFE,
