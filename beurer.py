@@ -104,6 +104,7 @@ class BeurerInstance:
         self._last_notification_cmd: int | None = None
         self._reconnect_task: asyncio.Task[None] | None = None
         self._closing: bool = False
+        self._last_reconnect_time: float = 0.0
         self._mode: ColorMode | None = ColorMode.WHITE
         self._supported_effects: list[str] = [
             "Off",
@@ -181,12 +182,14 @@ class BeurerInstance:
 
     async def _auto_reconnect(self) -> None:
         """Attempt to reconnect after a short delay following disconnection."""
-        LOGGER.debug("Scheduling auto-reconnect in 1 second")
-        await asyncio.sleep(1)
-        if self._closing:
+        now = time.monotonic()
+        elapsed = now - self._last_reconnect_time
+        delay = max(1.0, 5.0 - elapsed)
+        LOGGER.debug("Scheduling auto-reconnect in %.1f seconds", delay)
+        await asyncio.sleep(delay)
+        if self._closing or self.is_connected:
             return
-        if self.is_connected:
-            return
+        self._last_reconnect_time = time.monotonic()
         LOGGER.debug("Executing auto-reconnect")
         try:
             if await self.connect():
@@ -705,9 +708,10 @@ class BeurerInstance:
         return True
 
     async def update(self) -> None:
-        """Refresh device status if connected."""
+        """Refresh device status if connected, or trigger reconnect."""
         if not self.is_connected:
-            LOGGER.debug("Device is not connected, skipping status update")
+            LOGGER.debug("Device is not connected, scheduling reconnect and skipping status update")
+            self.trigger_reconnect()
             return
 
         try:
@@ -720,24 +724,24 @@ class BeurerInstance:
             LOGGER.error("Error getting status: %s", error)
             await self.disconnect()
 
-    async def disconnect(self) -> None:
-        """Disconnect from device and mark entity as off."""
-        LOGGER.debug("Disconnecting")
-        self._closing = True
-        if self._reconnect_task is not None and not self._reconnect_task.done():
+    async def disconnect(self, closing: bool = False) -> None:
+        """Disconnect from device and mark entity as off.
+
+        Args:
+            closing: If True, mark instance as permanently closing/shutting down.
+        """
+        LOGGER.debug("Disconnecting (closing=%s)", closing)
+        if closing:
+            self._closing = True
+        if (
+            self._reconnect_task is not None
+            and not self._reconnect_task.done()
+            and asyncio.current_task() != self._reconnect_task
+        ):
             self._reconnect_task.cancel()
             self._reconnect_task = None
-        if self._device is not None:
-            try:
-                if self._read_uuid is not None and self._device.is_connected:
-                    try:
-                        await self._device.stop_notify(self._read_uuid)
-                    except Exception as error:  # noqa: BLE001
-                        LOGGER.debug("Error while stopping notifications: %s", error)
-                if self._device.is_connected:
-                    await self._device.disconnect()
-            except Exception as error:  # noqa: BLE001
-                LOGGER.debug("Error while disconnecting: %s", error)
+        client = self._device
+        read_uuid = self._read_uuid
         self._device = None
         self._write_uuid = None
         self._read_uuid = None
@@ -746,4 +750,15 @@ class BeurerInstance:
         self._is_on = False
         self._light_on = False
         self._color_on = False
+        if client is not None:
+            try:
+                if read_uuid is not None and client.is_connected:
+                    try:
+                        await client.stop_notify(read_uuid)
+                    except Exception as error:  # noqa: BLE001
+                        LOGGER.debug("Error while stopping notifications: %s", error)
+                if client.is_connected:
+                    await client.disconnect()
+            except Exception as error:  # noqa: BLE001
+                LOGGER.debug("Error while disconnecting: %s", error)
         await self.trigger_entity_update()

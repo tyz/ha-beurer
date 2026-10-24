@@ -82,10 +82,20 @@ async def test_async_setup_entry_registers_bluetooth_callback(mock_hass: MagicMo
         # Simulate incoming Bluetooth advertisement
         mock_service_info = MagicMock()
         mock_service_info.device = updated_device
-        registered_callback(mock_service_info, MagicMock())
 
         instance = mock_hass.data[DOMAIN][mock_entry.entry_id]
-        assert instance._ble_device == updated_device
+        with patch.object(instance, "trigger_reconnect") as mock_reconnect:
+            registered_callback(mock_service_info, MagicMock())
+            assert instance._ble_device == updated_device
+            mock_reconnect.assert_called_once()
+
+        # Simulate advertisement when already connected (should not trigger reconnect)
+        mock_connected_client = MagicMock()
+        mock_connected_client.is_connected = True
+        instance._device = mock_connected_client
+        with patch.object(instance, "trigger_reconnect") as mock_reconnect:
+            registered_callback(mock_service_info, MagicMock())
+            mock_reconnect.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -98,7 +108,7 @@ async def test_async_unload_entry(mock_hass: MagicMock, mock_entry: ConfigEntry)
     result = await async_unload_entry(mock_hass, mock_entry)
     assert result is True
     assert mock_entry.entry_id not in mock_hass.data[DOMAIN]
-    mock_instance.disconnect.assert_awaited_once()
+    mock_instance.disconnect.assert_awaited_once_with(closing=True)
 
 
 @pytest.mark.asyncio
@@ -123,4 +133,4 @@ async def test_async_setup_entry_registers_stop_listener(mock_hass: MagicMock, m
         instance = mock_hass.data[DOMAIN][mock_entry.entry_id]
         with patch.object(instance, "disconnect", new_callable=AsyncMock) as mock_disconnect:
             await stop_callback(MagicMock())
-            mock_disconnect.assert_awaited_once()
+            mock_disconnect.assert_awaited_once_with(closing=True)

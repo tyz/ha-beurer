@@ -54,6 +54,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             getattr(service_info, "service_uuids", None),
         )
         instance.set_device(service_info.device)
+        if not instance.is_connected and not instance.is_closing:
+            instance.trigger_reconnect()
 
     entry.async_on_unload(
         bluetooth.async_register_callback(
@@ -68,7 +70,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     async def _async_stop(event: Event) -> None:
         """Close connection on Home Assistant stop."""
-        await instance.disconnect()
+        await instance.disconnect(closing=True)
 
     entry.async_on_unload(hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, _async_stop))
 
@@ -89,5 +91,5 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unload_ok:
         instance: BeurerInstance = hass.data[DOMAIN].pop(entry.entry_id)
-        await instance.disconnect()
+        await instance.disconnect(closing=True)
     return unload_ok

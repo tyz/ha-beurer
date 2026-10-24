@@ -161,5 +161,5 @@ class BeurerFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):  # type: igno
             return error
         finally:
             if self.beurer_instance:
-                await self.beurer_instance.disconnect()
+                await self.beurer_instance.disconnect(closing=True)
         return None
