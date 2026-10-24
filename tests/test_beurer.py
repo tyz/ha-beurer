@@ -655,8 +655,9 @@ async def test_button_turn_on_followed_by_reconnect_and_status_query_preserves_o
 
     assert beurer_instance.is_on is True
     assert beurer_instance._light_on is True
-    # Verifies CMD_ENABLE_CHANNEL was sent on button turn-on
-    assert beurer_instance._write.called
+    assert beurer_instance._hardware_mode is True
+    # Verifies no commands were written over BLE on button toggle (prevents firmware freeze)
+    assert not beurer_instance._write.called
 
     # 2. Lamp disconnects ~9s later, disconnected_callback called
     mock_client = MagicMock()
@@ -664,22 +665,25 @@ async def test_button_turn_on_followed_by_reconnect_and_status_query_preserves_o
     beurer_instance.disconnected_callback(mock_client)
     assert beurer_instance.is_on is True
 
-    # 3. Auto-reconnect queries channels 1 and 2:
-    # Query channel 1: lamp returns active daylight status
-    ch1_payload = bytearray(
-        [0xFE, 0xEF, 0x0C, 0x0D, 0xAB, 0xBB, 0x08, 0xD0, 0x01, 0x01, 0x64, 0x00, 0x00, 0x2B, 0x55, 0x0D, 0x0A]
-    )
-    beurer_instance._last_queried_channel = 1
-    await beurer_instance.notification_handler(char, ch1_payload)
-    assert beurer_instance.is_on is True
-    assert beurer_instance._light_on is True
-
-    # Query channel 2: moodlight is inactive and returns 04 D0 FF
+    # 3. Auto-reconnect queries channels:
+    # Query channel 1: in hardware mode, even 04 D0 FF preserves light_on state
     d0_ff_payload = bytearray([0xFE, 0xEF, 0x0C, 0x09, 0xAB, 0xBB, 0x04, 0xD0, 0xFF, 0x2B, 0x55, 0x0D, 0x0A])
-    beurer_instance._last_queried_channel = 2
+    beurer_instance._last_queried_channel = 1
+    # Clear last notification time so it is not treated as a duplicate of e8_payload
+    beurer_instance._last_notification_data = None
     await beurer_instance.notification_handler(char, d0_ff_payload)
     assert beurer_instance.is_on is True
     assert beurer_instance._light_on is True
+
+    # When active status arrives, hardware mode is cleared
+    ch1_payload = bytearray(
+        [0xFE, 0xEF, 0x0C, 0x0D, 0xAB, 0xBB, 0x08, 0xD0, 0x01, 0x01, 0x64, 0x00, 0x00, 0x2B, 0x55, 0x0D, 0x0A]
+    )
+    beurer_instance._last_notification_data = None
+    await beurer_instance.notification_handler(char, ch1_payload)
+    assert beurer_instance.is_on is True
+    assert beurer_instance._light_on is True
+    assert beurer_instance._hardware_mode is False
 
 
 @pytest.mark.asyncio
@@ -702,10 +706,80 @@ async def test_polling_channels_off_after_timer_turns_off_light(
 
     # Query channel 2 (moodlight) returns CHANNEL_OFF
     beurer_instance._last_queried_channel = 2
+    # Reset last notification data so this test query is processed
+    beurer_instance._last_notification_data = None
     await beurer_instance.notification_handler(char, d0_ff_payload)
     assert beurer_instance.is_on is False
     assert beurer_instance._light_on is False
     assert beurer_instance._color_on is False
+
+
+@pytest.mark.asyncio
+async def test_notification_burst_deduplication(beurer_instance: BeurerInstance) -> None:
+    """Test that identical notifications received within 0.3s are ignored to eliminate burst log storms."""
+    char = MagicMock()
+    update_count = 0
+
+    def on_update() -> None:
+        nonlocal update_count
+        update_count += 1
+
+    beurer_instance.set_update_callback(on_update)
+    beurer_instance._is_on = False
+
+    payload = bytearray([0xFE, 0xEF, 0x0C, 0x09, 0xAB, 0xBB, 0x04, 0xD0, 0xFF, 0x2B, 0x55, 0x0D, 0x0A])
+
+    # First packet is handled
+    await beurer_instance.notification_handler(char, payload)
+    assert update_count == 1
+
+    # Identical packets in the 5x retransmission burst are ignored
+    for _ in range(5):
+        await beurer_instance.notification_handler(char, payload)
+
+    assert update_count == 1
+
+
+@pytest.mark.asyncio
+async def test_hardware_mode_preserves_state_on_channel_off(beurer_instance: BeurerInstance) -> None:
+    """Test that hardware mode preserves light state when receiving CHANNEL_OFF."""
+    char = MagicMock()
+    beurer_instance._is_on = True
+    beurer_instance._light_on = True
+    beurer_instance._hardware_mode = True
+    beurer_instance._last_queried_channel = 1
+
+    d0_ff_payload = bytearray([0xFE, 0xEF, 0x0C, 0x09, 0xAB, 0xBB, 0x04, 0xD0, 0xFF, 0x2B, 0x55, 0x0D, 0x0A])
+
+    await beurer_instance.notification_handler(char, d0_ff_payload)
+    assert beurer_instance.is_on is True
+    assert beurer_instance._light_on is True
+
+    # Switching to BLE mode (hardware_mode=False) causes CHANNEL_OFF to turn channel off
+    beurer_instance._hardware_mode = False
+    beurer_instance._last_notification_data = None
+    await beurer_instance.notification_handler(char, d0_ff_payload)
+    assert beurer_instance.is_on is False
+    assert beurer_instance._light_on is False
+
+
+@pytest.mark.asyncio
+async def test_trigger_status_skips_color_channel_when_daylight_on(beurer_instance: BeurerInstance) -> None:
+    """Test that triggerStatus skips querying color channel when daylight is already active."""
+    sent_packets: list[list[int]] = []
+
+    async def mock_send(packet: list[int]) -> None:
+        sent_packets.append(packet)
+        if beurer_instance._status_response_event is not None:
+            beurer_instance._status_response_event.set()
+
+    beurer_instance.sendPacket = mock_send
+    beurer_instance._last_status_trigger = 0.0
+    beurer_instance._light_on = True
+
+    await beurer_instance.triggerStatus()
+    # Daylight is active, so only channel 1 status is queried
+    assert sent_packets == [[0x30, 0x01]]
 
 
 @pytest.mark.asyncio
