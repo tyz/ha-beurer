@@ -14,6 +14,8 @@ from custom_components.beurer.const import (
     CHANNEL_OFF,
     CHANNEL_SHUTDOWN,
     CHANNEL_WHITE,
+    CMD_EVENT_LIGHT_TIMER_END,
+    CMD_EVENT_MOONLIGHT_TIMER_END,
 )
 from homeassistant.components.light import ColorMode
 
@@ -293,6 +295,174 @@ async def test_notification_handler_event_e8_ignores_duplicate_burst(
     await beurer_instance.notification_handler(char, payload)
     assert beurer_instance.is_on is False
     assert update_count == 2
+
+
+@pytest.mark.asyncio
+async def test_notification_handler_event_eb_turns_off_daylight(
+    beurer_instance: BeurerInstance,
+) -> None:
+    """Test handling event 0xEB turns off daylight channel."""
+    beurer_instance._is_on = True
+    beurer_instance._light_on = True
+    beurer_instance._color_on = False
+    callback_called = False
+
+    def update_callback() -> None:
+        nonlocal callback_called
+        callback_called = True
+
+    beurer_instance.set_update_callback(update_callback)
+
+    # Packet for 0xEB (RESPONSE_LIGHT_TIMER_END)
+    payload = bytearray([0xFE, 0xEF, 0x0C, 0x09, 0xAB, 0xBB, 0x04, CMD_EVENT_LIGHT_TIMER_END, 0x00, 0xEE, 0x55, 0x0D, 0x0A])
+    char = MagicMock()
+    await beurer_instance.notification_handler(char, payload)
+
+    assert beurer_instance.is_on is False
+    assert beurer_instance._light_on is False
+    assert beurer_instance._color_on is False
+    assert callback_called is True
+
+
+@pytest.mark.asyncio
+async def test_notification_handler_event_eb_preserves_moodlight_when_on(
+    beurer_instance: BeurerInstance,
+) -> None:
+    """Test handling event 0xEB keeps light on if moodlight channel is active."""
+    beurer_instance._is_on = True
+    beurer_instance._light_on = True
+    beurer_instance._color_on = True
+    callback_called = False
+
+    def update_callback() -> None:
+        nonlocal callback_called
+        callback_called = True
+
+    beurer_instance.set_update_callback(update_callback)
+
+    payload = bytearray([0xFE, 0xEF, 0x0C, 0x09, 0xAB, 0xBB, 0x04, CMD_EVENT_LIGHT_TIMER_END, 0x00, 0xEE, 0x55, 0x0D, 0x0A])
+    char = MagicMock()
+    await beurer_instance.notification_handler(char, payload)
+
+    assert beurer_instance.is_on is True
+    assert beurer_instance._light_on is False
+    assert beurer_instance._color_on is True
+    assert callback_called is True
+
+
+@pytest.mark.asyncio
+async def test_notification_handler_event_eb_ignores_duplicate_burst(
+    beurer_instance: BeurerInstance,
+) -> None:
+    """Test that rapid consecutive 0xEB burst notifications are ignored."""
+    beurer_instance._is_on = True
+    beurer_instance._light_on = True
+    beurer_instance._color_on = False
+    update_count = 0
+
+    def update_callback() -> None:
+        nonlocal update_count
+        update_count += 1
+
+    beurer_instance.set_update_callback(update_callback)
+
+    payload = bytearray([0xFE, 0xEF, 0x0C, 0x09, 0xAB, 0xBB, 0x04, CMD_EVENT_LIGHT_TIMER_END, 0x00, 0xEE, 0x55, 0x0D, 0x0A])
+    char = MagicMock()
+
+    await beurer_instance.notification_handler(char, payload)
+    assert beurer_instance.is_on is False
+    assert update_count == 1
+
+    # Burst of identical 0xEB notifications in quick succession should be ignored
+    for _ in range(5):
+        await beurer_instance.notification_handler(char, payload)
+
+    assert beurer_instance.is_on is False
+    assert update_count == 1
+
+
+@pytest.mark.asyncio
+async def test_notification_handler_event_ec_turns_off_moodlight(
+    beurer_instance: BeurerInstance,
+) -> None:
+    """Test handling event 0xEC turns off moodlight channel."""
+    beurer_instance._is_on = True
+    beurer_instance._light_on = False
+    beurer_instance._color_on = True
+    callback_called = False
+
+    def update_callback() -> None:
+        nonlocal callback_called
+        callback_called = True
+
+    beurer_instance.set_update_callback(update_callback)
+
+    # Packet for 0xEC (RESPONSE_MOONLIGHT_TIMER_END)
+    payload = bytearray([0xFE, 0xEF, 0x0C, 0x09, 0xAB, 0xBB, 0x04, CMD_EVENT_MOONLIGHT_TIMER_END, 0x00, 0xEE, 0x55, 0x0D, 0x0A])
+    char = MagicMock()
+    await beurer_instance.notification_handler(char, payload)
+
+    assert beurer_instance.is_on is False
+    assert beurer_instance._light_on is False
+    assert beurer_instance._color_on is False
+    assert callback_called is True
+
+
+@pytest.mark.asyncio
+async def test_notification_handler_event_ec_preserves_daylight_when_on(
+    beurer_instance: BeurerInstance,
+) -> None:
+    """Test handling event 0xEC keeps light on if daylight channel is active."""
+    beurer_instance._is_on = True
+    beurer_instance._light_on = True
+    beurer_instance._color_on = True
+    callback_called = False
+
+    def update_callback() -> None:
+        nonlocal callback_called
+        callback_called = True
+
+    beurer_instance.set_update_callback(update_callback)
+
+    payload = bytearray([0xFE, 0xEF, 0x0C, 0x09, 0xAB, 0xBB, 0x04, CMD_EVENT_MOONLIGHT_TIMER_END, 0x00, 0xEE, 0x55, 0x0D, 0x0A])
+    char = MagicMock()
+    await beurer_instance.notification_handler(char, payload)
+
+    assert beurer_instance.is_on is True
+    assert beurer_instance._light_on is True
+    assert beurer_instance._color_on is False
+    assert callback_called is True
+
+
+@pytest.mark.asyncio
+async def test_notification_handler_event_ec_ignores_duplicate_burst(
+    beurer_instance: BeurerInstance,
+) -> None:
+    """Test that rapid consecutive 0xEC burst notifications are ignored."""
+    beurer_instance._is_on = True
+    beurer_instance._light_on = False
+    beurer_instance._color_on = True
+    update_count = 0
+
+    def update_callback() -> None:
+        nonlocal update_count
+        update_count += 1
+
+    beurer_instance.set_update_callback(update_callback)
+
+    payload = bytearray([0xFE, 0xEF, 0x0C, 0x09, 0xAB, 0xBB, 0x04, CMD_EVENT_MOONLIGHT_TIMER_END, 0x00, 0xEE, 0x55, 0x0D, 0x0A])
+    char = MagicMock()
+
+    await beurer_instance.notification_handler(char, payload)
+    assert beurer_instance.is_on is False
+    assert update_count == 1
+
+    # Burst of identical 0xEC notifications in quick succession should be ignored
+    for _ in range(5):
+        await beurer_instance.notification_handler(char, payload)
+
+    assert beurer_instance.is_on is False
+    assert update_count == 1
 
 
 def test_disconnected_callback_preserves_state(beurer_instance: BeurerInstance) -> None:

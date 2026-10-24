@@ -23,6 +23,8 @@ from .const import (
     CHANNEL_WHITE,
     CMD_DISABLE_CHANNEL,
     CMD_ENABLE_CHANNEL,
+    CMD_EVENT_LIGHT_TIMER_END,
+    CMD_EVENT_MOONLIGHT_TIMER_END,
     CMD_EVENT_SHUTDOWN,
     CMD_PERMISSION_RESPONSE,
     CMD_QUERY_STATUS,
@@ -574,6 +576,28 @@ class BeurerInstance:
                 self._mode = ColorMode.WHITE
                 if self._brightness is None:
                     self._brightness = 255
+            await self.trigger_entity_update()
+            return
+
+        if cmd == CMD_EVENT_LIGHT_TIMER_END:
+            if self._last_notification_cmd == CMD_EVENT_LIGHT_TIMER_END and not self._light_on:
+                LOGGER.debug("Ignoring duplicate 0xEB burst notification")
+                return
+            self._last_notification_cmd = CMD_EVENT_LIGHT_TIMER_END
+            LOGGER.debug("Received daylight timer end event 0xEB - turning off daylight")
+            self._light_on = False
+            self._is_on = bool(self._light_on or self._color_on)
+            await self.trigger_entity_update()
+            return
+
+        if cmd == CMD_EVENT_MOONLIGHT_TIMER_END:
+            if self._last_notification_cmd == CMD_EVENT_MOONLIGHT_TIMER_END and not self._color_on:
+                LOGGER.debug("Ignoring duplicate 0xEC burst notification")
+                return
+            self._last_notification_cmd = CMD_EVENT_MOONLIGHT_TIMER_END
+            LOGGER.debug("Received moodlight timer end event 0xEC - turning off moodlight")
+            self._color_on = False
+            self._is_on = bool(self._light_on or self._color_on)
             await self.trigger_entity_update()
             return
 
