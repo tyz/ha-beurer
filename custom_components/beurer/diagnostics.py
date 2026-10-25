@@ -24,7 +24,10 @@ async def async_get_config_entry_diagnostics(hass: HomeAssistant, entry: BeurerC
     Returns:
         Dictionary containing redacted diagnostics data.
     """
-    instance: BeurerInstance | None = entry.runtime_data
+    # ConfigEntry.runtime_data only exists once the entry has been set up. Home
+    # Assistant still offers diagnostics for an entry that failed to load or is
+    # disabled, and reading the attribute directly raised AttributeError there.
+    instance: BeurerInstance | None = getattr(entry, "runtime_data", None)
 
     device_data: dict[str, Any] = {}
     if instance is not None:

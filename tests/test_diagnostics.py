@@ -88,3 +88,23 @@ async def test_async_get_config_entry_diagnostics_when_instance_missing(
 
     assert diagnostics["entry"]["data"][CONF_MAC] == "**REDACTED**"
     assert diagnostics["device"] == {}
+
+
+@pytest.mark.asyncio
+async def test_async_get_config_entry_diagnostics_for_unloaded_entry(
+    mock_entry: ConfigEntry,
+) -> None:
+    """Test diagnostics also work for an entry that never finished setting up.
+
+    ConfigEntry.runtime_data does not exist at all until setup assigns it, so
+    reading it directly raised AttributeError. Home Assistant offers the
+    download button for failed and disabled entries too, where diagnostics are
+    most useful.
+    """
+    mock_hass = MagicMock()
+    assert not hasattr(mock_entry, "runtime_data")
+
+    diagnostics = await async_get_config_entry_diagnostics(mock_hass, mock_entry)
+
+    assert diagnostics["entry"]["data"][CONF_MAC] == "**REDACTED**"
+    assert diagnostics["device"] == {}
