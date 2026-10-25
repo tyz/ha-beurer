@@ -64,4 +64,4 @@ These optional files contain tasks that need to be done (not necessarily right a
 ## Your environment
 
 * Linux, Debian/RaspberryPi OS (arm64)
-* You run in an OCI container; let me know if anything that would make your work easier is missing (debs, Python modules, etc)
+* You run in an OCI container; let me know if anything that would make your work easier is missing (debs, Python modules, etc). Container restarts wipe everything except /project and /project/.opencode ($HOME).

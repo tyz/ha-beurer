@@ -330,6 +330,25 @@ async def test_connect_reads_firmware_version(beurer_instance: BeurerInstance) -
 
 
 @pytest.mark.asyncio
+async def test_connect_refuses_after_closing(beurer_instance: BeurerInstance) -> None:
+    """Test a closed instance never reconnects, even if a write tries to.
+
+    connect() used to clear _closing on entry. A write queued behind the unload
+    therefore re-established the BLE link for an entry Home Assistant had
+    already torn down, leaving a connection that nothing would ever close.
+    """
+    beurer_instance._closing = True
+    beurer_instance._device = None
+
+    with patch("custom_components.beurer.beurer.establish_connection", AsyncMock()) as establish:
+        assert await beurer_instance.connect() is False
+
+    establish.assert_not_called()
+    assert beurer_instance._closing is True
+    assert beurer_instance.available is False
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize("software_first", [True, False])
 async def test_connect_prefers_software_revision_over_firmware_revision(
     beurer_instance: BeurerInstance, software_first: bool

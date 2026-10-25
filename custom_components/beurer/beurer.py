@@ -1009,7 +1009,13 @@ class BeurerInstance:
         Returns:
             True if connection was successful, False otherwise.
         """
-        self._closing = False
+        # _closing is set by unload and by Home Assistant shutting down. It used
+        # to be cleared here, which meant a queued write or an in-flight
+        # reconnect could revive the connection after the entry was unloaded and
+        # leave a BLE link open for a device Home Assistant no longer tracks.
+        if self._closing:
+            LOGGER.debug("Refusing to connect to %s, the integration is shutting down", self._mac)
+            return False
         self._last_notification_cmd = None
         async with self._connect_lock:
             if self._device is not None and self._device.is_connected and self._write_uuid is not None:
