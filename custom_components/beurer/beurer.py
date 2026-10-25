@@ -34,6 +34,7 @@ from .const import (
     CMD_STATUS_RESPONSE,
     DEFAULT_TIMER_DURATION,
     EFFECTS,
+    FIRMWARE_REVISION_UUIDS,
     IDX_BLUE,
     IDX_BRIGHTNESS,
     IDX_CHANNEL,
@@ -56,7 +57,7 @@ from .const import (
     PACKET_SYNC_COMMAND,
     PACKET_TYPE_COMMAND,
     READ_CHARACTERISTIC_UUIDS,
-    VERSION_CHARACTERISTIC_UUIDS,
+    SOFTWARE_REVISION_UUIDS,
     WRITE_CHARACTERISTIC_UUIDS,
     Channel,
 )
@@ -1011,14 +1012,23 @@ class BeurerInstance:
 
                 await asyncio.sleep(0.1)
 
+                software_revision_uuid: str | None = None
+                firmware_revision_uuid: str | None = None
                 for char in self._device.services.characteristics.values():
                     char_uuid = char.uuid.lower()
                     if char_uuid in WRITE_CHARACTERISTIC_UUIDS:
                         self._write_uuid = char.uuid
                     if char_uuid in READ_CHARACTERISTIC_UUIDS:
                         self._read_uuid = char.uuid
-                    if char_uuid in VERSION_CHARACTERISTIC_UUIDS:
-                        self._version_uuid = char.uuid
+                    if char_uuid in SOFTWARE_REVISION_UUIDS:
+                        software_revision_uuid = char.uuid
+                    elif char_uuid in FIRMWARE_REVISION_UUIDS:
+                        firmware_revision_uuid = char.uuid
+                # Prefer the software revision (2A28), which is what the lamp
+                # reports as its firmware version, over the firmware revision.
+                # Picking whichever characteristic happened to be iterated last
+                # made the reported version depend on dict ordering.
+                self._version_uuid = software_revision_uuid or firmware_revision_uuid
 
                 if not self._read_uuid or not self._write_uuid:
                     LOGGER.error("No supported read/write UUIDs found")

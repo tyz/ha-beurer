@@ -330,6 +330,45 @@ async def test_connect_reads_firmware_version(beurer_instance: BeurerInstance) -
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("software_first", [True, False])
+async def test_connect_prefers_software_revision_over_firmware_revision(
+    beurer_instance: BeurerInstance, software_first: bool
+) -> None:
+    """Test the software revision characteristic wins regardless of discovery order.
+
+    Both 2A26 (firmware revision) and 2A28 (software revision) are part of the
+    Device Information Service, and the TL 100 reports its version in the
+    software revision. Picking whichever came last made the reported version
+    depend on the order the stack enumerated characteristics in.
+    """
+    mock_client = MagicMock()
+    mock_client.is_connected = True
+    write_char = MagicMock()
+    write_char.uuid = "8B00ACE7-EB0B-49B0-BBE9-9AEE0A26E1A3"
+    read_char = MagicMock()
+    read_char.uuid = "0734594A-A8E7-4B1A-A6B1-CD5243059A57"
+    software_char = MagicMock()
+    software_char.uuid = "00002A28-0000-1000-8000-00805F9B34FB"
+    firmware_char = MagicMock()
+    firmware_char.uuid = "00002A26-0000-1000-8000-00805F9B34FB"
+
+    revision_chars = [software_char, firmware_char] if software_first else [firmware_char, software_char]
+    mock_client.services.characteristics.values.return_value = [write_char, read_char, *revision_chars]
+    mock_client.start_notify = AsyncMock()
+    mock_client.read_gatt_char = AsyncMock(return_value=b"V1.35\x00\n")
+
+    with patch(
+        "custom_components.beurer.beurer.establish_connection",
+        AsyncMock(return_value=mock_client),
+    ):
+        success = await beurer_instance.connect()
+
+    assert success is True
+    mock_client.read_gatt_char.assert_awaited_once_with(software_char.uuid)
+    assert beurer_instance.firmware_version == "V1.35"
+
+
+@pytest.mark.asyncio
 async def test_connect_suppresses_already_shutdown_error(
     beurer_instance: BeurerInstance,
 ) -> None:

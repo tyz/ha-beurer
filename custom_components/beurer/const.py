@@ -21,10 +21,14 @@ VERSION_CHARACTERISTIC_UUID_FIRMWARE: Final = "00002a26-0000-1000-8000-00805f9b3
 
 WRITE_CHARACTERISTIC_UUIDS: Final[set[str]] = {WRITE_CHARACTERISTIC_UUID}
 READ_CHARACTERISTIC_UUIDS: Final[set[str]] = {NOTIFY_CHARACTERISTIC_UUID}
-VERSION_CHARACTERISTIC_UUIDS: Final[set[str]] = {
+# Both spellings occur: some stacks report the 16-bit form. Software revision is
+# preferred over firmware revision when both are present.
+SOFTWARE_REVISION_UUIDS: Final[set[str]] = {
     VERSION_CHARACTERISTIC_UUID_SOFTWARE,
     "00002a28",
     "2a28",
+}
+FIRMWARE_REVISION_UUIDS: Final[set[str]] = {
     VERSION_CHARACTERISTIC_UUID_FIRMWARE,
     "00002a26",
     "2a26",
