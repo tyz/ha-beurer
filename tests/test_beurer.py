@@ -1785,6 +1785,7 @@ async def test_timer_properties_and_duration_configuration(beurer_instance: Beur
     beurer_instance._write = mock_write
     beurer_instance._mode = ColorMode.WHITE
     beurer_instance._color_on = False
+    beurer_instance._is_on = True
 
     # Set valid duration to 45 min
     await beurer_instance.set_timer_duration(45)
@@ -1805,7 +1806,15 @@ async def test_timer_properties_and_duration_configuration(beurer_instance: Beur
     with pytest.raises(ValueError, match="Invalid timer duration"):
         await beurer_instance.set_timer_duration(150)
 
+    # When lamp is off, setting duration stores value without sending packets
+    sent_packets.clear()
+    beurer_instance._is_on = False
+    await beurer_instance.set_timer_duration(30)
+    assert beurer_instance.timer_duration == 30
+    assert len(sent_packets) == 0
+
     # Setting duration while timer active updates minutes remaining
+    beurer_instance._is_on = True
     beurer_instance._timer_active = True
     await beurer_instance.set_timer_duration(90)
     assert beurer_instance.timer_duration == 90
@@ -1833,6 +1842,14 @@ async def test_enable_and_disable_timer(beurer_instance: BeurerInstance) -> None
     beurer_instance._color_on = False
     beurer_instance._timer_duration = 30
 
+    # Calling enable_timer when lamp is off raises RuntimeError and sends no packets
+    beurer_instance._is_on = False
+    with pytest.raises(RuntimeError, match="Cannot enable timer when the lamp is off"):
+        await beurer_instance.enable_timer()
+    assert len(sent_packets) == 0
+
+    # Calling enable_timer when lamp is on sends duration and enable packets
+    beurer_instance._is_on = True
     with patch("asyncio.sleep", AsyncMock()):
         await beurer_instance.enable_timer()
 
@@ -1847,7 +1864,7 @@ async def test_enable_and_disable_timer(beurer_instance: BeurerInstance) -> None
     assert pkt2[7] == 0x38  # CMD_ENABLE_TIMER
     assert pkt2[8] == 0x01
 
-    # Test disable timer
+    # Test disable timer when lamp is on
     sent_packets.clear()
     with patch("asyncio.sleep", AsyncMock()):
         await beurer_instance.disable_timer()
@@ -1859,6 +1876,16 @@ async def test_enable_and_disable_timer(beurer_instance: BeurerInstance) -> None
     assert list(sent_packets[0])[8] == 0x01
     assert list(sent_packets[1])[7] == 0x36  # CMD_DISABLE_TIMER color
     assert list(sent_packets[1])[8] == 0x02
+
+    # Test disable timer when lamp is off resets state without sending packets
+    sent_packets.clear()
+    beurer_instance._is_on = False
+    beurer_instance._timer_active = True
+    beurer_instance._timer_minutes_remaining = 30
+    await beurer_instance.disable_timer()
+    assert beurer_instance.timer_active is False
+    assert beurer_instance.timer_minutes_remaining == 0
+    assert len(sent_packets) == 0
 
 
 @pytest.mark.asyncio

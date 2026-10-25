@@ -19,6 +19,7 @@ def mock_instance() -> MagicMock:
     """Return a mock BeurerInstance."""
     instance = MagicMock(spec=BeurerInstance)
     instance.mac = "57:4C:42:80:71:BA"
+    instance.is_on = True
     instance.timer_active = False
     instance.is_connected = True
     instance.firmware_version = "1.35"
@@ -56,6 +57,19 @@ async def test_switch_async_turn_on(mock_instance: MagicMock) -> None:
     switch = BeurerTimerSwitch(mock_instance, "TL100", "entry_123")
     await switch.async_turn_on()
     mock_instance.enable_timer.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_switch_async_turn_on_fails_when_lamp_off(mock_instance: MagicMock) -> None:
+    """Test turning on switch raises HomeAssistantError when lamp is off."""
+    mock_instance.is_on = False
+    switch = BeurerTimerSwitch(mock_instance, "TL100", "entry_123")
+
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await switch.async_turn_on()
+
+    assert exc_info.value.translation_key == "lamp_must_be_on"
+    mock_instance.enable_timer.assert_not_called()
 
 
 @pytest.mark.asyncio

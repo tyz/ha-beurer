@@ -365,14 +365,21 @@ class BeurerInstance:
             raise ValueError(f"Invalid timer duration: {minutes}. Valid presets are: {VALID_TIMER_DURATIONS}")
         LOGGER.debug("Setting timer duration to %d minutes", minutes)
         self._timer_duration = minutes
-        channel = CHANNEL_COLOR if self._mode == ColorMode.RGB or self._color_on else CHANNEL_WHITE
-        await self.sendPacket([CMD_SET_TIMER_DURATION, channel, minutes])
-        if self._timer_active:
-            self._timer_minutes_remaining = minutes
+        if self._is_on:
+            channel = CHANNEL_COLOR if self._mode == ColorMode.RGB or self._color_on else CHANNEL_WHITE
+            await self.sendPacket([CMD_SET_TIMER_DURATION, channel, minutes])
+            if self._timer_active:
+                self._timer_minutes_remaining = minutes
         await self.trigger_entity_update()
 
     async def enable_timer(self) -> None:
-        """Start/enable hardware countdown timer on the active channel."""
+        """Start/enable hardware countdown timer on the active channel.
+
+        Raises:
+            RuntimeError: If called while the lamp is turned off.
+        """
+        if not self._is_on:
+            raise RuntimeError("Cannot enable timer when the lamp is off")
         channel = CHANNEL_COLOR if self._mode == ColorMode.RGB or self._color_on else CHANNEL_WHITE
         LOGGER.debug("Enabling hardware countdown timer on channel %s for %d min", channel, self._timer_duration)
         await self.sendPacket([CMD_SET_TIMER_DURATION, channel, self._timer_duration])
@@ -385,9 +392,10 @@ class BeurerInstance:
     async def disable_timer(self) -> None:
         """Cancel/disable hardware countdown timer on both channels."""
         LOGGER.debug("Disabling hardware countdown timer")
-        await self.sendPacket([CMD_DISABLE_TIMER, CHANNEL_WHITE])
-        await asyncio.sleep(0.1)
-        await self.sendPacket([CMD_DISABLE_TIMER, CHANNEL_COLOR])
+        if self._is_on:
+            await self.sendPacket([CMD_DISABLE_TIMER, CHANNEL_WHITE])
+            await asyncio.sleep(0.1)
+            await self.sendPacket([CMD_DISABLE_TIMER, CHANNEL_COLOR])
         self._timer_active = False
         self._timer_minutes_remaining = 0
         await self.trigger_entity_update()

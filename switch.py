@@ -77,8 +77,13 @@ class BeurerTimerSwitch(SwitchEntity):
             **kwargs: Unused extra arguments.
 
         Raises:
-            HomeAssistantError: If communication with the device fails.
+            HomeAssistantError: If communication fails or lamp is off.
         """
+        if not self._instance.is_on:
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="lamp_must_be_on",
+            )
         try:
             await self._instance.enable_timer()
         except (BleakError, TimeoutError, OSError) as err:

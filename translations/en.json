@@ -40,6 +40,9 @@
   "exceptions": {
     "communication_error": {
       "message": "Failed to communicate with Beurer lamp {name}: {error}"
+    },
+    "lamp_must_be_on": {
+      "message": "Cannot enable timer because the lamp is turned off"
     }
   },
   "entity": {
