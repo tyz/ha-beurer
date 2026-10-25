@@ -11,7 +11,6 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.exceptions import HomeAssistantError
 
 from custom_components.beurer.beurer import BeurerInstance
-from custom_components.beurer.const import DOMAIN
 from custom_components.beurer.switch import BeurerTimerSwitch, async_setup_entry
 
 
@@ -145,8 +144,8 @@ def test_switch_available(mock_instance: MagicMock) -> None:
 async def test_async_setup_entry_switch(mock_instance: MagicMock) -> None:
     """Test async_setup_entry adds switch entity."""
     mock_hass = MagicMock()
-    mock_hass.data = {DOMAIN: {"entry_123": mock_instance}}
     mock_entry = ConfigEntry(entry_id="entry_123", data={"name": "TL100"})
+    mock_entry.runtime_data = mock_instance
     mock_add_entities = MagicMock()
 
     await async_setup_entry(mock_hass, mock_entry, mock_add_entities)

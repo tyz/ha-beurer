@@ -5,17 +5,16 @@ from __future__ import annotations
 from typing import Any
 
 from homeassistant.components.diagnostics import async_redact_data
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_MAC
 from homeassistant.core import HomeAssistant
 
+from . import BeurerConfigEntry
 from .beurer import BeurerInstance
-from .const import DOMAIN
 
 TO_REDACT = {CONF_MAC, "address", "unique_id"}
 
 
-async def async_get_config_entry_diagnostics(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:
+async def async_get_config_entry_diagnostics(hass: HomeAssistant, entry: BeurerConfigEntry) -> dict[str, Any]:
     """Return diagnostics for a config entry.
 
     Args:
@@ -25,7 +24,7 @@ async def async_get_config_entry_diagnostics(hass: HomeAssistant, entry: ConfigE
     Returns:
         Dictionary containing redacted diagnostics data.
     """
-    instance: BeurerInstance | None = hass.data.get(DOMAIN, {}).get(entry.entry_id)
+    instance: BeurerInstance | None = entry.runtime_data
 
     device_data: dict[str, Any] = {}
     if instance is not None:

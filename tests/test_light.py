@@ -337,7 +337,7 @@ async def test_async_setup_entry_light(mock_instance: MagicMock) -> None:
     """Test async_setup_entry creates and adds BeurerLight."""
     mock_hass = MagicMock()
     mock_entry = ConfigEntry(entry_id="test_entry_id", data={"name": "Bedroom Lamp"})
-    mock_hass.data = {DOMAIN: {"test_entry_id": mock_instance}}
+    mock_entry.runtime_data = mock_instance
 
     added_devices: list[BeurerLight] = []
 

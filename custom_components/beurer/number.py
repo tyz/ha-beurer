@@ -6,20 +6,20 @@ from collections.abc import Callable
 
 from bleak import BleakError
 from homeassistant.components.number import NumberEntity, NumberMode
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EntityCategory, UnitOfTime
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
+from . import BeurerConfigEntry
 from .beurer import BeurerInstance
 from .const import DOMAIN, LOGGER, MAX_TIMER_DURATION, MIN_TIMER_DURATION
 
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    config_entry: ConfigEntry,
+    config_entry: BeurerConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the Beurer number platform from a config entry.
@@ -30,7 +30,7 @@ async def async_setup_entry(
         async_add_entities: Callback to register entities with HA.
     """
     LOGGER.debug("Setting up number platform for Beurer")
-    instance: BeurerInstance = hass.data[DOMAIN][config_entry.entry_id]
+    instance: BeurerInstance = config_entry.runtime_data
     async_add_entities([BeurerTimerDurationNumber(instance, config_entry.data["name"], config_entry.entry_id)])
 
 

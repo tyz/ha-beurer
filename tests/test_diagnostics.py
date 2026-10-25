@@ -10,7 +10,6 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_MAC
 
 from custom_components.beurer.beurer import BeurerInstance
-from custom_components.beurer.const import DOMAIN
 from custom_components.beurer.diagnostics import async_get_config_entry_diagnostics
 
 
@@ -53,7 +52,7 @@ def mock_instance() -> MagicMock:
 async def test_async_get_config_entry_diagnostics(mock_entry: ConfigEntry, mock_instance: MagicMock) -> None:
     """Test retrieving diagnostics successfully redacting sensitive MAC."""
     mock_hass = MagicMock()
-    mock_hass.data = {DOMAIN: {mock_entry.entry_id: mock_instance}}
+    mock_entry.runtime_data = mock_instance
 
     diagnostics = await async_get_config_entry_diagnostics(mock_hass, mock_entry)
 
@@ -81,9 +80,9 @@ async def test_async_get_config_entry_diagnostics(mock_entry: ConfigEntry, mock_
 async def test_async_get_config_entry_diagnostics_when_instance_missing(
     mock_entry: ConfigEntry,
 ) -> None:
-    """Test diagnostics when BeurerInstance is not found in hass.data."""
+    """Test diagnostics when the entry has no loaded BeurerInstance."""
     mock_hass = MagicMock()
-    mock_hass.data = {DOMAIN: {}}
+    mock_entry.runtime_data = None
 
     diagnostics = await async_get_config_entry_diagnostics(mock_hass, mock_entry)
 

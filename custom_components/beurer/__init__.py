@@ -9,7 +9,10 @@ from homeassistant.core import Event, HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryNotReady
 
 from .beurer import BeurerInstance
-from .const import DOMAIN, LOGGER
+from .const import DOMAIN as DOMAIN  # re-exported for tests and downstream imports
+from .const import LOGGER
+
+type BeurerConfigEntry = ConfigEntry[BeurerInstance]
 
 PLATFORMS: list[Platform] = [
     Platform.LIGHT,
@@ -19,7 +22,7 @@ PLATFORMS: list[Platform] = [
 ]
 
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+async def async_setup_entry(hass: HomeAssistant, entry: BeurerConfigEntry) -> bool:
     """Set up Beurer from a config entry.
 
     Args:
@@ -39,7 +42,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         raise ConfigEntryNotReady(f"Was not able to find device with mac {address}")
 
     instance = BeurerInstance(device)
-    hass.data.setdefault(DOMAIN, {})[entry.entry_id] = instance
+    entry.runtime_data = instance
 
     @callback
     def _async_update_ble(
@@ -98,7 +101,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     return True
 
 
-async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+async def async_unload_entry(hass: HomeAssistant, entry: BeurerConfigEntry) -> bool:
     """Unload a config entry.
 
     Args:
@@ -110,6 +113,5 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unload_ok:
-        instance: BeurerInstance = hass.data[DOMAIN].pop(entry.entry_id)
-        await instance.disconnect(closing=True)
+        await entry.runtime_data.disconnect(closing=True)
     return unload_ok

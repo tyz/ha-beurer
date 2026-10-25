@@ -13,7 +13,6 @@ from homeassistant.const import CONF_MAC, Platform
 from homeassistant.exceptions import ConfigEntryNotReady
 
 from custom_components.beurer import PLATFORMS, async_setup_entry, async_unload_entry
-from custom_components.beurer.const import DOMAIN
 
 
 @pytest.fixture
@@ -71,8 +70,7 @@ async def test_async_setup_entry_success(mock_hass: MagicMock, mock_entry: Confi
     with patch.object(bluetooth, "async_ble_device_from_address", return_value=fake_ble_device):
         result = await async_setup_entry(mock_hass, mock_entry)
         assert result is True
-        assert DOMAIN in mock_hass.data
-        assert "test_entry_id" in mock_hass.data[DOMAIN]
+        assert mock_entry.runtime_data is not None
         assert Platform.NUMBER in PLATFORMS
         assert Platform.SELECT not in PLATFORMS
         mock_hass.config_entries.async_forward_entry_setups.assert_awaited_once_with(mock_entry, PLATFORMS)
@@ -103,7 +101,7 @@ async def test_async_setup_entry_registers_bluetooth_callback(mock_hass: MagicMo
         mock_service_info = MagicMock()
         mock_service_info.device = updated_device
 
-        instance = mock_hass.data[DOMAIN][mock_entry.entry_id]
+        instance = mock_entry.runtime_data
         with patch.object(instance, "trigger_reconnect") as mock_reconnect:
             registered_callback(mock_service_info, MagicMock())
             assert instance._ble_device == updated_device
@@ -123,11 +121,10 @@ async def test_async_unload_entry(mock_hass: MagicMock, mock_entry: ConfigEntry)
     """Test unloading integration disconnects BeurerInstance."""
     mock_instance = MagicMock()
     mock_instance.disconnect = AsyncMock()
-    mock_hass.data = {DOMAIN: {mock_entry.entry_id: mock_instance}}
+    mock_entry.runtime_data = mock_instance
 
     result = await async_unload_entry(mock_hass, mock_entry)
     assert result is True
-    assert mock_entry.entry_id not in mock_hass.data[DOMAIN]
     mock_instance.disconnect.assert_awaited_once_with(closing=True)
 
 
@@ -150,7 +147,7 @@ async def test_async_setup_entry_registers_stop_listener(mock_hass: MagicMock, m
         assert result is True
         assert stop_callback is not None
 
-        instance = mock_hass.data[DOMAIN][mock_entry.entry_id]
+        instance = mock_entry.runtime_data
         with patch.object(instance, "disconnect", new_callable=AsyncMock) as mock_disconnect:
             await stop_callback(MagicMock())
             mock_disconnect.assert_awaited_once_with(closing=True)

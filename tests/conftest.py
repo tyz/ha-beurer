@@ -199,6 +199,7 @@ def _setup_mock_modules() -> None:
                 self.domain = domain
                 self.title = title
                 self.unique_id = unique_id
+                self.runtime_data: Any = None
 
             def async_on_unload(self, func: Any) -> None:
                 pass

@@ -19,7 +19,6 @@ from homeassistant.components.light import (
     LightEntity,
     LightEntityFeature,
 )
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_MAC
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
@@ -29,6 +28,7 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.util.color import match_max_scale
 
+from . import BeurerConfigEntry
 from .beurer import BeurerInstance
 from .const import DOMAIN, LOGGER
 
@@ -38,7 +38,7 @@ SCAN_INTERVAL = timedelta(seconds=60)
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    config_entry: ConfigEntry,
+    config_entry: BeurerConfigEntry,
     async_add_devices: AddEntitiesCallback,
 ) -> None:
     """Set up the Beurer light platform from a config entry.
@@ -49,7 +49,7 @@ async def async_setup_entry(
         async_add_devices: Callback to register entities with HA.
     """
     LOGGER.debug("Setting up device from light")
-    instance: BeurerInstance = hass.data[DOMAIN][config_entry.entry_id]
+    instance: BeurerInstance = config_entry.runtime_data
     async_add_devices([BeurerLight(instance, config_entry.data["name"], config_entry.entry_id)])
 
 
