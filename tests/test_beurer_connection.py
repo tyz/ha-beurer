@@ -110,12 +110,11 @@ async def test_auto_reconnect_respects_cooldown(
         assert beurer_instance._last_reconnect_time == 102.0
 
 
-def test_beurer_instance_none_device() -> None:
-    """Test BeurerInstance handles None device gracefully."""
-    with patch("custom_components.beurer.beurer.LOGGER") as mock_logger:
-        instance = BeurerInstance(None)
-        assert instance.mac == ""
-        mock_logger.error.assert_called_once()
+def test_beurer_instance_stores_mac_from_device() -> None:
+    """Test BeurerInstance takes the MAC address from the BLE device."""
+    device = BLEDevice("57:4C:42:80:71:BA", "TL100_71BA")
+    instance = BeurerInstance(device)
+    assert instance.mac == "57:4C:42:80:71:BA"
 
 
 @pytest.mark.asyncio

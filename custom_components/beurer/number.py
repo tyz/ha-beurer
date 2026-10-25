@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from typing import override
 
-from bleak import BleakError
+from bleak.exc import BleakError
 from homeassistant.components.number import NumberEntity, NumberMode
 from homeassistant.const import EntityCategory, UnitOfTime
 from homeassistant.core import HomeAssistant
@@ -60,10 +61,12 @@ class BeurerTimerDurationNumber(NumberEntity):
         self._attr_unique_id: str = f"{self._instance.mac}_timer_duration"
         self._unregister_callback: Callable[[], None] | None = None
 
+    @override
     async def async_added_to_hass(self) -> None:
         """Register callbacks after being added to Home Assistant."""
         self._unregister_callback = self._instance.register_update_callback(self.async_write_ha_state)
 
+    @override
     async def async_will_remove_from_hass(self) -> None:
         """Unregister callback when entity is removed from Home Assistant."""
         if self._unregister_callback is not None:
@@ -71,10 +74,12 @@ class BeurerTimerDurationNumber(NumberEntity):
             self._unregister_callback = None
 
     @property
+    @override
     def native_value(self) -> float:
         """Return the current timer duration in minutes."""
         return float(self._instance.timer_duration)
 
+    @override
     async def async_set_native_value(self, value: float) -> None:
         """Set the hardware timer duration in minutes.
 
@@ -97,11 +102,13 @@ class BeurerTimerDurationNumber(NumberEntity):
             ) from err
 
     @property
+    @override
     def available(self) -> bool:
         """Return True when the lamp can actually be controlled."""
         return self._instance.available
 
     @property
+    @override
     def device_info(self) -> DeviceInfo:
         """Return device registry information."""
         info = DeviceInfo(

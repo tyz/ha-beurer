@@ -7,14 +7,11 @@ import time
 import traceback
 from collections.abc import Callable
 
-from bleak import (
-    BleakClient,
-    BleakError,
-    BleakGATTCharacteristic,
-    BleakScanner,
-    BLEDevice,
-)
-from homeassistant.components.light import ColorMode
+from bleak import BleakClient, BleakScanner
+from bleak.backends.characteristic import BleakGATTCharacteristic
+from bleak.backends.device import BLEDevice
+from bleak.exc import BleakError
+from homeassistant.components.light.const import ColorMode
 
 from .const import (
     CHANNEL_COLOR,
@@ -124,9 +121,7 @@ class BeurerInstance:
             device: Underlying BLEDevice instance.
         """
         self._ble_device = device
-        self._mac: str = device.address if device else ""
-        if device is None:
-            LOGGER.error("Was not able to find device with mac %s", self._mac)
+        self._mac: str = device.address
         self._device: BleakClient | None = None
         self._connect_lock = asyncio.Lock()
         self._write_lock = asyncio.Lock()

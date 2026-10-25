@@ -161,5 +161,8 @@ rules:
     status: exempt
     comment: The integration does not talk to an HTTP API.
   strict-typing:
-    status: todo
-    comment: mypy runs in non-strict mode; enabling strict typing is a follow-up task.
+    status: done
+    comment: |
+      mypy.ini mirrors the settings Home Assistant core uses, including
+      explicit-override and strict-equality. The integration also passes
+      --strict --no-implicit-reexport, which is stricter than core requires.

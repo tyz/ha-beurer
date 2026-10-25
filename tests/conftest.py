@@ -74,6 +74,18 @@ def _setup_mock_modules() -> None:
         bleak_exc.BleakError = MockBleakError  # type: ignore[attr-defined]
         sys.modules["bleak.exc"] = bleak_exc
 
+        # Keep the submodules the integration imports from in sync.
+        for submodule in ("bleak.backends", "bleak.backends.device", "bleak.backends.characteristic"):
+            sys.modules[submodule] = ModuleType(submodule)
+
+        bleak_device = ModuleType("bleak.backends.device")
+        bleak_device.BLEDevice = MockBLEDevice  # type: ignore[attr-defined]
+        sys.modules["bleak.backends.device"] = bleak_device
+
+        bleak_char = ModuleType("bleak.backends.characteristic")
+        bleak_char.BleakGATTCharacteristic = MockBleakGATTCharacteristic  # type: ignore[attr-defined]
+        sys.modules["bleak.backends.characteristic"] = bleak_char
+
     # Mock bleak_retry_connector
     if "bleak_retry_connector" not in sys.modules:
         brc_mod = ModuleType("bleak_retry_connector")
@@ -279,6 +291,9 @@ def _setup_mock_modules() -> None:
 
         ha_ce.ConfigEntry = ConfigEntry  # type: ignore[attr-defined]
         ha_ce.ConfigFlow = ConfigFlow  # type: ignore[attr-defined]
+        # ConfigFlowResult is a TypedDict in Home Assistant; the mock flows
+        # return plain dicts, so an alias is enough.
+        ha_ce.ConfigFlowResult = dict  # type: ignore[attr-defined]
         sys.modules["homeassistant.config_entries"] = ha_ce
 
         # components
@@ -355,6 +370,19 @@ def _setup_mock_modules() -> None:
 
         ha_light.PLATFORM_SCHEMA = MockPlatformSchema()  # type: ignore[attr-defined]
         sys.modules["homeassistant.components.light"] = ha_light
+
+        # components.light.const holds the constants the integration imports
+        # from there; share the same objects so identity checks keep working.
+        ha_light_const = ModuleType("homeassistant.components.light.const")
+        ha_light_const.ColorMode = ColorMode  # type: ignore[attr-defined]
+        ha_light_const.LightEntityFeature = LightEntityFeature  # type: ignore[attr-defined]
+        ha_light_const.ATTR_RGB_COLOR = "rgb_color"  # type: ignore[attr-defined]
+        ha_light_const.ATTR_BRIGHTNESS = "brightness"  # type: ignore[attr-defined]
+        ha_light_const.ATTR_EFFECT = "effect"  # type: ignore[attr-defined]
+        ha_light_const.ATTR_WHITE = "white"  # type: ignore[attr-defined]
+        ha_light_const.ATTR_COLOR_MODE = "color_mode"  # type: ignore[attr-defined]
+        ha_light.const = ha_light_const  # type: ignore[attr-defined]
+        sys.modules["homeassistant.components.light.const"] = ha_light_const
 
         # components.number
         ha_number = ModuleType("homeassistant.components.number")

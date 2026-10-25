@@ -4,19 +4,21 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from datetime import timedelta
-from typing import Any
+from typing import Any, cast, override
 
 import voluptuous as vol
-from bleak import BleakError
+from bleak.exc import BleakError
 from homeassistant.components.light import (
+    PLATFORM_SCHEMA,
+    LightEntity,
+)
+from homeassistant.components.light.const import (
     ATTR_BRIGHTNESS,
     ATTR_COLOR_MODE,
     ATTR_EFFECT,
     ATTR_RGB_COLOR,
     ATTR_WHITE,
-    PLATFORM_SCHEMA,
     ColorMode,
-    LightEntity,
     LightEntityFeature,
 )
 from homeassistant.const import CONF_MAC
@@ -71,6 +73,7 @@ class BeurerLight(LightEntity):
         self._attr_unique_id: str = self._instance.mac
         self._unregister_callback: Callable[[], None] | None = None
 
+    @override
     async def async_added_to_hass(self) -> None:
         """Register callbacks after being added to Home Assistant."""
         self._instance.set_update_callback(self.update_callback)
@@ -81,6 +84,7 @@ class BeurerLight(LightEntity):
         else:
             await self._instance.update()
 
+    @override
     async def async_will_remove_from_hass(self) -> None:
         """Unregister callback when entity is removed from Home Assistant."""
         if self._unregister_callback is not None:
@@ -110,21 +114,24 @@ class BeurerLight(LightEntity):
                 identifiers={(DOMAIN, self._instance.mac)},
                 manufacturer="Beurer",
                 model="TL 100",
-                name=self.name,
+                name=self.name or self._instance.mac,
                 sw_version=self._instance.firmware_version,
             )
 
     @property
+    @override
     def available(self) -> bool:
         """Return True when the lamp can actually be controlled."""
         return self._instance.available
 
     @property
+    @override
     def should_poll(self) -> bool:
         """Return True to poll as a fallback for offline/missed state updates."""
         return True
 
     @property
+    @override
     def brightness(self) -> int | None:
         """Return current brightness depending on active color mode."""
         if self._instance.color_mode == ColorMode.WHITE:
@@ -132,20 +139,24 @@ class BeurerLight(LightEntity):
         return self._instance.color_brightness
 
     @property
+    @override
     def is_on(self) -> bool | None:
         """Return True if light is currently turned on."""
         return self._instance.is_on
 
     @property
+    @override
     def rgb_color(self) -> tuple[int, int, int] | None:
         """Return the current RGB color tuple scaled to maximum intensity or white in white mode."""
         if self._instance.color_mode == ColorMode.WHITE:
             return (255, 255, 255)
-        if self._instance.rgb_color:
-            return match_max_scale((255,), self._instance.rgb_color)
-        return None
+        # match_max_scale is typed as returning tuple[int, ...]; with a single
+        # output channel it returns exactly one value per input channel, so the
+        # three-tuple is guaranteed here.
+        return cast(tuple[int, int, int], match_max_scale((255,), self._instance.rgb_color))
 
     @property
+    @override
     def effect(self) -> str | None:
         """Return currently active effect or Off in white mode."""
         if self._instance.color_mode == ColorMode.WHITE:
@@ -153,26 +164,30 @@ class BeurerLight(LightEntity):
         return self._instance.effect
 
     @property
+    @override
     def effect_list(self) -> list[str]:
         """Return list of supported lighting effects."""
         return self._instance.supported_effects
 
     @property
+    @override
     def supported_features(self) -> LightEntityFeature:
         """Return supported entity features."""
         return LightEntityFeature.EFFECT
 
     @property
+    @override
     def color_mode(self) -> ColorMode | None:
         """Return currently active ColorMode."""
         return self._instance.color_mode
 
     @property
+    @override
     def device_info(self) -> DeviceInfo:
         """Return device registry information."""
         info = DeviceInfo(
             identifiers={(DOMAIN, self._instance.mac)},
-            name=self.name,
+            name=str(self.name or self._instance.mac),
             manufacturer="Beurer",
             model="TL 100",
         )
@@ -193,6 +208,7 @@ class BeurerLight(LightEntity):
         rgb = match_max_scale((255,), color)
         return tuple(c * set_brightness // 255 for c in rgb)
 
+    @override
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn on the light or adjust properties.
 
@@ -227,7 +243,7 @@ class BeurerLight(LightEntity):
                 if ATTR_RGB_COLOR in kwargs:
                     await self._instance.set_color(kwargs[ATTR_RGB_COLOR])
                 elif not self._instance._color_on:
-                    await self._instance.set_color(self._instance.rgb_color or (255, 255, 255))
+                    await self._instance.set_color(self._instance.rgb_color)
 
                 if ATTR_BRIGHTNESS in kwargs:
                     await self._instance.set_color_brightness(kwargs[ATTR_BRIGHTNESS])
@@ -248,11 +264,12 @@ class BeurerLight(LightEntity):
                 translation_domain=DOMAIN,
                 translation_key="communication_error",
                 translation_placeholders={
-                    "name": self.name or self._instance.mac,
+                    "name": str(self.name or self._instance.mac),
                     "error": str(err),
                 },
             ) from err
 
+    @override
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn off the light.
 
@@ -269,7 +286,7 @@ class BeurerLight(LightEntity):
                 translation_domain=DOMAIN,
                 translation_key="communication_error",
                 translation_placeholders={
-                    "name": self.name or self._instance.mac,
+                    "name": str(self.name or self._instance.mac),
                     "error": str(err),
                 },
             ) from err

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from typing import override
 
 from homeassistant.components.sensor import (
     SensorDeviceClass,
@@ -59,10 +60,12 @@ class BeurerTimerRemainingSensor(SensorEntity):
         self._attr_unique_id: str = f"{self._instance.mac}_timer_remaining"
         self._unregister_callback: Callable[[], None] | None = None
 
+    @override
     async def async_added_to_hass(self) -> None:
         """Register callbacks after being added to Home Assistant."""
         self._unregister_callback = self._instance.register_update_callback(self.async_write_ha_state)
 
+    @override
     async def async_will_remove_from_hass(self) -> None:
         """Unregister callback when entity is removed from Home Assistant."""
         if self._unregister_callback is not None:
@@ -70,16 +73,19 @@ class BeurerTimerRemainingSensor(SensorEntity):
             self._unregister_callback = None
 
     @property
+    @override
     def native_value(self) -> int:
         """Return the remaining countdown time in minutes."""
         return self._instance.timer_minutes_remaining
 
     @property
+    @override
     def available(self) -> bool:
         """Return True when the lamp can actually be controlled."""
         return self._instance.available
 
     @property
+    @override
     def device_info(self) -> DeviceInfo:
         """Return device registry information."""
         info = DeviceInfo(

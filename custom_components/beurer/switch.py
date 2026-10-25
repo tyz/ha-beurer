@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import Any
+from typing import Any, override
 
-from bleak import BleakError
+from bleak.exc import BleakError
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
@@ -54,10 +54,12 @@ class BeurerTimerSwitch(SwitchEntity):
         self._attr_unique_id: str = f"{self._instance.mac}_timer"
         self._unregister_callback: Callable[[], None] | None = None
 
+    @override
     async def async_added_to_hass(self) -> None:
         """Register callbacks after being added to Home Assistant."""
         self._unregister_callback = self._instance.register_update_callback(self.async_write_ha_state)
 
+    @override
     async def async_will_remove_from_hass(self) -> None:
         """Unregister callback when entity is removed from Home Assistant."""
         if self._unregister_callback is not None:
@@ -65,10 +67,12 @@ class BeurerTimerSwitch(SwitchEntity):
             self._unregister_callback = None
 
     @property
+    @override
     def is_on(self) -> bool:
         """Return True if the countdown timer is running."""
         return self._instance.timer_active
 
+    @override
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Start/enable the countdown timer.
 
@@ -95,6 +99,7 @@ class BeurerTimerSwitch(SwitchEntity):
                 },
             ) from err
 
+    @override
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Cancel/disable the countdown timer.
 
@@ -117,11 +122,13 @@ class BeurerTimerSwitch(SwitchEntity):
             ) from err
 
     @property
+    @override
     def available(self) -> bool:
         """Return True when the lamp can actually be controlled."""
         return self._instance.available
 
     @property
+    @override
     def device_info(self) -> DeviceInfo:
         """Return device registry information."""
         info = DeviceInfo(
