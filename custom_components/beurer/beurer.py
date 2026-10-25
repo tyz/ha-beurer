@@ -233,19 +233,12 @@ class BeurerInstance:
             client: BleakClient that was disconnected.
         """
         if self._closing:
-            LOGGER.debug("Ignoring disconnect callback because instance is closing/disconnected")
             return
 
         if self._device is None or client is not self._device:
-            LOGGER.debug(
-                "Ignoring disconnect callback from inactive client: %s (active: %s)",
-                client,
-                self._device,
-            )
             return
 
         if self._connect_lock.locked():
-            LOGGER.debug("Ignoring disconnect callback while connect lock is held")
             return
 
         LOGGER.debug("Disconnected callback called for active client")
