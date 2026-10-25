@@ -82,7 +82,7 @@ When the lamp cannot be found at its configured address, a **Repair** notificati
 ## Supported Features
 
 * **Daylight Therapy (White Mode)**: Full on/off and brightness control.
-* **Moodlight (RGB Mode)**: Color picker, independent color brightness control, and scene selection.
+* **Moodlight (RGB Mode)**: Color picker, independent color brightness control, and effect selection via the light entity's `effect` attribute.
 * **Hardware Countdown Timer**: Built-in hardware timer control via `number` (duration: 1–120 min), `switch` (start/cancel), and `sensor` (remaining time) entities.
 * **Hardware Timer-End Events (`0xEB` / `0xEC`)**: Immediate state updates when the lamp turns off after timer expiration.
 * **Physical Controls**: State stays in sync when using the buttons on the lamp.
