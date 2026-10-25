@@ -53,6 +53,7 @@ from .const import (
     LOGGER,
     MAX_TIMER_DURATION,
     MIN_TIMER_DURATION,
+    NOTIFICATION_DUPLICATE_WINDOW,
     PACKET_FOOTER,
     PACKET_HEADER,
     PACKET_SYNC_COMMAND,
@@ -678,7 +679,7 @@ class BeurerInstance:
         if (
             self._last_notification_data is not None
             and data == self._last_notification_data
-            and now - self._last_notification_time < 0.3
+            and now - self._last_notification_time < NOTIFICATION_DUPLICATE_WINDOW
         ):
             return
         self._last_notification_data = data

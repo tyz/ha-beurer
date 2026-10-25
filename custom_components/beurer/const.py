@@ -128,6 +128,10 @@ EFFECTS: Final[list[str]] = [
     "Summer",
 ]
 
+# Seconds within which an identical repeated notification is treated as a
+# duplicate. The lamp echoes button and timer events up to five times.
+NOTIFICATION_DUPLICATE_WINDOW: Final = 0.3
+
 # Hardware countdown timer limits in minutes
 MIN_TIMER_DURATION: Final = 1
 MAX_TIMER_DURATION: Final = 120
