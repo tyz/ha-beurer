@@ -1027,6 +1027,10 @@ class BeurerInstance:
             self._is_on = False
             self._light_on = False
             self._color_on = False
+            # The countdown cannot survive a shutdown, so reporting a running
+            # timer on an off lamp would be wrong.
+            self._timer_active = False
+            self._timer_minutes_remaining = 0
             self.trigger_entity_update()
         else:
             LOGGER.debug(

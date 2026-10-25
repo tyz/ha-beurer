@@ -1362,3 +1362,41 @@ async def test_checksum_mismatch_is_logged_but_still_processed(
 
     assert beurer_instance.is_on is True
     assert any("checksum mismatch" in str(call).lower() for call in mock_logger.debug.call_args_list)
+
+
+@pytest.mark.asyncio
+async def test_channel_shutdown_clears_timer_state(
+    beurer_instance: BeurerInstance,
+) -> None:
+    """Test a shutdown notification does not leave a timer running on an off lamp."""
+    beurer_instance._is_on = True
+    beurer_instance._light_on = True
+    beurer_instance._color_on = False
+    beurer_instance._timer_active = True
+    beurer_instance._timer_minutes_remaining = 12
+
+    shutdown = bytearray(
+        [
+            0xFE,
+            0xEF,
+            0x0C,
+            0x0B,
+            0xAB,
+            0xBB,
+            0x06,
+            0xD0,
+            0x00,  # channel 0: shutting down
+            0x00,
+            0x00,
+            0x00,
+            0xE8,  # checksum
+            0x55,
+            0x0D,
+            0x0A,
+        ]
+    )
+    await beurer_instance.notification_handler(MagicMock(), shutdown)
+
+    assert beurer_instance.is_on is False
+    assert beurer_instance.timer_active is False
+    assert beurer_instance.timer_minutes_remaining == 0
