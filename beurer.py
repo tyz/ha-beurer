@@ -549,7 +549,7 @@ class BeurerInstance:
             LOGGER.debug("Triggering async update")
             self._trigger_update()
         else:
-            LOGGER.warning("No async update function provided: %s", self._trigger_update)
+            LOGGER.debug("No async update function registered yet: %s", self._trigger_update)
 
     async def notification_handler(self, characteristic: BleakGATTCharacteristic, data: bytearray) -> None:
         """Handle incoming GATT notifications from the device.
