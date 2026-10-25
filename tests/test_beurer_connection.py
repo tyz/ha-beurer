@@ -10,7 +10,7 @@ import pytest
 from bleak import BleakError, BLEDevice
 from homeassistant.components.light import ColorMode
 
-from custom_components.beurer.beurer import BeurerInstance
+from custom_components.beurer.beurer import BeurerCommunicationError, BeurerInstance
 
 
 @pytest.mark.asyncio
@@ -802,19 +802,18 @@ async def test_update_skips_when_disconnected(beurer_instance: BeurerInstance) -
 
 @pytest.mark.asyncio
 async def test_write_connect_failure(mock_device: BLEDevice) -> None:
-    """Test _write logs error and returns if connect fails."""
+    """Test _write raises when the connection cannot be established."""
     instance = BeurerInstance(mock_device)
     instance._device = None
     instance.connect = AsyncMock(return_value=False)
 
-    with patch("custom_components.beurer.beurer.LOGGER") as mock_logger:
+    with pytest.raises(BeurerCommunicationError, match="Could not connect"):
         await instance._write(bytearray([1, 2, 3]))
-        mock_logger.error.assert_called_once()
 
 
 @pytest.mark.asyncio
-async def test_write_handles_timeout_gracefully(mock_device: BLEDevice) -> None:
-    """Test that _write handles timeout during GATT write without crashing."""
+async def test_write_timeout_raises_and_disconnects(mock_device: BLEDevice) -> None:
+    """Test a GATT write timeout disconnects and surfaces as a communication error."""
     instance = BeurerInstance(mock_device)
     mock_client = MagicMock()
     mock_client.is_connected = True
@@ -827,8 +826,8 @@ async def test_write_handles_timeout_gracefully(mock_device: BLEDevice) -> None:
     instance._write_uuid = "write-uuid"
     instance.disconnect = AsyncMock()
 
-    # Should safely catch TimeoutError and call disconnect
-    await instance._write(bytearray([1, 2, 3]))
+    with pytest.raises(BeurerCommunicationError, match="Could not write"):
+        await instance._write(bytearray([1, 2, 3]))
     instance.disconnect.assert_awaited_once()
 
 
@@ -871,6 +870,11 @@ async def test_available_requires_active_connection(
     mock_client = MagicMock()
     mock_client.is_connected = True
     beurer_instance._device = mock_client
+    # A connected client without a write characteristic cannot be controlled.
+    beurer_instance._write_uuid = None
+    assert beurer_instance.available is False
+
+    beurer_instance._write_uuid = "write-uuid"
     assert beurer_instance.available is True
 
     # Closing the instance must never look controllable.

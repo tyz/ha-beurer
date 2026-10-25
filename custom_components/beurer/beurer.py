@@ -111,6 +111,15 @@ async def get_device(mac: str) -> BLEDevice | None:
     return next((device for device in devices if device.address.lower() == mac.lower()), None)
 
 
+class BeurerCommunicationError(Exception):
+    """Raised when a command could not be delivered to the lamp.
+
+    The Bluetooth layer reports write failures as this exception instead of
+    logging them and carrying on, so callers can tell a command that reached
+    the lamp from one that only looked like it did.
+    """
+
+
 class BeurerInstance:
     """Handles communication and state for a single Beurer TL 100 device."""
 
@@ -187,7 +196,7 @@ class BeurerInstance:
         controllable, so availability follows the live connection instead of
         advertisement history. Entities delegate here so every platform agrees.
         """
-        return self.is_connected and not self._closing
+        return self.is_connected and self._write_uuid is not None and not self._closing
 
     @property
     def is_closing(self) -> bool:
@@ -319,16 +328,18 @@ class BeurerInstance:
                 if (
                     self._device is None or not self._device.is_connected or self._write_uuid is None
                 ) and not await self.connect():
-                    LOGGER.error("Failed to connect before writing")
-                    return
-                if self._device and self._write_uuid:
-                    async with asyncio.timeout(5.0):
-                        await self._device.write_gatt_char(self._write_uuid, data)
+                    raise BeurerCommunicationError(f"Could not connect to the lamp at {self._mac}")
+                if self._device is None or self._write_uuid is None:
+                    # The connection was torn down between connect() and here.
+                    raise BeurerCommunicationError(f"Connection to the lamp at {self._mac} was lost")
+                async with asyncio.timeout(5.0):
+                    await self._device.write_gatt_char(self._write_uuid, data)
             except (BleakError, TimeoutError, OSError) as error:
                 track = traceback.format_exc()
                 LOGGER.debug(track)
                 LOGGER.warning("Error while trying to write to device: %s", error)
                 await self.disconnect()
+                raise BeurerCommunicationError(f"Could not write to the lamp at {self._mac}: {error}") from error
 
     @property
     def mac(self) -> str:
@@ -1001,6 +1012,12 @@ class BeurerInstance:
 
                 if not self._read_uuid or not self._write_uuid:
                     LOGGER.error("No supported read/write UUIDs found")
+                    # Do not leave a connected client behind: it would report
+                    # itself as connected while every write is impossible.
+                    self._report_connection_lost(
+                        BeurerCommunicationError(f"No supported read/write UUIDs on the lamp at {self._mac}")
+                    )
+                    await self.disconnect()
                     return False
 
                 LOGGER.debug("Read UUID: %s, Write UUID: %s", self._read_uuid, self._write_uuid)

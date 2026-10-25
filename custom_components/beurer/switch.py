@@ -13,7 +13,7 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import BeurerConfigEntry
-from .beurer import BeurerInstance
+from .beurer import BeurerCommunicationError, BeurerInstance
 from .const import DOMAIN, LOGGER
 
 
@@ -89,7 +89,7 @@ class BeurerTimerSwitch(SwitchEntity):
             )
         try:
             await self._instance.enable_timer()
-        except (BleakError, TimeoutError, OSError) as err:
+        except (BeurerCommunicationError, BleakError, TimeoutError, OSError) as err:
             raise HomeAssistantError(
                 translation_domain=DOMAIN,
                 translation_key="communication_error",
@@ -111,7 +111,7 @@ class BeurerTimerSwitch(SwitchEntity):
         """
         try:
             await self._instance.disable_timer()
-        except (BleakError, TimeoutError, OSError) as err:
+        except (BeurerCommunicationError, BleakError, TimeoutError, OSError) as err:
             raise HomeAssistantError(
                 translation_domain=DOMAIN,
                 translation_key="communication_error",

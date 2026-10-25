@@ -14,7 +14,7 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import BeurerConfigEntry
-from .beurer import BeurerInstance
+from .beurer import BeurerCommunicationError, BeurerInstance
 from .const import DOMAIN, LOGGER, MAX_TIMER_DURATION, MIN_TIMER_DURATION
 
 
@@ -91,7 +91,7 @@ class BeurerTimerDurationNumber(NumberEntity):
         """
         try:
             await self._instance.set_timer_duration(int(value))
-        except (BleakError, TimeoutError, OSError) as err:
+        except (BeurerCommunicationError, BleakError, TimeoutError, OSError) as err:
             raise HomeAssistantError(
                 translation_domain=DOMAIN,
                 translation_key="communication_error",

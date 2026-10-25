@@ -31,7 +31,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.util.color import match_max_scale
 
 from . import BeurerConfigEntry
-from .beurer import BeurerInstance
+from .beurer import BeurerCommunicationError, BeurerInstance
 from .const import DOMAIN, LOGGER
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({vol.Required(CONF_MAC): cv.string})
@@ -259,7 +259,7 @@ class BeurerLight(LightEntity):
             # Effect requested
             if ATTR_EFFECT in kwargs:
                 await self._instance.set_effect(kwargs[ATTR_EFFECT])
-        except (BleakError, TimeoutError, OSError) as err:
+        except (BeurerCommunicationError, BleakError, TimeoutError, OSError) as err:
             raise HomeAssistantError(
                 translation_domain=DOMAIN,
                 translation_key="communication_error",
@@ -281,7 +281,7 @@ class BeurerLight(LightEntity):
         """
         try:
             await self._instance.turn_off()
-        except (BleakError, TimeoutError, OSError) as err:
+        except (BeurerCommunicationError, BleakError, TimeoutError, OSError) as err:
             raise HomeAssistantError(
                 translation_domain=DOMAIN,
                 translation_key="communication_error",
