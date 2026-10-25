@@ -8,6 +8,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from bleak import BleakError, BLEDevice
+from homeassistant.components.light import ColorMode
+
 from custom_components.beurer.beurer import (
     BeurerInstance,
     create_status_callback,
@@ -22,7 +24,6 @@ from custom_components.beurer.const import (
     CMD_EVENT_LIGHT_TIMER_END,
     CMD_EVENT_MOONLIGHT_TIMER_END,
 )
-from homeassistant.components.light import ColorMode
 
 
 @pytest.fixture

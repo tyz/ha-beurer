@@ -1,5 +1,4 @@
 {
-    "name": "Beurer",
-    "content_in_root": true,
-    "render_readme": true
-  }
+  "name": "Beurer TL 100",
+  "render_readme": true
+}

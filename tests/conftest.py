@@ -629,21 +629,12 @@ ROOT = Path(__file__).parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-import importlib.util
-
+# Register ``custom_components`` as a namespace package rooted at the repository
+# so ``custom_components.beurer`` resolves to the real integration directory
+# instead of being loaded from a hand-built module spec.
 cc_mod = ModuleType("custom_components")
-cc_mod.__path__ = []
+cc_mod.__path__ = [str(ROOT / "custom_components")]  # type: ignore[attr-defined]
 sys.modules["custom_components"] = cc_mod
-
-spec = importlib.util.spec_from_file_location(
-    "custom_components.beurer",
-    str(ROOT / "__init__.py"),
-    submodule_search_locations=[str(ROOT)],
-)
-if spec and spec.loader:
-    beurer_pkg = importlib.util.module_from_spec(spec)
-    sys.modules["custom_components.beurer"] = beurer_pkg
-    spec.loader.exec_module(beurer_pkg)
 
 
 def pytest_configure(config: Any) -> None:
