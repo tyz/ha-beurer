@@ -153,6 +153,7 @@ class BeurerInstance:
         self._reconnect_task: asyncio.Task[None] | None = None
         self._closing: bool = False
         self._last_reconnect_time: float = 0.0
+        self._connection_lost_reported: bool = False
         self._mode: ColorMode | None = ColorMode.WHITE
         self._supported_effects: list[str] = list(EFFECTS)
         self._timer_duration: int = DEFAULT_TIMER_DURATION
@@ -174,9 +175,45 @@ class BeurerInstance:
         return self._device is not None and self._device.is_connected
 
     @property
+    def available(self) -> bool:
+        """Return True when the lamp can actually be controlled.
+
+        A lamp that is only present in the Bluetooth advertisement cache is not
+        controllable, so availability follows the live connection instead of
+        advertisement history. Entities delegate here so every platform agrees.
+        """
+        return self.is_connected and not self._closing
+
+    @property
     def is_closing(self) -> bool:
         """Return True if the instance is closing or disconnecting."""
         return self._closing
+
+    def _report_connection_lost(self, error: Exception | None = None) -> None:
+        """Log the first connection failure once and stay quiet afterwards.
+
+        The reconnect loop keeps running for as long as the lamp is out of
+        reach, so logging every attempt would flood the log. Only the first
+        failure of an outage is reported at INFO; the rest is DEBUG until a
+        connection succeeds again.
+
+        Args:
+            error: The exception that caused the failure, if any.
+        """
+        if self._connection_lost_reported:
+            if error is not None:
+                LOGGER.debug("Reconnect attempt failed: %s", error)
+            return
+        self._connection_lost_reported = True
+        LOGGER.info("Lost connection to %s, retrying until the lamp is reachable again (%s)", self._mac, error)
+        if error is not None:
+            LOGGER.debug("%s", traceback.format_exc())
+
+    def _report_connection_restored(self) -> None:
+        """Log a successful reconnect once and allow the next outage to be reported."""
+        if self._connection_lost_reported:
+            self._connection_lost_reported = False
+            LOGGER.info("Reconnected to %s", self._mac)
 
     def trigger_reconnect(self) -> None:
         """Schedule an auto-reconnect task if not already reconnecting."""
@@ -236,7 +273,7 @@ class BeurerInstance:
             if await self.connect():
                 await self.triggerStatus(force=True)
         except Exception as error:  # noqa: BLE001
-            LOGGER.debug("Auto-reconnect attempt failed: %s", error)
+            self._report_connection_lost(error)
 
     def register_update_callback(self, trigger_update: Callable[[], None]) -> Callable[[], None]:
         """Register an entity update callback and return an unregister callable.
@@ -958,14 +995,14 @@ class BeurerInstance:
                         [char.uuid for char in self._device.services.characteristics.values()],
                     )
             except Exception as error:  # noqa: BLE001
-                track = traceback.format_exc()
                 if "already shutdown" in str(error).lower() or self._closing:
                     LOGGER.debug("Connection aborted during shutdown: %s", error)
                 else:
-                    LOGGER.debug(track)
-                    LOGGER.error("Error connecting: %s", error)
+                    self._report_connection_lost(error)
                 await self.disconnect()
                 return False
+
+        self._report_connection_restored()
 
         if (
             self._reconnect_task is not None
@@ -984,13 +1021,12 @@ class BeurerInstance:
             return
 
         try:
-            LOGGER.info("Triggering update")
+            LOGGER.debug("Triggering update")
             await self.triggerStatus()
 
         except Exception as error:  # noqa: BLE001
-            track = traceback.format_exc()
-            LOGGER.debug(track)
-            LOGGER.error("Error getting status: %s", error)
+            LOGGER.debug("%s", traceback.format_exc())
+            self._report_connection_lost(error)
             await self.disconnect()
 
     async def disconnect(self, closing: bool = False) -> None:

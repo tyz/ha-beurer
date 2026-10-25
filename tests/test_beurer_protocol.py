@@ -49,7 +49,10 @@ async def test_discover_function() -> None:
     dev2.name = "Other Device"
     dev2.address = "22:33:44:55:66:77"
 
-    with patch("custom_components.beurer.beurer.BleakScanner.discover", AsyncMock(return_value=[dev1, dev2])):
+    with patch(
+        "custom_components.beurer.beurer.BleakScanner.discover",
+        AsyncMock(return_value=[dev1, dev2]),
+    ):
         found = await discover()
         assert len(found) == 1
         assert found[0].name == "TL100 Lamp"
@@ -68,7 +71,10 @@ async def test_get_device_function() -> None:
     dev1 = MagicMock()
     dev1.address = "AA:BB:CC:DD:EE:FF"
 
-    with patch("custom_components.beurer.beurer.BleakScanner.discover", AsyncMock(return_value=[dev1])):
+    with patch(
+        "custom_components.beurer.beurer.BleakScanner.discover",
+        AsyncMock(return_value=[dev1]),
+    ):
         result = await get_device("aa:bb:cc:dd:ee:ff")
         assert result is dev1
 

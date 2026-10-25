@@ -14,7 +14,9 @@ from custom_components.beurer.beurer import BeurerInstance
 
 
 @pytest.mark.asyncio
-async def test_auto_reconnect_aborts_when_closing(beurer_instance: BeurerInstance) -> None:
+async def test_auto_reconnect_aborts_when_closing(
+    beurer_instance: BeurerInstance,
+) -> None:
     """Test that auto-reconnect aborts if instance is marked as closing."""
     beurer_instance._closing = True
     beurer_instance.connect = AsyncMock()
@@ -26,8 +28,10 @@ async def test_auto_reconnect_aborts_when_closing(beurer_instance: BeurerInstanc
 
 
 @pytest.mark.asyncio
-async def test_auto_reconnect_exception_handling(beurer_instance: BeurerInstance) -> None:
-    """Test _auto_reconnect catches exception from connect and logs debug."""
+async def test_auto_reconnect_exception_handling(
+    beurer_instance: BeurerInstance,
+) -> None:
+    """Test _auto_reconnect reports the first failure at INFO and repeats at DEBUG."""
     beurer_instance._closing = False
     beurer_instance._device = None
     beurer_instance.connect = AsyncMock(side_effect=RuntimeError("BLE connect failure"))
@@ -37,11 +41,18 @@ async def test_auto_reconnect_exception_handling(beurer_instance: BeurerInstance
         patch("custom_components.beurer.beurer.LOGGER") as mock_logger,
     ):
         await beurer_instance._auto_reconnect()
-        assert any("Auto-reconnect attempt failed" in str(call) for call in mock_logger.debug.call_args_list)
+        assert mock_logger.info.call_count == 1
+
+        # A second failure of the same outage stays quiet on INFO.
+        await beurer_instance._auto_reconnect()
+        assert mock_logger.info.call_count == 1
+        assert any("Reconnect attempt failed" in str(call) for call in mock_logger.debug.call_args_list)
 
 
 @pytest.mark.asyncio
-async def test_auto_reconnect_queries_both_channels(beurer_instance: BeurerInstance) -> None:
+async def test_auto_reconnect_queries_both_channels(
+    beurer_instance: BeurerInstance,
+) -> None:
     """Test that auto-reconnect does not cancel itself and successfully queries both channels."""
     mock_client = MagicMock()
     mock_client.is_connected = True
@@ -65,7 +76,10 @@ async def test_auto_reconnect_queries_both_channels(beurer_instance: BeurerInsta
     beurer_instance._read_uuid = None
 
     with (
-        patch("custom_components.beurer.beurer.establish_connection", AsyncMock(return_value=mock_client)),
+        patch(
+            "custom_components.beurer.beurer.establish_connection",
+            AsyncMock(return_value=mock_client),
+        ),
         patch("asyncio.sleep", AsyncMock()),
     ):
         task = asyncio.create_task(beurer_instance._auto_reconnect())
@@ -78,7 +92,9 @@ async def test_auto_reconnect_queries_both_channels(beurer_instance: BeurerInsta
 
 
 @pytest.mark.asyncio
-async def test_auto_reconnect_respects_cooldown(beurer_instance: BeurerInstance) -> None:
+async def test_auto_reconnect_respects_cooldown(
+    beurer_instance: BeurerInstance,
+) -> None:
     """Test that auto-reconnect sleeps for at least the remaining cooldown period."""
     beurer_instance._device = None
     beurer_instance.connect = AsyncMock(return_value=False)
@@ -103,7 +119,9 @@ def test_beurer_instance_none_device() -> None:
 
 
 @pytest.mark.asyncio
-async def test_connect_already_connected_returns_true(beurer_instance: BeurerInstance) -> None:
+async def test_connect_already_connected_returns_true(
+    beurer_instance: BeurerInstance,
+) -> None:
     """Test connect returns True immediately if already connected with write UUID."""
     beurer_instance._device = MagicMock()
     beurer_instance._device.is_connected = True
@@ -113,7 +131,9 @@ async def test_connect_already_connected_returns_true(beurer_instance: BeurerIns
 
 
 @pytest.mark.asyncio
-async def test_connect_cancels_active_reconnect_task(beurer_instance: BeurerInstance) -> None:
+async def test_connect_cancels_active_reconnect_task(
+    beurer_instance: BeurerInstance,
+) -> None:
     """Test that a successful connect cancels any pending auto-reconnect task."""
     mock_client = MagicMock()
     mock_client.is_connected = True
@@ -128,7 +148,10 @@ async def test_connect_cancels_active_reconnect_task(beurer_instance: BeurerInst
     mock_task.done.return_value = False
     beurer_instance._reconnect_task = mock_task
 
-    with patch("custom_components.beurer.beurer.establish_connection", AsyncMock(return_value=mock_client)):
+    with patch(
+        "custom_components.beurer.beurer.establish_connection",
+        AsyncMock(return_value=mock_client),
+    ):
         success = await beurer_instance.connect()
 
     assert success is True
@@ -158,7 +181,9 @@ async def test_connect_disables_services_cache(beurer_instance: BeurerInstance) 
 
 
 @pytest.mark.asyncio
-async def test_connect_does_not_cancel_own_reconnect_task(beurer_instance: BeurerInstance) -> None:
+async def test_connect_does_not_cancel_own_reconnect_task(
+    beurer_instance: BeurerInstance,
+) -> None:
     """Test that connect does not cancel its own task when run as auto-reconnect task."""
     mock_client = MagicMock()
     mock_client.is_connected = True
@@ -172,7 +197,10 @@ async def test_connect_does_not_cancel_own_reconnect_task(beurer_instance: Beure
     current_task = asyncio.current_task()
     beurer_instance._reconnect_task = current_task
 
-    with patch("custom_components.beurer.beurer.establish_connection", AsyncMock(return_value=mock_client)):
+    with patch(
+        "custom_components.beurer.beurer.establish_connection",
+        AsyncMock(return_value=mock_client),
+    ):
         success = await beurer_instance.connect()
 
     assert success is True
@@ -180,7 +208,9 @@ async def test_connect_does_not_cancel_own_reconnect_task(beurer_instance: Beure
 
 
 @pytest.mark.asyncio
-async def test_connect_fallback_without_bleak_retry_connector(beurer_instance: BeurerInstance) -> None:
+async def test_connect_fallback_without_bleak_retry_connector(
+    beurer_instance: BeurerInstance,
+) -> None:
     """Test connect fallback path when BleakRetryConnector is unavailable."""
     mock_client = MagicMock()
     mock_client.is_connected = False
@@ -205,22 +235,31 @@ async def test_connect_fallback_without_bleak_retry_connector(beurer_instance: B
 
 
 @pytest.mark.asyncio
-async def test_connect_general_error_logs_error(beurer_instance: BeurerInstance) -> None:
+async def test_connect_general_error_logs_error(
+    beurer_instance: BeurerInstance,
+) -> None:
     """Test connect logs error when unexpected exception occurs."""
     beurer_instance._device = None
     beurer_instance._write_uuid = None
 
     with (
-        patch("custom_components.beurer.beurer.establish_connection", AsyncMock(side_effect=BleakError("Hardware fault"))),
+        patch(
+            "custom_components.beurer.beurer.establish_connection",
+            AsyncMock(side_effect=BleakError("Hardware fault")),
+        ),
         patch("custom_components.beurer.beurer.LOGGER") as mock_logger,
     ):
         result = await beurer_instance.connect()
         assert result is False
-        mock_logger.error.assert_called_once()
+        # The first failure is reported once at INFO; a traceback is only logged on DEBUG.
+        mock_logger.info.assert_called_once()
+        mock_logger.error.assert_not_called()
 
 
 @pytest.mark.asyncio
-async def test_connect_handles_firmware_version_read_error(beurer_instance: BeurerInstance) -> None:
+async def test_connect_handles_firmware_version_read_error(
+    beurer_instance: BeurerInstance,
+) -> None:
     """Test that connect succeeds even if reading firmware version fails."""
     mock_client = MagicMock()
     mock_client.is_connected = True
@@ -234,7 +273,10 @@ async def test_connect_handles_firmware_version_read_error(beurer_instance: Beur
     mock_client.start_notify = AsyncMock()
     mock_client.read_gatt_char = AsyncMock(side_effect=BleakError("Read failed"))
 
-    with patch("custom_components.beurer.beurer.establish_connection", AsyncMock(return_value=mock_client)):
+    with patch(
+        "custom_components.beurer.beurer.establish_connection",
+        AsyncMock(return_value=mock_client),
+    ):
         success = await beurer_instance.connect()
 
     assert success is True
@@ -243,7 +285,9 @@ async def test_connect_handles_firmware_version_read_error(beurer_instance: Beur
 
 
 @pytest.mark.asyncio
-async def test_connect_missing_read_or_write_uuids(beurer_instance: BeurerInstance) -> None:
+async def test_connect_missing_read_or_write_uuids(
+    beurer_instance: BeurerInstance,
+) -> None:
     """Test connect returns False if required UUIDs are not found."""
     mock_client = MagicMock()
     mock_client.is_connected = True
@@ -252,7 +296,10 @@ async def test_connect_missing_read_or_write_uuids(beurer_instance: BeurerInstan
     beurer_instance._device = None
     beurer_instance._write_uuid = None
 
-    with patch("custom_components.beurer.beurer.establish_connection", AsyncMock(return_value=mock_client)):
+    with patch(
+        "custom_components.beurer.beurer.establish_connection",
+        AsyncMock(return_value=mock_client),
+    ):
         result = await beurer_instance.connect()
         assert result is False
 
@@ -272,7 +319,10 @@ async def test_connect_reads_firmware_version(beurer_instance: BeurerInstance) -
     mock_client.start_notify = AsyncMock()
     mock_client.read_gatt_char = AsyncMock(return_value=b"V1.35\x00\n")
 
-    with patch("custom_components.beurer.beurer.establish_connection", AsyncMock(return_value=mock_client)):
+    with patch(
+        "custom_components.beurer.beurer.establish_connection",
+        AsyncMock(return_value=mock_client),
+    ):
         success = await beurer_instance.connect()
 
     assert success is True
@@ -281,7 +331,9 @@ async def test_connect_reads_firmware_version(beurer_instance: BeurerInstance) -
 
 
 @pytest.mark.asyncio
-async def test_connect_suppresses_already_shutdown_error(beurer_instance: BeurerInstance) -> None:
+async def test_connect_suppresses_already_shutdown_error(
+    beurer_instance: BeurerInstance,
+) -> None:
     """Test that connection error during shutdown is logged as debug instead of error."""
     with (
         patch(
@@ -314,7 +366,10 @@ async def test_connect_when_version_characteristic_missing(
     mock_client.start_notify = AsyncMock()
     mock_client.read_gatt_char = AsyncMock()
 
-    with patch("custom_components.beurer.beurer.establish_connection", AsyncMock(return_value=mock_client)):
+    with patch(
+        "custom_components.beurer.beurer.establish_connection",
+        AsyncMock(return_value=mock_client),
+    ):
         success = await beurer_instance.connect()
 
     assert success is True
@@ -323,7 +378,9 @@ async def test_connect_when_version_characteristic_missing(
 
 
 @pytest.mark.asyncio
-async def test_disconnect_cancels_reconnect_task(beurer_instance: BeurerInstance) -> None:
+async def test_disconnect_cancels_reconnect_task(
+    beurer_instance: BeurerInstance,
+) -> None:
     """Test disconnect cancels pending reconnect task."""
     mock_task = MagicMock()
     mock_task.done.return_value = False
@@ -335,7 +392,9 @@ async def test_disconnect_cancels_reconnect_task(beurer_instance: BeurerInstance
 
 
 @pytest.mark.asyncio
-async def test_disconnect_handles_client_errors(beurer_instance: BeurerInstance) -> None:
+async def test_disconnect_handles_client_errors(
+    beurer_instance: BeurerInstance,
+) -> None:
     """Test disconnect catches errors from stop_notify and disconnect without raising."""
     mock_client = MagicMock()
     mock_client.is_connected = True
@@ -411,7 +470,9 @@ async def test_disconnect_transient_does_not_mark_closing(
     assert beurer_instance.is_on is False
 
 
-def test_disconnected_callback_ignores_inactive_client(beurer_instance: BeurerInstance) -> None:
+def test_disconnected_callback_ignores_inactive_client(
+    beurer_instance: BeurerInstance,
+) -> None:
     """Test that disconnected callback ignores disconnects from non-active client instances."""
     active_client = MagicMock()
     inactive_client = MagicMock()
@@ -425,7 +486,9 @@ def test_disconnected_callback_ignores_inactive_client(beurer_instance: BeurerIn
 
 
 @pytest.mark.asyncio
-async def test_disconnected_callback_ignores_when_connect_locked(beurer_instance: BeurerInstance) -> None:
+async def test_disconnected_callback_ignores_when_connect_locked(
+    beurer_instance: BeurerInstance,
+) -> None:
     """Test that disconnected callback is ignored while connect lock is held."""
     active_client = MagicMock()
     beurer_instance._device = active_client
@@ -526,7 +589,9 @@ async def test_multiple_update_callbacks(beurer_instance: BeurerInstance) -> Non
 
 
 @pytest.mark.asyncio
-async def test_send_packet_connects_if_disconnected(beurer_instance: BeurerInstance) -> None:
+async def test_send_packet_connects_if_disconnected(
+    beurer_instance: BeurerInstance,
+) -> None:
     """Test sendPacket calls connect if client is disconnected."""
     beurer_instance._device = None
     beurer_instance.connect = AsyncMock(return_value=True)
@@ -587,7 +652,25 @@ async def test_trigger_status_defers_entity_update_until_complete(
     beurer_instance._color_on = None
 
     payload_ch1_off = bytearray(
-        [0xFE, 0xEF, 0x0C, 0x0D, 0xAB, 0xBB, 0x08, 0xD0, 0x01, 0x00, 0x00, 0x00, 0x00, 0x2B, 0x55, 0x0D, 0x0A]
+        [
+            0xFE,
+            0xEF,
+            0x0C,
+            0x0D,
+            0xAB,
+            0xBB,
+            0x08,
+            0xD0,
+            0x01,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x2B,
+            0x55,
+            0x0D,
+            0x0A,
+        ]
     )
     payload_ch2_on = bytearray(
         [
@@ -636,7 +719,9 @@ async def test_trigger_status_defers_entity_update_until_complete(
 
 
 @pytest.mark.asyncio
-async def test_trigger_status_skips_color_channel_when_daylight_on(beurer_instance: BeurerInstance) -> None:
+async def test_trigger_status_skips_color_channel_when_daylight_on(
+    beurer_instance: BeurerInstance,
+) -> None:
     """Test that triggerStatus skips querying color channel when daylight is already active."""
     sent_packets: list[list[int]] = []
 
@@ -673,7 +758,9 @@ async def test_trigger_status_timeouts(beurer_instance: BeurerInstance) -> None:
 
 
 @pytest.mark.asyncio
-async def test_update_exception_calls_disconnect(beurer_instance: BeurerInstance) -> None:
+async def test_update_exception_calls_disconnect(
+    beurer_instance: BeurerInstance,
+) -> None:
     """Test update calls disconnect if triggerStatus raises exception."""
     beurer_instance._device = MagicMock()
     beurer_instance._device.is_connected = True
@@ -685,7 +772,9 @@ async def test_update_exception_calls_disconnect(beurer_instance: BeurerInstance
 
 
 @pytest.mark.asyncio
-async def test_update_queries_status_when_connected(beurer_instance: BeurerInstance) -> None:
+async def test_update_queries_status_when_connected(
+    beurer_instance: BeurerInstance,
+) -> None:
     """Test that update queries status when the device is connected."""
     mock_client = MagicMock()
     mock_client.is_connected = True
@@ -742,3 +831,53 @@ async def test_write_handles_timeout_gracefully(mock_device: BLEDevice) -> None:
     # Should safely catch TimeoutError and call disconnect
     await instance._write(bytearray([1, 2, 3]))
     instance.disconnect.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_connection_loss_reported_once_per_outage(
+    beurer_instance: BeurerInstance,
+) -> None:
+    """Test one outage produces a single INFO loss and a single INFO recovery."""
+    beurer_instance._device = None
+    beurer_instance._write_uuid = None
+    beurer_instance.connect = AsyncMock(side_effect=RuntimeError("BLE connect failure"))
+
+    with (
+        patch("asyncio.sleep", AsyncMock()),
+        patch("custom_components.beurer.beurer.LOGGER") as mock_logger,
+    ):
+        for _ in range(5):
+            await beurer_instance._auto_reconnect()
+
+        assert mock_logger.info.call_count == 1
+        assert "Lost connection" in str(mock_logger.info.call_args)
+
+        # A successful reconnect closes the outage and reports it once.
+        beurer_instance._report_connection_restored()
+        assert "Reconnected" in str(mock_logger.info.call_args)
+
+        # The next outage is reported again.
+        beurer_instance._report_connection_lost(RuntimeError("gone"))
+        assert mock_logger.info.call_count == 3
+
+
+@pytest.mark.asyncio
+async def test_available_requires_active_connection(
+    beurer_instance: BeurerInstance,
+) -> None:
+    """Test availability follows the live connection instead of advertisement state."""
+    beurer_instance._device = None
+    assert beurer_instance.available is False
+
+    mock_client = MagicMock()
+    mock_client.is_connected = True
+    beurer_instance._device = mock_client
+    assert beurer_instance.available is True
+
+    # Closing the instance must never look controllable.
+    beurer_instance._closing = True
+    assert beurer_instance.available is False
+
+    mock_client.is_connected = False
+    beurer_instance._closing = False
+    assert beurer_instance.available is False

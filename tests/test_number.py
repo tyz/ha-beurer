@@ -6,19 +6,23 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from bleak import BleakError
-from custom_components.beurer.beurer import BeurerInstance
-from custom_components.beurer.const import DOMAIN
-from custom_components.beurer.number import BeurerTimerDurationNumber, async_setup_entry
 from homeassistant.components import bluetooth
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EntityCategory, UnitOfTime
 from homeassistant.exceptions import HomeAssistantError
+
+from custom_components.beurer.beurer import BeurerInstance
+from custom_components.beurer.const import DOMAIN
+from custom_components.beurer.number import BeurerTimerDurationNumber, async_setup_entry
 
 
 @pytest.fixture
 def mock_instance() -> MagicMock:
     """Return a mock BeurerInstance."""
     instance = MagicMock(spec=BeurerInstance)
+    # Mirror the real BeurerInstance property: a lamp is only available while
+    # an active BLE connection exists.
+    type(instance).available = property(lambda self: bool(self.is_connected))
     instance.mac = "57:4C:42:80:71:BA"
     instance.timer_duration = 15
     instance.is_connected = True
@@ -61,7 +65,9 @@ async def test_number_async_set_native_value(mock_instance: MagicMock) -> None:
 
 
 @pytest.mark.asyncio
-async def test_number_async_set_native_value_error_handling(mock_instance: MagicMock) -> None:
+async def test_number_async_set_native_value_error_handling(
+    mock_instance: MagicMock,
+) -> None:
     """Test exceptions are translated to HomeAssistantError."""
     mock_instance.set_timer_duration.side_effect = BleakError("Connection lost")
     number = BeurerTimerDurationNumber(mock_instance, "TL100", "entry_123")
@@ -86,27 +92,22 @@ async def test_number_lifecycle_callbacks(mock_instance: MagicMock) -> None:
 
 
 def test_number_available(mock_instance: MagicMock) -> None:
-    """Test number availability depending on connection and advertisements."""
+    """Test number availability tracks the live BLE connection only.
+
+    A lamp that is merely advertising but not connected cannot be controlled,
+    so it must be reported as unavailable.
+    """
     number = BeurerTimerDurationNumber(mock_instance, "TL100", "entry_123")
 
-    # Connected
+    # Connected: controllable.
     mock_instance.is_connected = True
     assert number.available is True
 
-    # Disconnected but advertising
+    # Disconnected but still advertising: not controllable, so unavailable.
     mock_instance.is_connected = False
-    mock_hass = MagicMock()
-    number.hass = mock_hass
+    number.hass = MagicMock()
     with patch.object(bluetooth, "async_ble_device_from_address", return_value=MagicMock()):
-        assert number.available is True
-
-    # Disconnected and not advertising
-    with patch.object(bluetooth, "async_ble_device_from_address", return_value=None):
         assert number.available is False
-
-    # Disconnected and hass is None fallback
-    number.hass = None
-    assert number.available is True
 
 
 @pytest.mark.asyncio

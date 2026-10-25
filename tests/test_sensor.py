@@ -5,22 +5,26 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 import pytest
+from homeassistant.components import bluetooth
+from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import UnitOfTime
+
 from custom_components.beurer.beurer import BeurerInstance
 from custom_components.beurer.const import DOMAIN
 from custom_components.beurer.sensor import (
     BeurerTimerRemainingSensor,
     async_setup_entry,
 )
-from homeassistant.components import bluetooth
-from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import UnitOfTime
 
 
 @pytest.fixture
 def mock_instance() -> MagicMock:
     """Return a mock BeurerInstance."""
     instance = MagicMock(spec=BeurerInstance)
+    # Mirror the real BeurerInstance property: a lamp is only available while
+    # an active BLE connection exists.
+    type(instance).available = property(lambda self: bool(self.is_connected))
     instance.mac = "57:4C:42:80:71:BA"
     instance.timer_minutes_remaining = 10
     instance.is_connected = True
@@ -66,27 +70,22 @@ async def test_sensor_lifecycle_callbacks(mock_instance: MagicMock) -> None:
 
 
 def test_sensor_available(mock_instance: MagicMock) -> None:
-    """Test sensor availability depending on connection and advertisements."""
+    """Test sensor availability tracks the live BLE connection only.
+
+    A lamp that is merely advertising but not connected cannot be controlled,
+    so it must be reported as unavailable.
+    """
     sensor = BeurerTimerRemainingSensor(mock_instance, "TL100", "entry_123")
 
-    # Connected
+    # Connected: controllable.
     mock_instance.is_connected = True
     assert sensor.available is True
 
-    # Disconnected but advertising
+    # Disconnected but still advertising: not controllable, so unavailable.
     mock_instance.is_connected = False
-    mock_hass = MagicMock()
-    sensor.hass = mock_hass
+    sensor.hass = MagicMock()
     with patch.object(bluetooth, "async_ble_device_from_address", return_value=MagicMock()):
-        assert sensor.available is True
-
-    # Disconnected and not advertising
-    with patch.object(bluetooth, "async_ble_device_from_address", return_value=None):
         assert sensor.available is False
-
-    # Disconnected and hass is None fallback
-    sensor.hass = None
-    assert sensor.available is True
 
 
 @pytest.mark.asyncio

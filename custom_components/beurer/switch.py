@@ -6,7 +6,6 @@ from collections.abc import Callable
 from typing import Any
 
 from bleak import BleakError
-from homeassistant.components import bluetooth
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -119,12 +118,8 @@ class BeurerTimerSwitch(SwitchEntity):
 
     @property
     def available(self) -> bool:
-        """Return True if device is available and reachable."""
-        if self._instance.is_connected:
-            return True
-        if getattr(self, "hass", None) is not None:
-            return bluetooth.async_ble_device_from_address(self.hass, self._instance.mac, connectable=True) is not None
-        return True
+        """Return True when the lamp can actually be controlled."""
+        return self._instance.available
 
     @property
     def device_info(self) -> DeviceInfo:

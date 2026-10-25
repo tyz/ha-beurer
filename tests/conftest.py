@@ -85,7 +85,11 @@ def _setup_mock_modules() -> None:
             pass
 
         async def mock_establish_connection(
-            client_class: Any, device: Any, name: str, disconnected_callback: Any = None, **kwargs: Any
+            client_class: Any,
+            device: Any,
+            name: str,
+            disconnected_callback: Any = None,
+            **kwargs: Any,
         ) -> Any:
             client = client_class(device, disconnected_callback=disconnected_callback)
             client.is_connected = True

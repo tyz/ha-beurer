@@ -6,9 +6,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from bleak import BleakError
-from custom_components.beurer.beurer import BeurerInstance
-from custom_components.beurer.const import DOMAIN
-from custom_components.beurer.light import SCAN_INTERVAL, BeurerLight, async_setup_entry
 from homeassistant.components.light import (
     ATTR_BRIGHTNESS,
     ATTR_COLOR_MODE,
@@ -21,6 +18,10 @@ from homeassistant.components.light import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.exceptions import HomeAssistantError
 
+from custom_components.beurer.beurer import BeurerInstance
+from custom_components.beurer.const import DOMAIN
+from custom_components.beurer.light import SCAN_INTERVAL, BeurerLight, async_setup_entry
+
 
 @pytest.fixture
 def mock_instance() -> MagicMock:
@@ -28,6 +29,9 @@ def mock_instance() -> MagicMock:
     instance = MagicMock(spec=BeurerInstance)
     instance.mac = "57:4C:42:80:71:BA"
     instance.is_on = True
+    # Mirror the real BeurerInstance property: a lamp is only available while
+    # an active BLE connection exists.
+    type(instance).available = property(lambda self: bool(self.is_connected))
     instance.color_mode = ColorMode.WHITE
     instance.white_brightness = 200
     instance.color_brightness = 100
@@ -120,7 +124,9 @@ async def test_async_turn_on_with_white_attr(mock_instance: MagicMock) -> None:
 
 
 @pytest.mark.asyncio
-async def test_async_turn_on_color_mode_white_no_brightness(mock_instance: MagicMock) -> None:
+async def test_async_turn_on_color_mode_white_no_brightness(
+    mock_instance: MagicMock,
+) -> None:
     """Test switching to white mode without explicit brightness uses saved brightness."""
     mock_instance.color_mode = ColorMode.RGB
     mock_instance.white_brightness = 220
@@ -131,7 +137,9 @@ async def test_async_turn_on_color_mode_white_no_brightness(mock_instance: Magic
 
 
 @pytest.mark.asyncio
-async def test_async_turn_on_color_mode_white_with_brightness(mock_instance: MagicMock) -> None:
+async def test_async_turn_on_color_mode_white_with_brightness(
+    mock_instance: MagicMock,
+) -> None:
     """Test switching to white mode with brightness sets white intensity."""
     mock_instance.color_mode = ColorMode.RGB
     light = BeurerLight(mock_instance, "My Lamp", "entry_123")
@@ -220,7 +228,9 @@ def test_rgb_color_returns_white_in_white_mode(mock_instance: MagicMock) -> None
 
 
 @pytest.mark.asyncio
-async def test_async_turn_on_bleak_error_raises_home_assistant_error(mock_instance: MagicMock) -> None:
+async def test_async_turn_on_bleak_error_raises_home_assistant_error(
+    mock_instance: MagicMock,
+) -> None:
     """Test that BleakError during async_turn_on is translated to HomeAssistantError."""
     mock_instance.turn_on.side_effect = BleakError("Device communication failed")
     light = BeurerLight(mock_instance, "My Lamp", "entry_123")
@@ -236,7 +246,9 @@ async def test_async_turn_on_bleak_error_raises_home_assistant_error(mock_instan
 
 
 @pytest.mark.asyncio
-async def test_async_turn_on_timeout_error_raises_home_assistant_error(mock_instance: MagicMock) -> None:
+async def test_async_turn_on_timeout_error_raises_home_assistant_error(
+    mock_instance: MagicMock,
+) -> None:
     """Test that TimeoutError during async_turn_on is translated to HomeAssistantError."""
     mock_instance.set_white.side_effect = TimeoutError("GATT operation timed out")
     mock_instance.color_mode = ColorMode.WHITE
@@ -252,7 +264,9 @@ async def test_async_turn_on_timeout_error_raises_home_assistant_error(mock_inst
 
 
 @pytest.mark.asyncio
-async def test_async_turn_off_bleak_error_raises_home_assistant_error(mock_instance: MagicMock) -> None:
+async def test_async_turn_off_bleak_error_raises_home_assistant_error(
+    mock_instance: MagicMock,
+) -> None:
     """Test that BleakError during async_turn_off is translated to HomeAssistantError."""
     mock_instance.turn_off.side_effect = BleakError("Failed to disconnect/turn off")
     light = BeurerLight(mock_instance, "My Lamp", "entry_123")
@@ -268,7 +282,9 @@ async def test_async_turn_off_bleak_error_raises_home_assistant_error(mock_insta
 
 
 @pytest.mark.asyncio
-async def test_async_turn_off_timeout_error_raises_home_assistant_error(mock_instance: MagicMock) -> None:
+async def test_async_turn_off_timeout_error_raises_home_assistant_error(
+    mock_instance: MagicMock,
+) -> None:
     """Test that TimeoutError during async_turn_off is translated to HomeAssistantError."""
     mock_instance.turn_off.side_effect = TimeoutError("Timeout turning off")
     light = BeurerLight(mock_instance, "My Lamp", "entry_123")
@@ -280,52 +296,40 @@ async def test_async_turn_off_timeout_error_raises_home_assistant_error(mock_ins
     assert exc_info.value.translation_key == "communication_error"
 
 
-def test_available_when_is_on_is_none(mock_instance: MagicMock) -> None:
-    """Test available returns False when device is_on state is unknown."""
-    mock_instance.is_on = None
+def test_available_tracks_connection(mock_instance: MagicMock) -> None:
+    """Test the light is only available while an active BLE connection exists."""
     light = BeurerLight(mock_instance, "My Lamp", "entry_123")
+
+    mock_instance.is_connected = True
+    assert light.available is True
+
+    mock_instance.is_connected = False
     assert light.available is False
 
 
-def test_available_when_connected(mock_instance: MagicMock) -> None:
-    """Test available returns True when active BLE connection exists."""
-    mock_instance.is_on = True
-    mock_instance.is_connected = True
-    light = BeurerLight(mock_instance, "My Lamp", "entry_123")
-    assert light.available is True
-
-
 def test_available_when_disconnected_but_advertising(mock_instance: MagicMock) -> None:
-    """Test available returns True when disconnected but BLE advertisements are seen."""
-    mock_instance.is_on = True
+    """Test a disconnected lamp that still advertises is reported as unavailable.
+
+    Advertisement history only proves the lamp exists nearby, not that Home
+    Assistant can control it, so it must not be treated as available.
+    """
     mock_instance.is_connected = False
-    mock_hass = MagicMock()
     light = BeurerLight(mock_instance, "My Lamp", "entry_123")
-    light.hass = mock_hass
+    light.hass = MagicMock()
 
-    with patch("custom_components.beurer.light.bluetooth.async_ble_device_from_address", return_value=MagicMock()):
-        assert light.available is True
-
-
-def test_available_when_disconnected_and_not_advertising(mock_instance: MagicMock) -> None:
-    """Test available returns False when disconnected and no BLE advertisements are present."""
-    mock_instance.is_on = True
-    mock_instance.is_connected = False
-    mock_hass = MagicMock()
-    light = BeurerLight(mock_instance, "My Lamp", "entry_123")
-    light.hass = mock_hass
-
-    with patch("custom_components.beurer.light.bluetooth.async_ble_device_from_address", return_value=None):
+    with patch(
+        "homeassistant.components.bluetooth.async_ble_device_from_address",
+        return_value=MagicMock(),
+    ):
         assert light.available is False
 
 
-def test_available_fallback_when_hass_is_none(mock_instance: MagicMock) -> None:
-    """Test available returns True as fallback when hass is not attached and state is known."""
-    mock_instance.is_on = True
+def test_available_is_false_without_hass(mock_instance: MagicMock) -> None:
+    """Test availability does not silently fall back to True without hass."""
     mock_instance.is_connected = False
     light = BeurerLight(mock_instance, "My Lamp", "entry_123")
     assert light.hass is None
-    assert light.available is True
+    assert light.available is False
 
 
 @pytest.mark.asyncio
@@ -362,7 +366,9 @@ async def test_async_added_to_hass_when_connected(mock_instance: MagicMock) -> N
     mock_instance.update.assert_awaited_once()
 
 
-def test_async_update_device_info_creates_device_when_missing(mock_instance: MagicMock) -> None:
+def test_async_update_device_info_creates_device_when_missing(
+    mock_instance: MagicMock,
+) -> None:
     """Test _async_update_device_info registers new device if missing."""
     from homeassistant.helpers import device_registry as dr
 

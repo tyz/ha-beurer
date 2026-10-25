@@ -5,12 +5,13 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 import pytest
-from custom_components.beurer.beurer import BeurerInstance
-from custom_components.beurer.const import DOMAIN
-from custom_components.beurer.diagnostics import async_get_config_entry_diagnostics
 from homeassistant.components.light import ColorMode
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_MAC
+
+from custom_components.beurer.beurer import BeurerInstance
+from custom_components.beurer.const import DOMAIN
+from custom_components.beurer.diagnostics import async_get_config_entry_diagnostics
 
 
 @pytest.fixture
@@ -77,7 +78,9 @@ async def test_async_get_config_entry_diagnostics(mock_entry: ConfigEntry, mock_
 
 
 @pytest.mark.asyncio
-async def test_async_get_config_entry_diagnostics_when_instance_missing(mock_entry: ConfigEntry) -> None:
+async def test_async_get_config_entry_diagnostics_when_instance_missing(
+    mock_entry: ConfigEntry,
+) -> None:
     """Test diagnostics when BeurerInstance is not found in hass.data."""
     mock_hass = MagicMock()
     mock_hass.data = {DOMAIN: {}}

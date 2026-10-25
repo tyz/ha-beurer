@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from homeassistant.components import bluetooth
 from homeassistant.components.sensor import (
     SensorDeviceClass,
     SensorEntity,
@@ -77,12 +76,8 @@ class BeurerTimerRemainingSensor(SensorEntity):
 
     @property
     def available(self) -> bool:
-        """Return True if device is available and reachable."""
-        if self._instance.is_connected:
-            return True
-        if getattr(self, "hass", None) is not None:
-            return bluetooth.async_ble_device_from_address(self.hass, self._instance.mac, connectable=True) is not None
-        return True
+        """Return True when the lamp can actually be controlled."""
+        return self._instance.available
 
     @property
     def device_info(self) -> DeviceInfo:

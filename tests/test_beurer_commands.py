@@ -114,7 +114,9 @@ async def test_set_color_brightness(beurer_instance: BeurerInstance) -> None:
 
 
 @pytest.mark.asyncio
-async def test_set_color_brightness_enables_color_channel_when_off(beurer_instance: BeurerInstance) -> None:
+async def test_set_color_brightness_enables_color_channel_when_off(
+    beurer_instance: BeurerInstance,
+) -> None:
     """Test set_color_brightness enables color channel if not previously on."""
     sent_packets: list[bytearray] = []
 
@@ -135,7 +137,9 @@ async def test_set_color_brightness_enables_color_channel_when_off(beurer_instan
 
 
 @pytest.mark.asyncio
-async def test_set_color_enables_color_channel_when_off(beurer_instance: BeurerInstance) -> None:
+async def test_set_color_enables_color_channel_when_off(
+    beurer_instance: BeurerInstance,
+) -> None:
     """Test set_color enables color channel if not previously on."""
     sent_packets: list[bytearray] = []
 
@@ -158,7 +162,9 @@ async def test_set_color_enables_color_channel_when_off(beurer_instance: BeurerI
 
 
 @pytest.mark.asyncio
-async def test_set_color_turns_off_active_white_channel(beurer_instance: BeurerInstance) -> None:
+async def test_set_color_turns_off_active_white_channel(
+    beurer_instance: BeurerInstance,
+) -> None:
     """Test that switching to color turns off active white channel."""
     sent_packets: list[bytearray] = []
 
@@ -233,7 +239,9 @@ async def test_set_white_caps_at_99_percent(beurer_instance: BeurerInstance) -> 
 
 
 @pytest.mark.asyncio
-async def test_set_white_enables_white_channel_when_off(beurer_instance: BeurerInstance) -> None:
+async def test_set_white_enables_white_channel_when_off(
+    beurer_instance: BeurerInstance,
+) -> None:
     """Test set_white enables white channel if not previously on."""
     sent_packets: list[bytearray] = []
 
@@ -273,7 +281,9 @@ async def test_set_white_lower_percentages(beurer_instance: BeurerInstance) -> N
 
 
 @pytest.mark.asyncio
-async def test_set_white_turns_off_active_color_channel(beurer_instance: BeurerInstance) -> None:
+async def test_set_white_turns_off_active_color_channel(
+    beurer_instance: BeurerInstance,
+) -> None:
     """Test that switching to white turns off active color channel."""
     sent_packets: list[bytearray] = []
 
@@ -299,7 +309,9 @@ async def test_set_white_turns_off_active_color_channel(beurer_instance: BeurerI
 
 
 @pytest.mark.asyncio
-async def test_timer_properties_and_duration_configuration(beurer_instance: BeurerInstance) -> None:
+async def test_timer_properties_and_duration_configuration(
+    beurer_instance: BeurerInstance,
+) -> None:
     """Test timer properties, validation of presets, and duration configuration."""
     assert beurer_instance.timer_duration == 15
     assert beurer_instance.timer_active is False

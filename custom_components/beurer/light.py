@@ -8,7 +8,6 @@ from typing import Any
 
 import voluptuous as vol
 from bleak import BleakError
-from homeassistant.components import bluetooth
 from homeassistant.components.light import (
     ATTR_BRIGHTNESS,
     ATTR_COLOR_MODE,
@@ -117,14 +116,8 @@ class BeurerLight(LightEntity):
 
     @property
     def available(self) -> bool:
-        """Return True if device is available and reachable."""
-        if self._instance.is_on is None:
-            return False
-        if self._instance.is_connected:
-            return True
-        if getattr(self, "hass", None) is not None:
-            return bluetooth.async_ble_device_from_address(self.hass, self._instance.mac, connectable=True) is not None
-        return True
+        """Return True when the lamp can actually be controlled."""
+        return self._instance.available
 
     @property
     def should_poll(self) -> bool:
