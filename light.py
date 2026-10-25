@@ -6,6 +6,7 @@ from datetime import timedelta
 from typing import Any
 
 import voluptuous as vol
+from bleak import BleakError
 from homeassistant.components.light import (
     ATTR_BRIGHTNESS,
     ATTR_COLOR_MODE,
@@ -20,6 +21,7 @@ from homeassistant.components.light import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_MAC
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.device_registry import DeviceInfo
@@ -187,55 +189,81 @@ class BeurerLight(LightEntity):
 
         Args:
             **kwargs: Light attributes such as brightness, rgb_color, effect.
+
+        Raises:
+            HomeAssistantError: If communication with the device fails.
         """
         LOGGER.debug("Turning light on with args: %s", kwargs)
-        if not kwargs:
-            await self._instance.turn_on()
-            return
+        try:
+            if not kwargs:
+                await self._instance.turn_on()
+                return
 
-        color_mode = kwargs.get(ATTR_COLOR_MODE)
+            color_mode = kwargs.get(ATTR_COLOR_MODE)
 
-        # White mode or explicit ATTR_WHITE requested
-        if color_mode in (ColorMode.WHITE, "white") or ATTR_WHITE in kwargs:
-            white_val = kwargs.get(ATTR_WHITE)
-            if isinstance(white_val, bool):
-                intensity = self._instance.white_brightness or 255 if white_val else 0
-            elif isinstance(white_val, int):
-                intensity = white_val
-            else:
-                intensity = kwargs.get(ATTR_BRIGHTNESS) or self._instance.white_brightness or 255
-            await self._instance.set_white(intensity)
-            return
+            # White mode or explicit ATTR_WHITE requested
+            if color_mode in (ColorMode.WHITE, "white") or ATTR_WHITE in kwargs:
+                white_val = kwargs.get(ATTR_WHITE)
+                if isinstance(white_val, bool):
+                    intensity = self._instance.white_brightness or 255 if white_val else 0
+                elif isinstance(white_val, int):
+                    intensity = white_val
+                else:
+                    intensity = kwargs.get(ATTR_BRIGHTNESS) or self._instance.white_brightness or 255
+                await self._instance.set_white(intensity)
+                return
 
-        # RGB color requested or explicit RGB color mode
-        if ATTR_RGB_COLOR in kwargs or color_mode in (ColorMode.RGB, "rgb"):
-            if ATTR_RGB_COLOR in kwargs:
-                await self._instance.set_color(kwargs[ATTR_RGB_COLOR])
-            elif not self._instance._color_on:
-                await self._instance.set_color(self._instance.rgb_color or (255, 255, 255))
+            # RGB color requested or explicit RGB color mode
+            if ATTR_RGB_COLOR in kwargs or color_mode in (ColorMode.RGB, "rgb"):
+                if ATTR_RGB_COLOR in kwargs:
+                    await self._instance.set_color(kwargs[ATTR_RGB_COLOR])
+                elif not self._instance._color_on:
+                    await self._instance.set_color(self._instance.rgb_color or (255, 255, 255))
 
-            if ATTR_BRIGHTNESS in kwargs:
-                await self._instance.set_color_brightness(kwargs[ATTR_BRIGHTNESS])
+                if ATTR_BRIGHTNESS in kwargs:
+                    await self._instance.set_color_brightness(kwargs[ATTR_BRIGHTNESS])
 
-        # Brightness adjustment without explicit color mode
-        elif ATTR_BRIGHTNESS in kwargs:
-            brightness = kwargs[ATTR_BRIGHTNESS]
-            if self._instance.color_mode == ColorMode.RGB:
-                await self._instance.set_color_brightness(brightness)
-            else:
-                await self._instance.set_white(brightness)
+            # Brightness adjustment without explicit color mode
+            elif ATTR_BRIGHTNESS in kwargs:
+                brightness = kwargs[ATTR_BRIGHTNESS]
+                if self._instance.color_mode == ColorMode.RGB:
+                    await self._instance.set_color_brightness(brightness)
+                else:
+                    await self._instance.set_white(brightness)
 
-        # Effect requested
-        if ATTR_EFFECT in kwargs:
-            await self._instance.set_effect(kwargs[ATTR_EFFECT])
+            # Effect requested
+            if ATTR_EFFECT in kwargs:
+                await self._instance.set_effect(kwargs[ATTR_EFFECT])
+        except (BleakError, TimeoutError, OSError) as err:
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="communication_error",
+                translation_placeholders={
+                    "name": self.name or self._instance.mac,
+                    "error": str(err),
+                },
+            ) from err
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn off the light.
 
         Args:
             **kwargs: Optional arguments from HA turn_off call.
+
+        Raises:
+            HomeAssistantError: If communication with the device fails.
         """
-        await self._instance.turn_off()
+        try:
+            await self._instance.turn_off()
+        except (BleakError, TimeoutError, OSError) as err:
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="communication_error",
+                translation_placeholders={
+                    "name": self.name or self._instance.mac,
+                    "error": str(err),
+                },
+            ) from err
 
     async def async_update(self) -> None:
         """Poll or refresh state from device."""

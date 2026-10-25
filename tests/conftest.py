@@ -124,7 +124,21 @@ def _setup_mock_modules() -> None:
         class ConfigEntryNotReady(Exception):
             pass
 
+        class HomeAssistantError(Exception):
+            def __init__(
+                self,
+                *args: Any,
+                translation_domain: str | None = None,
+                translation_key: str | None = None,
+                translation_placeholders: dict[str, str] | None = None,
+            ) -> None:
+                super().__init__(*args)
+                self.translation_domain = translation_domain
+                self.translation_key = translation_key
+                self.translation_placeholders = translation_placeholders
+
         ha_exc.ConfigEntryNotReady = ConfigEntryNotReady  # type: ignore[attr-defined]
+        ha_exc.HomeAssistantError = HomeAssistantError  # type: ignore[attr-defined]
         sys.modules["homeassistant.exceptions"] = ha_exc
 
         # config_entries
@@ -177,6 +191,7 @@ def _setup_mock_modules() -> None:
         ha_bt = ModuleType("homeassistant.components.bluetooth")
         ha_bt.async_ble_device_from_address = MagicMock(return_value=None)  # type: ignore[attr-defined]
         ha_bt.async_register_callback = MagicMock(return_value=MagicMock())  # type: ignore[attr-defined]
+        ha_bt.async_track_unavailable = MagicMock(return_value=MagicMock())  # type: ignore[attr-defined]
         ha_bt.BluetoothCallbackMatcher = MagicMock()  # type: ignore[attr-defined]
         ha_bt.BluetoothScanningMode = MagicMock()  # type: ignore[attr-defined]
         ha_bt.BluetoothServiceInfoBleak = MagicMock()  # type: ignore[attr-defined]

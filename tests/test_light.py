@@ -5,6 +5,7 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from bleak import BleakError
 from custom_components.beurer.beurer import BeurerInstance
 from custom_components.beurer.const import DOMAIN
 from custom_components.beurer.light import SCAN_INTERVAL, BeurerLight
@@ -16,6 +17,7 @@ from homeassistant.components.light import (
     ATTR_WHITE,
     ColorMode,
 )
+from homeassistant.exceptions import HomeAssistantError
 
 
 @pytest.fixture
@@ -213,3 +215,64 @@ def test_rgb_color_returns_white_in_white_mode(mock_instance: MagicMock) -> None
     mock_instance.color_mode = ColorMode.RGB
     assert light.color_mode == ColorMode.RGB
     assert light.rgb_color == (255, 0, 0)
+
+
+@pytest.mark.asyncio
+async def test_async_turn_on_bleak_error_raises_home_assistant_error(mock_instance: MagicMock) -> None:
+    """Test that BleakError during async_turn_on is translated to HomeAssistantError."""
+    mock_instance.turn_on.side_effect = BleakError("Device communication failed")
+    light = BeurerLight(mock_instance, "My Lamp", "entry_123")
+
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await light.async_turn_on()
+
+    assert exc_info.value.translation_domain == DOMAIN
+    assert exc_info.value.translation_key == "communication_error"
+    assert exc_info.value.translation_placeholders is not None
+    assert exc_info.value.translation_placeholders["name"] == "My Lamp"
+    assert "Device communication failed" in exc_info.value.translation_placeholders["error"]
+
+
+@pytest.mark.asyncio
+async def test_async_turn_on_timeout_error_raises_home_assistant_error(mock_instance: MagicMock) -> None:
+    """Test that TimeoutError during async_turn_on is translated to HomeAssistantError."""
+    mock_instance.set_white.side_effect = TimeoutError("GATT operation timed out")
+    mock_instance.color_mode = ColorMode.WHITE
+    light = BeurerLight(mock_instance, "My Lamp", "entry_123")
+
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await light.async_turn_on(**{ATTR_BRIGHTNESS: 150})
+
+    assert exc_info.value.translation_domain == DOMAIN
+    assert exc_info.value.translation_key == "communication_error"
+    assert exc_info.value.translation_placeholders is not None
+    assert exc_info.value.translation_placeholders["name"] == "My Lamp"
+
+
+@pytest.mark.asyncio
+async def test_async_turn_off_bleak_error_raises_home_assistant_error(mock_instance: MagicMock) -> None:
+    """Test that BleakError during async_turn_off is translated to HomeAssistantError."""
+    mock_instance.turn_off.side_effect = BleakError("Failed to disconnect/turn off")
+    light = BeurerLight(mock_instance, "My Lamp", "entry_123")
+
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await light.async_turn_off()
+
+    assert exc_info.value.translation_domain == DOMAIN
+    assert exc_info.value.translation_key == "communication_error"
+    assert exc_info.value.translation_placeholders is not None
+    assert exc_info.value.translation_placeholders["name"] == "My Lamp"
+    assert "Failed to disconnect/turn off" in exc_info.value.translation_placeholders["error"]
+
+
+@pytest.mark.asyncio
+async def test_async_turn_off_timeout_error_raises_home_assistant_error(mock_instance: MagicMock) -> None:
+    """Test that TimeoutError during async_turn_off is translated to HomeAssistantError."""
+    mock_instance.turn_off.side_effect = TimeoutError("Timeout turning off")
+    light = BeurerLight(mock_instance, "My Lamp", "entry_123")
+
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await light.async_turn_off()
+
+    assert exc_info.value.translation_domain == DOMAIN
+    assert exc_info.value.translation_key == "communication_error"
