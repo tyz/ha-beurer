@@ -435,3 +435,23 @@ async def test_async_update(mock_instance: MagicMock) -> None:
     light = BeurerLight(mock_instance, "Lamp", "entry_1")
     await light.async_update()
     mock_instance.update.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_async_turn_on_effect_applies_brightness_to_color_channel(
+    mock_instance: MagicMock,
+) -> None:
+    """Test combining an effect with brightness keeps the effect on the colour channel.
+
+    The README documents ``effect`` together with ``brightness_pct``. Applying
+    the brightness before the effect sent it to the daylight channel, which the
+    effect then switched off, so the requested brightness was silently lost.
+    """
+    mock_instance.color_mode = ColorMode.WHITE
+    light = BeurerLight(mock_instance, "My Lamp", "entry_123")
+
+    await light.async_turn_on(**{ATTR_EFFECT: "Rainbow", ATTR_BRIGHTNESS: 102})
+
+    mock_instance.set_effect.assert_awaited_once_with("Rainbow")
+    mock_instance.set_color_brightness.assert_awaited_once_with(102)
+    mock_instance.set_white.assert_not_called()

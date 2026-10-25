@@ -238,6 +238,15 @@ class BeurerLight(LightEntity):
                 await self._instance.set_white(intensity)
                 return
 
+            # An effect always selects the colour channel, so handle it first:
+            # otherwise the brightness below would be applied to the daylight
+            # channel and then immediately undone by switching channels.
+            if ATTR_EFFECT in kwargs:
+                await self._instance.set_effect(kwargs[ATTR_EFFECT])
+                if ATTR_BRIGHTNESS in kwargs:
+                    await self._instance.set_color_brightness(kwargs[ATTR_BRIGHTNESS])
+                return
+
             # RGB color requested or explicit RGB color mode
             if ATTR_RGB_COLOR in kwargs or color_mode in (ColorMode.RGB, "rgb"):
                 if ATTR_RGB_COLOR in kwargs:
@@ -255,10 +264,6 @@ class BeurerLight(LightEntity):
                     await self._instance.set_color_brightness(brightness)
                 else:
                     await self._instance.set_white(brightness)
-
-            # Effect requested
-            if ATTR_EFFECT in kwargs:
-                await self._instance.set_effect(kwargs[ATTR_EFFECT])
         except (BeurerCommunicationError, BleakError, TimeoutError, OSError) as err:
             raise HomeAssistantError(
                 translation_domain=DOMAIN,
