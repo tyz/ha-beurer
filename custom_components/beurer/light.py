@@ -6,7 +6,7 @@ from collections.abc import Callable
 from datetime import timedelta
 from typing import Any, cast, override
 
-import voluptuous as vol
+import probatio as vol
 from bleak.exc import BleakError
 from homeassistant.components.light import (
     PLATFORM_SCHEMA,
