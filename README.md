@@ -58,6 +58,15 @@ This repository is an actively maintained fork of [Deadolus/ha-beurer](https://g
 
 ---
 
+## Removal
+
+1. In Home Assistant, go to **Settings** > **Devices & services**.
+2. Find the **Beurer** integration entry.
+3. Click the three dots icon (**⋮**) on the device card and select **Delete**.
+4. Confirm deletion. The integration will automatically cancel active reconnection tasks, cleanly disconnect the BLE connection, and remove its light entity from Home Assistant.
+
+---
+
 ## Supported Features
 
 * **Daylight Therapy (White Mode)**: Full on/off and brightness control.
