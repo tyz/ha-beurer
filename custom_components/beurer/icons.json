@@ -1,0 +1,19 @@
+{
+  "entity": {
+    "number": {
+      "timer_duration": {
+        "default": "mdi:timer-sand"
+      }
+    },
+    "sensor": {
+      "timer_remaining": {
+        "default": "mdi:timer-outline"
+      }
+    },
+    "switch": {
+      "timer": {
+        "default": "mdi:timer-play"
+      }
+    }
+  }
+}
