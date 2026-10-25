@@ -59,9 +59,9 @@ These optional files contain tasks that need to be done (not necessarily right a
 ## Language
 
 * Comments, commit messages, and documentation must all be in English.
+* Add translations (in `translations/XX.json`) for the following languages: af, ar, bg, bn, bs, ca, cs, cy, da, de, el, en-GB, en, eo, es-419, es, et, eu, fa, fi, fr, fy, ga, gsw, he, hi, hr, hu, hy, id, is, it, ja, ka, ko, lb, lt, lv, mk, ml, nb, ne, nl, nn, pl, pt-BR, pt, ro, ru, sk, sl, sq, sr-Latn, sr, sv, ta, th, tr, uk, ur, vi, zh-Hans, zh-Hant
 
 ## Your environment
 
-* Linux, Debian/RaspberryPi OS
-* Architecture arm64
-* You run in an OCI container; let me know if anything is missing.
+* Linux, Debian/RaspberryPi OS (arm64)
+* You run in an OCI container; let me know if anything that would make your work easier is missing (debs, Python modules, etc)
