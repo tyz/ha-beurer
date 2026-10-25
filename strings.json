@@ -1,0 +1,41 @@
+{
+  "title": "Beurer",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Pick a Beurer light. Make sure light in sight for validation.",
+        "data": {
+          "mac": "Bluetooth MAC address",
+          "name": "Name"
+        }
+      },
+      "validate": {
+        "title": "Validate Beurer connection",
+        "data": {
+          "retry": "Retry validate connection?",
+          "flicker": "Did the light blink?"
+        }
+      },
+      "manual": {
+        "title": "Enter bluetooth MAC address",
+        "data": {
+          "mac": "Bluetooth MAC address",
+          "name": "Name"
+        }
+      }
+    },
+    "error": {
+      "connect": "Unable to connect to Beurer"
+    },
+    "abort": {
+      "already_configured": "Device is already configured",
+      "cannot_connect": "Unable to connect to Beurer",
+      "cannot_validate": "Unable to validate Beurer light"
+    }
+  },
+  "exceptions": {
+    "communication_error": {
+      "message": "Failed to communicate with Beurer lamp {name}: {error}"
+    }
+  }
+}
