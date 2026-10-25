@@ -532,6 +532,37 @@ def test_disconnected_callback_triggers_update(beurer_instance: BeurerInstance) 
     assert update_called is True
 
 
+def test_disconnected_callback_notifies_every_entity(beurer_instance: BeurerInstance) -> None:
+    """Test a disconnect reaches all registered entities, not just the light.
+
+    Only the light used to be notified, so the number, switch and sensor kept
+    reporting their last values as available until the next poll.
+    """
+    mock_client = MagicMock()
+    beurer_instance._device = mock_client
+    called: list[str] = []
+    beurer_instance.register_update_callback(lambda: called.append("light"))
+    beurer_instance.register_update_callback(lambda: called.append("number"))
+    beurer_instance.register_update_callback(lambda: called.append("switch"))
+    beurer_instance.register_update_callback(lambda: called.append("sensor"))
+    beurer_instance.trigger_reconnect = MagicMock()
+
+    beurer_instance.disconnected_callback(mock_client)
+
+    assert sorted(called) == ["light", "number", "sensor", "switch"]
+
+
+def test_unregistered_entity_is_not_notified(beurer_instance: BeurerInstance) -> None:
+    """Test a removed entity stops receiving updates."""
+    called: list[str] = []
+    unregister = beurer_instance.register_update_callback(lambda: called.append("removed"))
+
+    unregister()
+    beurer_instance.trigger_entity_update()
+
+    assert called == []
+
+
 def test_is_connected_property(beurer_instance: BeurerInstance) -> None:
     """Test that is_connected reflects the connection state of the BleakClient."""
     assert beurer_instance.is_connected is True
@@ -572,7 +603,7 @@ async def test_multiple_update_callbacks(beurer_instance: BeurerInstance) -> Non
     unreg1 = beurer_instance.register_update_callback(cb1)
     unreg2 = beurer_instance.register_update_callback(cb2)
 
-    await beurer_instance.trigger_entity_update()
+    beurer_instance.trigger_entity_update()
     assert cb1_called is True
     assert cb2_called is True
 
@@ -581,7 +612,7 @@ async def test_multiple_update_callbacks(beurer_instance: BeurerInstance) -> Non
     cb2_called = False
     unreg1()
 
-    await beurer_instance.trigger_entity_update()
+    beurer_instance.trigger_entity_update()
     assert cb1_called is False
     assert cb2_called is True
     unreg2()

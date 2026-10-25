@@ -76,7 +76,6 @@ class BeurerLight(LightEntity):
     @override
     async def async_added_to_hass(self) -> None:
         """Register callbacks after being added to Home Assistant."""
-        self._instance.set_update_callback(self.update_callback)
         self._unregister_callback = self._instance.register_update_callback(self.update_callback)
         self._async_update_device_info()
         if not self._instance.is_connected:

@@ -207,7 +207,8 @@ async def test_async_added_to_hass(mock_instance: MagicMock) -> None:
 
     await light.async_added_to_hass()
 
-    mock_instance.set_update_callback.assert_called_once_with(light.update_callback)
+    mock_instance.register_update_callback.assert_called_once_with(light.update_callback)
+    mock_instance.set_update_callback.assert_not_called()
     mock_instance.trigger_reconnect.assert_called_once()
 
 
@@ -362,7 +363,8 @@ async def test_async_added_to_hass_when_connected(mock_instance: MagicMock) -> N
 
     await light.async_added_to_hass()
 
-    mock_instance.set_update_callback.assert_called_once_with(light.update_callback)
+    mock_instance.register_update_callback.assert_called_once_with(light.update_callback)
+    mock_instance.set_update_callback.assert_not_called()
     mock_instance.update.assert_awaited_once()
 
 

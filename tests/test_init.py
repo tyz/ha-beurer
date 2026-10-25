@@ -172,9 +172,9 @@ async def test_async_setup_entry_registers_unavailable_tracking(mock_hass: Magic
         assert result is True
         assert unavailable_callback is not None
 
-        # Simulate device unavailable timeout
+        # Simulate device unavailable timeout; the integration must ask every
+        # entity to re-evaluate its availability.
         mock_service_info = MagicMock()
-        mock_hass.async_create_task = MagicMock()
-
-        unavailable_callback(mock_service_info)
-        mock_hass.async_create_task.assert_called_once()
+        with patch.object(mock_entry.runtime_data, "trigger_entity_update") as mock_update:
+            unavailable_callback(mock_service_info)
+        mock_update.assert_called_once()

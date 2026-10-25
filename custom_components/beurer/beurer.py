@@ -140,7 +140,6 @@ class BeurerInstance:
         # could slip in and leave the lamp in a state the firmware cannot
         # handle (0x33 on a lamp that just went off hangs the MCU).
         self._command_lock = asyncio.Lock()
-        self._trigger_update: Callable[[], None] | None = None
         self._update_callbacks: list[Callable[[], None]] = []
         self._is_on: bool = False
         self._light_on: bool | None = None
@@ -261,8 +260,7 @@ class BeurerInstance:
         self._read_uuid = None
         self._last_notification_cmd = None
         self._last_notification_data = None
-        if self._trigger_update:
-            self._trigger_update()
+        self.trigger_entity_update()
         self.trigger_reconnect()
 
     async def _auto_reconnect(self) -> None:
@@ -303,13 +301,13 @@ class BeurerInstance:
     def set_update_callback(self, trigger_update: Callable[[], None]) -> None:
         """Register the entity update callback.
 
+        Kept as an alias for register_update_callback; the two used to keep
+        separate references, which left a removed entity registered.
+
         Args:
             trigger_update: Function to call when state updates occur.
         """
-        LOGGER.debug("Setting update callback to %s", trigger_update)
-        self._trigger_update = trigger_update
-        if trigger_update not in self._update_callbacks:
-            self._update_callbacks.append(trigger_update)
+        self.register_update_callback(trigger_update)
 
     async def _write(self, data: bytearray) -> None:
         """Send raw data to write characteristic.
@@ -429,7 +427,7 @@ class BeurerInstance:
                 # Forget it instead of reporting a value the lamp never received.
                 self._timer_minutes_remaining = 0
                 self._timer_lamp_duration = None
-        await self.trigger_entity_update()
+        self.trigger_entity_update()
 
     async def enable_timer(self) -> None:
         """Start/enable hardware countdown timer on the active channel.
@@ -465,7 +463,7 @@ class BeurerInstance:
             self._timer_active = True
             self._timer_minutes_remaining = duration
             self._timer_lamp_duration = duration
-            await self.trigger_entity_update()
+            self.trigger_entity_update()
 
     async def disable_timer(self) -> None:
         """Cancel/disable hardware countdown timer on both channels."""
@@ -478,7 +476,7 @@ class BeurerInstance:
             self._timer_active = False
             self._timer_minutes_remaining = 0
             self._timer_lamp_duration = None
-        await self.trigger_entity_update()
+        self.trigger_entity_update()
 
     def find_effect_position(self, effect: str) -> int:
         """Look up index position of an effect name.
@@ -553,7 +551,7 @@ class BeurerInstance:
             await self.sendPacket([CMD_SET_COLOR, r, g, b])
             self._color_on = True
             self._is_on = True
-        await self.trigger_entity_update()
+        self.trigger_entity_update()
 
     async def set_color_brightness(self, brightness: int) -> None:
         """Set brightness for RGB color channel.
@@ -573,7 +571,7 @@ class BeurerInstance:
             self._color_brightness = brightness
             self._color_on = True
             self._is_on = True
-        await self.trigger_entity_update()
+        self.trigger_entity_update()
 
     async def set_white(self, intensity: int = 255) -> None:
         """Set white daylight intensity.
@@ -604,7 +602,7 @@ class BeurerInstance:
             self._brightness = intensity
             self._light_on = True
             self._is_on = True
-        await self.trigger_entity_update()
+        self.trigger_entity_update()
 
     async def set_effect(self, effect: str) -> None:
         """Set effect mode on the lamp.
@@ -628,7 +626,7 @@ class BeurerInstance:
             self._effect = effect
             self._color_on = True
             self._is_on = True
-        await self.trigger_entity_update()
+        self.trigger_entity_update()
 
     async def turn_on(self) -> None:
         """Turn on the light in the current or saved mode."""
@@ -661,7 +659,7 @@ class BeurerInstance:
                 intensity_percent = max(0, min(99, int(self._brightness / 255 * 100)))
                 await self.sendPacket([CMD_SET_BRIGHTNESS, CHANNEL_WHITE, intensity_percent])
             self._is_on = True
-        await self.trigger_entity_update()
+        self.trigger_entity_update()
 
     async def turn_off(self) -> None:
         """Turn off both white and color channels."""
@@ -679,7 +677,7 @@ class BeurerInstance:
             self._timer_active = False
             self._timer_minutes_remaining = 0
             self._timer_lamp_duration = None
-        await self.trigger_entity_update()
+        self.trigger_entity_update()
 
     async def triggerStatus(self, force: bool = False) -> None:
         """Request status updates from the device with debouncing.
@@ -727,11 +725,11 @@ class BeurerInstance:
                     elif self._color_on:
                         self._mode = ColorMode.RGB
                 LOGGER.debug("Triggered update")
-                await self.trigger_entity_update()
+                self.trigger_entity_update()
 
-    async def trigger_entity_update(self) -> None:
+    def trigger_entity_update(self) -> None:
         """Notify registered entity callbacks of a state change."""
-        if not self._update_callbacks and not self._trigger_update:
+        if not self._update_callbacks:
             LOGGER.debug("No async update function registered yet")
             return
         LOGGER.debug("Triggering async update for %d callbacks", len(self._update_callbacks))
@@ -740,8 +738,6 @@ class BeurerInstance:
                 callback_fn()
             except Exception as err:  # noqa: BLE001
                 LOGGER.debug("Error running entity update callback: %s", err)
-        if self._trigger_update and self._trigger_update not in self._update_callbacks:
-            self._trigger_update()
 
     async def notification_handler(self, characteristic: BleakGATTCharacteristic, data: bytearray) -> None:
         """Handle incoming GATT notifications from the device.
@@ -794,7 +790,7 @@ class BeurerInstance:
                 self._effect = "Off"
                 if self._brightness is None:
                     self._brightness = 255
-            await self.trigger_entity_update()
+            self.trigger_entity_update()
             return
 
         if cmd == CMD_EVENT_LIGHT_TIMER_END:
@@ -809,7 +805,7 @@ class BeurerInstance:
                 self._timer_active = False
                 self._timer_minutes_remaining = 0
                 self._timer_lamp_duration = None
-            await self.trigger_entity_update()
+            self.trigger_entity_update()
             return
 
         if cmd == CMD_EVENT_MOONLIGHT_TIMER_END:
@@ -828,7 +824,7 @@ class BeurerInstance:
                 self._timer_active = False
                 self._timer_minutes_remaining = 0
                 self._timer_lamp_duration = None
-            await self.trigger_entity_update()
+            self.trigger_entity_update()
             return
 
         self._last_notification_cmd = cmd
@@ -893,7 +889,7 @@ class BeurerInstance:
                 self._timer_minutes_remaining,
             )
             if not self._status_lock.locked():
-                await self.trigger_entity_update()
+                self.trigger_entity_update()
         elif channel == CHANNEL_COLOR:
             if len(data) <= IDX_STATE:
                 return
@@ -942,7 +938,7 @@ class BeurerInstance:
                 self._color_on,
             )
             if not self._status_lock.locked():
-                await self.trigger_entity_update()
+                self.trigger_entity_update()
         elif channel == CHANNEL_OFF:
             # channel 255 (04 D0 FF) is an empty/hardware-mode ACK with no channel
             # state data (sent e.g. when the lamp is operating in standalone/hardware mode
@@ -960,7 +956,7 @@ class BeurerInstance:
             self._is_on = False
             self._light_on = False
             self._color_on = False
-            await self.trigger_entity_update()
+            self.trigger_entity_update()
         else:
             LOGGER.debug(
                 "Received unknown notification channel %s (cmd=0x%02X, len=%d): %s",
@@ -1032,7 +1028,7 @@ class BeurerInstance:
                         version_bytes = await self._device.read_gatt_char(self._version_uuid)
                         self._firmware_version = version_bytes.decode("utf-8", errors="replace").strip("\x00 \t\r\n")
                         LOGGER.info("Firmware version: %s", self._firmware_version)
-                        await self.trigger_entity_update()
+                        self.trigger_entity_update()
                     except Exception as error:  # noqa: BLE001
                         LOGGER.debug("Could not read firmware version: %s", error)
                 else:
@@ -1118,4 +1114,4 @@ class BeurerInstance:
                     await client.disconnect()
             except Exception as error:  # noqa: BLE001
                 LOGGER.debug("Error while disconnecting: %s", error)
-        await self.trigger_entity_update()
+        self.trigger_entity_update()

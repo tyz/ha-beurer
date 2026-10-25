@@ -80,7 +80,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: BeurerConfigEntry) -> bo
     def _async_unavailable(service_info: bluetooth.BluetoothServiceInfoBleak) -> None:
         """Handle device becoming unavailable due to lost BLE advertisements."""
         LOGGER.debug("BLE advertisements timed out for %s", address)
-        hass.async_create_task(instance.trigger_entity_update())
+        instance.trigger_entity_update()
 
     entry.async_on_unload(
         bluetooth.async_track_unavailable(
