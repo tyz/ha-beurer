@@ -773,6 +773,63 @@ class BeurerInstance:
         """
         return self._last_notification_cmd == cmd and now - self._last_notification_cmd_time < NOTIFICATION_DUPLICATE_WINDOW
 
+    @staticmethod
+    def _log_frame_diagnostics(data: bytearray) -> None:
+        """Log a truncated frame or a checksum mismatch at debug level.
+
+        Only framing that the lamp is documented to send is inspected: a packet
+        with the 0xFE 0xEF header and a declared payload length that fits within
+        the received bytes. A frame whose declared length does not fit is
+        dropped by the caller, because parsing it would read whatever bytes
+        happen to follow and could apply a state the lamp never reported.
+
+        The checksum itself is logged but not enforced. BLE already protects
+        every frame with a link-layer CRC, and no capture of a TL 100 status
+        response has been verified to use the same XOR convention as the
+        outgoing frames, so rejecting on mismatch could silently discard valid
+        state. The log line is there to make protocol drift visible.
+
+        Args:
+            data: Notification bytes as received.
+        """
+        if len(data) <= IDX_PAYLOAD_LEN or data[IDX_HEADER_0] != PACKET_HEADER[0] or data[IDX_HEADER_1] != PACKET_HEADER[1]:
+            return
+        payload_len = data[IDX_PAYLOAD_LEN]
+        if payload_len < 2:
+            return
+        payload_end = IDX_OPCODE + payload_len - 2
+        if payload_end > len(data):
+            return
+        checksum_index = payload_end
+        expected = payload_len
+        for byte in data[IDX_OPCODE:payload_end]:
+            expected ^= byte
+        if checksum_index < len(data) and data[checksum_index] != expected:
+            LOGGER.debug(
+                "Checksum mismatch on notification (expected 0x%02X, got 0x%02X): %s",
+                expected,
+                data[checksum_index],
+                "".join(format(byte, " 02x") for byte in data),
+            )
+
+    @staticmethod
+    def _is_truncated_frame(data: bytearray) -> bool:
+        """Return whether a framed notification is shorter than it declares.
+
+        Args:
+            data: Notification bytes as received.
+
+        Returns:
+            True if the header is present and the declared payload runs past the
+            end of the received bytes.
+        """
+        if len(data) <= IDX_PAYLOAD_LEN or data[IDX_HEADER_0] != PACKET_HEADER[0] or data[IDX_HEADER_1] != PACKET_HEADER[1]:
+            return False
+        payload_len = data[IDX_PAYLOAD_LEN]
+        if payload_len < 2:
+            return True
+        return IDX_OPCODE + payload_len - 2 > len(data)
+
     async def notification_handler(self, characteristic: BleakGATTCharacteristic, data: bytearray) -> None:
         """Handle incoming GATT notifications from the device.
 
@@ -795,6 +852,13 @@ class BeurerInstance:
             return
 
         is_packet = len(data) >= 6 and data[IDX_HEADER_0] == PACKET_HEADER[0] and data[IDX_HEADER_1] == PACKET_HEADER[1]
+        if is_packet and self._is_truncated_frame(data):
+            LOGGER.debug(
+                "Ignoring truncated notification: %s",
+                "".join(format(byte, " 02x") for byte in data),
+            )
+            return
+        self._log_frame_diagnostics(data)
         payload_len = data[IDX_PAYLOAD_LEN] if is_packet else len(data) - 7
         cmd = data[IDX_OPCODE]
 

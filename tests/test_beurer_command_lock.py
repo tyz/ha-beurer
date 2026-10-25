@@ -17,11 +17,11 @@ STATUS_TIMER_120_WHITE = bytearray(
     [
         0xFE,  # header 0
         0xEF,  # header 1
-        0x0A,  # packet type
-        0x0B,  # total length
+        0x0C,  # packet type: notification
+        0x13,  # total length
         0xAB,  # sync 0
         0xAA,  # sync 1
-        0x0D,  # payload length
+        0x0C,  # payload length (10 payload bytes + 2)
         0xD0,  # opcode: status
         0x01,  # channel: white
         0x01,  # state: on
@@ -32,6 +32,7 @@ STATUS_TIMER_120_WHITE = bytearray(
         0x00,  # green
         0x00,  # blue
         0x00,  # scene
+        0x97,  # checksum
         0x55,  # footer
         0x0D,
         0x0A,

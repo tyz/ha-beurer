@@ -163,7 +163,7 @@ async def test_button_turn_on_followed_by_reconnect_and_status_query_preserves_o
             0x64,
             0x00,
             0x00,
-            0x2B,
+            0xBC,
             0x55,
             0x0D,
             0x0A,
@@ -271,7 +271,7 @@ async def test_notification_handler_channel_1_off_status_packet(
             0x28,
             0x00,
             0x78,
-            0x2B,
+            0x89,
             0x55,
             0x0D,
             0x0A,
@@ -314,7 +314,7 @@ async def test_notification_handler_channel_2_off_status_packet(
             0x00,
             0x00,
             0x00,
-            0x2B,
+            0x3D,
             0x55,
             0x0D,
             0x0A,
@@ -1078,7 +1078,7 @@ async def test_notification_handler_permission_response(
 ) -> None:
     """Test that permission responses (0xF0) are handled safely without corrupting state."""
     beurer_instance._is_on = False
-    payload = bytearray([0xFE, 0xEF, 0x0C, 0x09, 0xAB, 0xBB, 0x04, 0xF0, 0x02, 0x2B, 0x55, 0x0D, 0x0A])
+    payload = bytearray([0xFE, 0xEF, 0x0C, 0x09, 0xAB, 0xBB, 0x04, 0xF0, 0x02, 0xF6, 0x55, 0x0D, 0x0A])
     char = MagicMock()
     await beurer_instance.notification_handler(char, payload)
 
@@ -1095,7 +1095,7 @@ async def test_notification_handler_short_ack_packet_preserves_state(
     beurer_instance._color_on = False
 
     # Short 37 01 write ACK packet
-    payload_37 = bytearray([0xFE, 0xEF, 0x0C, 0x09, 0xAB, 0xBB, 0x04, 0x37, 0x01, 0x2B, 0x55, 0x0D, 0x0A])
+    payload_37 = bytearray([0xFE, 0xEF, 0x0C, 0x09, 0xAB, 0xBB, 0x04, 0x37, 0x01, 0x32, 0x55, 0x0D, 0x0A])
     char = MagicMock()
     await beurer_instance.notification_handler(char, payload_37)
 
@@ -1136,7 +1136,7 @@ async def test_notification_handler_short_status_packet_updates_state(
             0x01,
             0x01,
             0x32,
-            0x00,
+            0xE4,
             0x55,
             0x0D,
             0x0A,
@@ -1164,7 +1164,7 @@ async def test_timer_reset_on_e8_shutdown_and_events(
     beurer_instance._timer_minutes_remaining = 30
 
     # 0xE8 turns off
-    e8_payload = bytearray([0xFE, 0xEF, 0x0C, 0x09, 0xAB, 0xBB, 0x04, 0xE8, 0x00, 0xEE, 0x55, 0x0D, 0x0A])
+    e8_payload = bytearray([0xFE, 0xEF, 0x0C, 0x09, 0xAB, 0xBB, 0x04, 0xE8, 0x00, 0xEC, 0x55, 0x0D, 0x0A])
     await beurer_instance.notification_handler(char, e8_payload)
     assert beurer_instance.timer_active is False
     assert beurer_instance.timer_minutes_remaining == 0
@@ -1176,7 +1176,7 @@ async def test_timer_reset_on_e8_shutdown_and_events(
     beurer_instance._timer_active = True
     beurer_instance._timer_minutes_remaining = 10
     beurer_instance._last_notification_cmd = None
-    eb_payload = bytearray([0xFE, 0xEF, 0x0C, 0x09, 0xAB, 0xBB, 0x04, 0xEB, 0x00, 0xEE, 0x55, 0x0D, 0x0A])
+    eb_payload = bytearray([0xFE, 0xEF, 0x0C, 0x09, 0xAB, 0xBB, 0x04, 0xEB, 0x00, 0xEF, 0x55, 0x0D, 0x0A])
     await beurer_instance.notification_handler(char, eb_payload)
     assert beurer_instance.timer_active is False
     assert beurer_instance.timer_minutes_remaining == 0
@@ -1188,7 +1188,7 @@ async def test_timer_reset_on_e8_shutdown_and_events(
     beurer_instance._timer_active = True
     beurer_instance._timer_minutes_remaining = 10
     beurer_instance._last_notification_cmd = None
-    ec_payload = bytearray([0xFE, 0xEF, 0x0C, 0x09, 0xAB, 0xBB, 0x04, 0xEC, 0x00, 0xEE, 0x55, 0x0D, 0x0A])
+    ec_payload = bytearray([0xFE, 0xEF, 0x0C, 0x09, 0xAB, 0xBB, 0x04, 0xEC, 0x00, 0xE8, 0x55, 0x0D, 0x0A])
     await beurer_instance.notification_handler(char, ec_payload)
     assert beurer_instance.timer_active is False
     assert beurer_instance.timer_minutes_remaining == 0
@@ -1294,3 +1294,74 @@ async def test_event_e8_burst_guard_expires_after_window(
         await beurer_instance.notification_handler(char, press_b)
 
     assert beurer_instance.is_on is False
+
+
+@pytest.mark.asyncio
+async def test_truncated_notification_is_ignored(
+    beurer_instance: BeurerInstance,
+) -> None:
+    """Test a frame that declares more payload than it carries changes nothing.
+
+    Without this guard the parser indexes straight past the end of the received
+    bytes and could apply whatever the following bytes happen to be.
+    """
+    beurer_instance._is_on = False
+    beurer_instance._light_on = False
+    beurer_instance._color_on = False
+
+    # Declares a 10 byte payload (0x0C) but stops after the channel byte. The
+    # state byte at index 9 is still inside the received bytes, so without the
+    # guard this would be parsed as "lamp on".
+    truncated = bytearray([0xFE, 0xEF, 0x0C, 0x13, 0xAB, 0xAA, 0x0C, 0xD0, 0x01, 0x01])
+
+    with patch("custom_components.beurer.beurer.LOGGER") as mock_logger:
+        await beurer_instance.notification_handler(MagicMock(), truncated)
+
+    assert beurer_instance.is_on is False
+    assert beurer_instance._light_on is False
+    assert any("truncated notification" in str(call).lower() for call in mock_logger.debug.call_args_list)
+
+
+@pytest.mark.asyncio
+async def test_checksum_mismatch_is_logged_but_still_processed(
+    beurer_instance: BeurerInstance,
+) -> None:
+    """Test a checksum mismatch is reported without discarding the state update.
+
+    BLE already covers frame integrity with a link-layer CRC, and no TL 100
+    status capture has been confirmed to use the outgoing XOR convention. The
+    log line exists to surface protocol drift; dropping the frame could freeze
+    every entity instead.
+    """
+    beurer_instance._is_on = False
+    beurer_instance._light_on = False
+    beurer_instance._color_on = False
+
+    packet = bytearray(
+        [
+            0xFE,
+            0xEF,
+            0x0C,
+            0x0E,
+            0xAB,
+            0xBB,
+            0x09,
+            0xD0,  # status response
+            0x01,  # white channel
+            0x01,  # on
+            0x32,  # brightness 50
+            0x00,  # timer inactive
+            0x00,  # no minutes
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,  # deliberately wrong checksum
+        ]
+    )
+
+    with patch("custom_components.beurer.beurer.LOGGER") as mock_logger:
+        await beurer_instance.notification_handler(MagicMock(), packet)
+
+    assert beurer_instance.is_on is True
+    assert any("checksum mismatch" in str(call).lower() for call in mock_logger.debug.call_args_list)

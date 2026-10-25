@@ -54,6 +54,17 @@ Notifications arrive with the following structure:
 - Byte 7+: Payload bytes (starts with response opcode)
 - End: Checksum byte followed by `0x55, 0x0D, 0x0A`
 
+> **Note on receiving.** Incoming frames are checked for framing: a frame whose
+> declared payload length runs past the bytes actually received is discarded
+> entirely, because parsing it would index into whatever follows and could apply
+> a state the lamp never reported. The checksum is computed and mismatches are
+> logged at debug level, but the frame is still processed. BLE already carries a
+> link-layer CRC, and no capture of a TL 100 status response has been verified to
+> use the same XOR convention as the outgoing frames (the decoded LightUp app
+> does not calculate a checksum for this device at all), so rejecting on mismatch
+> risks silently discarding valid state. The log line exists to make protocol
+> drift visible.
+
 ---
 
 ## 3. Channels

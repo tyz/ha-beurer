@@ -754,7 +754,7 @@ async def test_trigger_status_defers_entity_update_until_complete(
             0x00,
             0x00,
             0x00,
-            0x2B,
+            0xD9,
             0x55,
             0x0D,
             0x0A,
