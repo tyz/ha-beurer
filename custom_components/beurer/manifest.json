@@ -1,6 +1,6 @@
 {
     "domain": "beurer",
-    "name": "Beurer",
+    "name": "Beurer TL 100",
     "codeowners": [],
     "config_flow": true,
     "dependencies": [
@@ -17,5 +17,5 @@
             "local_name": "TL100*"
         }
     ],
-    "version": "0.0.1"
+    "version": "1.0.0"
 }
