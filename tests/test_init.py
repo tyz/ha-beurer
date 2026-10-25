@@ -11,7 +11,7 @@ from custom_components.beurer import PLATFORMS, async_setup_entry, async_unload_
 from custom_components.beurer.const import DOMAIN
 from homeassistant.components import bluetooth
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_MAC
+from homeassistant.const import CONF_MAC, Platform
 from homeassistant.exceptions import ConfigEntryNotReady
 
 
@@ -55,6 +55,8 @@ async def test_async_setup_entry_success(mock_hass: MagicMock, mock_entry: Confi
         assert result is True
         assert DOMAIN in mock_hass.data
         assert "test_entry_id" in mock_hass.data[DOMAIN]
+        assert Platform.SELECT in PLATFORMS
+        assert Platform.NUMBER not in PLATFORMS
         mock_hass.config_entries.async_forward_entry_setups.assert_awaited_once_with(mock_entry, PLATFORMS)
 
 

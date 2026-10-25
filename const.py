@@ -127,3 +127,7 @@ EFFECTS: Final[list[str]] = [
     "Forest",
     "Summer",
 ]
+
+# Supported hardware countdown timer durations in minutes
+VALID_TIMER_DURATIONS: Final[tuple[int, ...]] = (15, 30, 45, 90, 120)
+DEFAULT_TIMER_DURATION: Final = 15

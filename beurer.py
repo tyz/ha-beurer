@@ -35,6 +35,7 @@ from .const import (
     CMD_SET_EFFECT,
     CMD_SET_TIMER_DURATION,
     CMD_STATUS_RESPONSE,
+    DEFAULT_TIMER_DURATION,
     EFFECTS,
     IDX_BLUE,
     IDX_BRIGHTNESS,
@@ -55,6 +56,7 @@ from .const import (
     PACKET_SYNC_COMMAND,
     PACKET_TYPE_COMMAND,
     READ_CHARACTERISTIC_UUIDS,
+    VALID_TIMER_DURATIONS,
     VERSION_CHARACTERISTIC_UUIDS,
     WRITE_CHARACTERISTIC_UUIDS,
     Channel,
@@ -151,7 +153,7 @@ class BeurerInstance:
         self._last_reconnect_time: float = 0.0
         self._mode: ColorMode | None = ColorMode.WHITE
         self._supported_effects: list[str] = list(EFFECTS)
-        self._timer_duration: int = 15
+        self._timer_duration: int = DEFAULT_TIMER_DURATION
         self._timer_active: bool = False
         self._timer_minutes_remaining: int = 0
 
@@ -351,18 +353,22 @@ class BeurerInstance:
         return self._timer_minutes_remaining
 
     async def set_timer_duration(self, minutes: int) -> None:
-        """Configure hardware countdown timer duration (1 to 120 minutes).
+        """Configure hardware countdown timer duration (presets: 15, 30, 45, 90, 120 minutes).
 
         Args:
             minutes: Countdown duration in minutes.
+
+        Raises:
+            ValueError: If minutes is not one of VALID_TIMER_DURATIONS.
         """
-        clamped_minutes = max(1, min(120, int(minutes)))
-        LOGGER.debug("Setting timer duration to %d minutes", clamped_minutes)
-        self._timer_duration = clamped_minutes
+        if minutes not in VALID_TIMER_DURATIONS:
+            raise ValueError(f"Invalid timer duration: {minutes}. Valid presets are: {VALID_TIMER_DURATIONS}")
+        LOGGER.debug("Setting timer duration to %d minutes", minutes)
+        self._timer_duration = minutes
         channel = CHANNEL_COLOR if self._mode == ColorMode.RGB or self._color_on else CHANNEL_WHITE
-        await self.sendPacket([CMD_SET_TIMER_DURATION, channel, clamped_minutes])
+        await self.sendPacket([CMD_SET_TIMER_DURATION, channel, minutes])
         if self._timer_active:
-            self._timer_minutes_remaining = clamped_minutes
+            self._timer_minutes_remaining = minutes
         await self.trigger_entity_update()
 
     async def enable_timer(self) -> None:
@@ -761,8 +767,11 @@ class BeurerInstance:
                 self._rgb_color = (255, 255, 255)
                 self._effect = "Off"
                 if len(data) > IDX_TIMER_MINUTES:
+                    prev_timer_active = self._timer_active
                     self._timer_active = data[IDX_TIMER_ACTIVE] == 1
                     self._timer_minutes_remaining = data[IDX_TIMER_MINUTES]
+                    if not prev_timer_active and self._timer_active and data[IDX_TIMER_MINUTES] in VALID_TIMER_DURATIONS:
+                        self._timer_duration = data[IDX_TIMER_MINUTES]
             elif not self._color_on:
                 self._timer_active = False
                 self._timer_minutes_remaining = 0
@@ -792,8 +801,11 @@ class BeurerInstance:
                 if len(data) > IDX_BLUE:
                     self._rgb_color = (data[IDX_RED], data[IDX_GREEN], data[IDX_BLUE])
                 if len(data) > IDX_TIMER_MINUTES:
+                    prev_timer_active = self._timer_active
                     self._timer_active = data[IDX_TIMER_ACTIVE] == 1
                     self._timer_minutes_remaining = data[IDX_TIMER_MINUTES]
+                    if not prev_timer_active and self._timer_active and data[IDX_TIMER_MINUTES] in VALID_TIMER_DURATIONS:
+                        self._timer_duration = data[IDX_TIMER_MINUTES]
             elif not self._light_on:
                 self._timer_active = False
                 self._timer_minutes_remaining = 0

@@ -1,0 +1,134 @@
+"""Platform for select integration with Beurer TL 100."""
+
+from __future__ import annotations
+
+# If mistakenly imported as top-level 'select' module by Python stdlib (e.g. subprocess, selectors)
+# when this repository root is in sys.path, delegate to the standard library C-extension select module.
+if __name__ == "select":
+    import importlib.machinery
+    import importlib.util
+    import os
+    import sys
+
+    _this_dir = os.path.abspath(os.path.dirname(__file__))
+    _other_paths = [p for p in sys.path if os.path.abspath(p) != _this_dir and p != ""]
+    _spec = importlib.machinery.PathFinder.find_spec("select", _other_paths)
+    if _spec and _spec.loader:
+        _mod = importlib.util.module_from_spec(_spec)
+        sys.modules["select"] = _mod
+        _spec.loader.exec_module(_mod)
+        globals().update(_mod.__dict__)
+else:
+    from collections.abc import Callable
+
+    from bleak import BleakError
+    from homeassistant.components import bluetooth
+    from homeassistant.components.select import SelectEntity
+    from homeassistant.config_entries import ConfigEntry
+    from homeassistant.const import EntityCategory
+    from homeassistant.core import HomeAssistant
+    from homeassistant.exceptions import HomeAssistantError
+    from homeassistant.helpers.device_registry import DeviceInfo
+    from homeassistant.helpers.entity_platform import AddEntitiesCallback
+
+    from .beurer import BeurerInstance
+    from .const import DOMAIN, LOGGER, VALID_TIMER_DURATIONS
+
+    async def async_setup_entry(
+        hass: HomeAssistant,
+        config_entry: ConfigEntry,
+        async_add_entities: AddEntitiesCallback,
+    ) -> None:
+        """Set up the Beurer select platform from a config entry.
+
+        Args:
+            hass: Home Assistant instance.
+            config_entry: Config entry containing device details.
+            async_add_entities: Callback to register entities with HA.
+        """
+        LOGGER.debug("Setting up select platform for Beurer")
+        instance: BeurerInstance = hass.data[DOMAIN][config_entry.entry_id]
+        async_add_entities([BeurerTimerDurationSelect(instance, config_entry.data["name"], config_entry.entry_id)])
+
+    class BeurerTimerDurationSelect(SelectEntity):
+        """Representation of the Beurer countdown timer duration setting."""
+
+        _attr_has_entity_name = True
+        _attr_translation_key = "timer_duration"
+        _attr_entity_category = EntityCategory.CONFIG
+        _attr_options = [str(d) for d in VALID_TIMER_DURATIONS]
+
+        def __init__(self, beurer_instance: BeurerInstance, name: str, entry_id: str) -> None:
+            """Initialize the Beurer countdown duration entity.
+
+            Args:
+                beurer_instance: Controller instance for the physical lamp.
+                name: Friendly display name for the device.
+                entry_id: Config entry unique identifier.
+            """
+            self._instance: BeurerInstance = beurer_instance
+            self._name: str = name
+            self._entry_id: str = entry_id
+            self._attr_unique_id: str = f"{self._instance.mac}_timer_duration"
+            self._unregister_callback: Callable[[], None] | None = None
+
+        async def async_added_to_hass(self) -> None:
+            """Register callbacks after being added to Home Assistant."""
+            self._unregister_callback = self._instance.register_update_callback(self.async_write_ha_state)
+
+        async def async_will_remove_from_hass(self) -> None:
+            """Unregister callback when entity is removed from Home Assistant."""
+            if self._unregister_callback is not None:
+                self._unregister_callback()
+                self._unregister_callback = None
+
+        @property
+        def current_option(self) -> str:
+            """Return the currently selected timer duration option."""
+            return str(self._instance.timer_duration)
+
+        async def async_select_option(self, option: str) -> None:
+            """Change the selected timer duration option.
+
+            Args:
+                option: The selected option string (e.g. "15", "30", "45", "90", "120").
+
+            Raises:
+                HomeAssistantError: If communication with the device fails.
+            """
+            try:
+                await self._instance.set_timer_duration(int(option))
+            except (BleakError, TimeoutError, OSError) as err:
+                raise HomeAssistantError(
+                    translation_domain=DOMAIN,
+                    translation_key="communication_error",
+                    translation_placeholders={
+                        "name": self._name or self._instance.mac,
+                        "error": str(err),
+                    },
+                ) from err
+
+        @property
+        def available(self) -> bool:
+            """Return True if device is available and reachable."""
+            if self._instance.is_connected:
+                return True
+            if getattr(self, "hass", None) is not None:
+                return (
+                    bluetooth.async_ble_device_from_address(self.hass, self._instance.mac, connectable=True)
+                    is not None
+                )
+            return True
+
+        @property
+        def device_info(self) -> DeviceInfo:
+            """Return device registry information."""
+            info = DeviceInfo(
+                identifiers={(DOMAIN, self._instance.mac)},
+                name=self._name,
+                manufacturer="Beurer",
+                model="TL 100",
+            )
+            if self._instance.firmware_version:
+                info["sw_version"] = self._instance.firmware_version
+            return info

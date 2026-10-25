@@ -13,7 +13,7 @@ from .const import DOMAIN, LOGGER
 
 PLATFORMS: list[Platform] = [
     Platform.LIGHT,
-    Platform.NUMBER,
+    Platform.SELECT,
     Platform.SWITCH,
     Platform.SENSOR,
 ]

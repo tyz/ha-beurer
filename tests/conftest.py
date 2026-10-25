@@ -120,6 +120,7 @@ def _setup_mock_modules() -> None:
         class Platform(str, enum.Enum):
             LIGHT = "light"
             NUMBER = "number"
+            SELECT = "select"
             SWITCH = "switch"
             SENSOR = "sensor"
 
@@ -127,8 +128,13 @@ def _setup_mock_modules() -> None:
             MINUTES = "min"
             SECONDS = "s"
 
+        class EntityCategory(str, enum.Enum):
+            CONFIG = "config"
+            DIAGNOSTIC = "diagnostic"
+
         ha_const.Platform = Platform  # type: ignore[attr-defined]
         ha_const.UnitOfTime = UnitOfTime  # type: ignore[attr-defined]
+        ha_const.EntityCategory = EntityCategory  # type: ignore[attr-defined]
         sys.modules["homeassistant.const"] = ha_const
 
         # exceptions
@@ -376,6 +382,51 @@ def _setup_mock_modules() -> None:
         ha_number.NumberEntity = NumberEntity  # type: ignore[attr-defined]
         ha_number.NumberMode = NumberMode  # type: ignore[attr-defined]
         sys.modules["homeassistant.components.number"] = ha_number
+
+        # components.select
+        ha_select = ModuleType("homeassistant.components.select")
+
+        class SelectEntity:
+            hass: Any = None
+            _attr_has_entity_name: bool = False
+            _attr_translation_key: str | None = None
+            _attr_unique_id: str | None = None
+            _attr_current_option: str | None = None
+            _attr_options: list[str] | None = None
+            _attr_entity_category: Any = None
+
+            def async_write_ha_state(self) -> None:
+                pass
+
+            @property
+            def unique_id(self) -> str | None:
+                return self._attr_unique_id
+
+            @property
+            def translation_key(self) -> str | None:
+                return self._attr_translation_key
+
+            @property
+            def has_entity_name(self) -> bool:
+                return self._attr_has_entity_name
+
+            @property
+            def current_option(self) -> str | None:
+                return self._attr_current_option
+
+            @property
+            def options(self) -> list[str]:
+                return self._attr_options or []
+
+            @property
+            def entity_category(self) -> Any:
+                return self._attr_entity_category
+
+            async def async_select_option(self, option: str) -> None:
+                raise NotImplementedError
+
+        ha_select.SelectEntity = SelectEntity  # type: ignore[attr-defined]
+        sys.modules["homeassistant.components.select"] = ha_select
 
         # components.switch
         ha_switch = ModuleType("homeassistant.components.switch")
