@@ -46,16 +46,9 @@
     }
   },
   "entity": {
-    "select": {
+    "number": {
       "timer_duration": {
-        "name": "Varigheit for tidtakar",
-        "state": {
-          "15": "15 minutt",
-          "30": "30 minutt",
-          "45": "45 minutt",
-          "90": "90 minutt (1,5 timar)",
-          "120": "120 minutt (2 timar)"
-        }
+        "name": "Varigheit for tidtakar"
       }
     },
     "switch": {

@@ -46,16 +46,9 @@
     }
   },
   "entity": {
-    "select": {
+    "number": {
       "timer_duration": {
-        "name": "Duração do temporizador",
-        "state": {
-          "15": "15 minutos",
-          "30": "30 minutos",
-          "45": "45 minutos",
-          "90": "90 minutos (1,5 horas)",
-          "120": "120 minutos (2 horas)"
-        }
+        "name": "Duração do temporizador"
       }
     },
     "switch": {

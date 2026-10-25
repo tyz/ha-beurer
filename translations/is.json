@@ -46,16 +46,9 @@
     }
   },
   "entity": {
-    "select": {
+    "number": {
       "timer_duration": {
-        "name": "Tímalengd tímastillis",
-        "state": {
-          "15": "15 mínútur",
-          "30": "30 mínútur",
-          "45": "45 mínútur",
-          "90": "90 mínútur (1,5 klukkustund)",
-          "120": "120 mínútur (2 klukkustundir)"
-        }
+        "name": "Tímalengd tímastillis"
       }
     },
     "switch": {

@@ -46,16 +46,9 @@
     }
   },
   "entity": {
-    "select": {
+    "number": {
       "timer_duration": {
-        "name": "Taimeri kestus",
-        "state": {
-          "15": "15 minutit",
-          "30": "30 minutit",
-          "45": "45 minutit",
-          "90": "90 minutit (1,5 tundi)",
-          "120": "120 minutit (2 tundi)"
-        }
+        "name": "Taimeri kestus"
       }
     },
     "switch": {

@@ -46,16 +46,9 @@
     }
   },
   "entity": {
-    "select": {
+    "number": {
       "timer_duration": {
-        "name": "Trajanje mjerača vremena",
-        "state": {
-          "15": "15 minuta",
-          "30": "30 minuta",
-          "45": "45 minuta",
-          "90": "90 minuta (1,5 sati)",
-          "120": "120 minuta (2 sata)"
-        }
+        "name": "Trajanje mjerača vremena"
       }
     },
     "switch": {

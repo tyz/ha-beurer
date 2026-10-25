@@ -46,16 +46,9 @@
     }
   },
   "entity": {
-    "select": {
+    "number": {
       "timer_duration": {
-        "name": "Czas trwania timera",
-        "state": {
-          "15": "15 minut",
-          "30": "30 minut",
-          "45": "45 minut",
-          "90": "90 minut (1,5 godziny)",
-          "120": "120 minut (2 godziny)"
-        }
+        "name": "Czas trwania timera"
       }
     },
     "switch": {

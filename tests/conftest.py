@@ -336,9 +336,14 @@ def _setup_mock_modules() -> None:
             _attr_native_step: float = 1.0
             _attr_native_unit_of_measurement: str | None = None
             _attr_mode: NumberMode | str = NumberMode.AUTO
+            _attr_entity_category: Any = None
 
             def async_write_ha_state(self) -> None:
                 pass
+
+            @property
+            def entity_category(self) -> Any:
+                return self._attr_entity_category
 
             @property
             def unique_id(self) -> str | None:

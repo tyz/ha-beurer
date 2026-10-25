@@ -46,16 +46,9 @@
     }
   },
   "entity": {
-    "select": {
+    "number": {
       "timer_duration": {
-        "name": "Timer duration",
-        "state": {
-          "15": "15 minutes",
-          "30": "30 minutes",
-          "45": "45 minutes",
-          "90": "90 minutes (1.5 hours)",
-          "120": "120 minutes (2 hours)"
-        }
+        "name": "Timer duration"
       }
     },
     "switch": {

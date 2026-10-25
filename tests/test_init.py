@@ -55,8 +55,8 @@ async def test_async_setup_entry_success(mock_hass: MagicMock, mock_entry: Confi
         assert result is True
         assert DOMAIN in mock_hass.data
         assert "test_entry_id" in mock_hass.data[DOMAIN]
-        assert Platform.SELECT in PLATFORMS
-        assert Platform.NUMBER not in PLATFORMS
+        assert Platform.NUMBER in PLATFORMS
+        assert Platform.SELECT not in PLATFORMS
         mock_hass.config_entries.async_forward_entry_setups.assert_awaited_once_with(mock_entry, PLATFORMS)
 
 

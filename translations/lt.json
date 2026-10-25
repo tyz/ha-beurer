@@ -46,16 +46,9 @@
     }
   },
   "entity": {
-    "select": {
+    "number": {
       "timer_duration": {
-        "name": "Laikmačio trukmė",
-        "state": {
-          "15": "15 minučių",
-          "30": "30 minučių",
-          "45": "45 minutės",
-          "90": "90 minučių (1,5 valandos)",
-          "120": "120 minučių (2 valandos)"
-        }
+        "name": "Laikmačio trukmė"
       }
     },
     "switch": {

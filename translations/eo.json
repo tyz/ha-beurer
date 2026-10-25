@@ -46,16 +46,9 @@
     }
   },
   "entity": {
-    "select": {
+    "number": {
       "timer_duration": {
-        "name": "Tempigila daŭro",
-        "state": {
-          "15": "15 minutoj",
-          "30": "30 minutoj",
-          "45": "45 minutoj",
-          "90": "90 minutoj (1,5 horoj)",
-          "120": "120 minutoj (2 horoj)"
-        }
+        "name": "Tempigila daŭro"
       }
     },
     "switch": {

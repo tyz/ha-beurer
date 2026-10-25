@@ -15,7 +15,7 @@ This repository is an actively maintained fork of [Deadolus/ha-beurer](https://g
 * **Fixed 100% White Brightness Firmware Bug**: The lamp firmware has a known bug where setting white brightness to 100% (`0x64`) causes an unintended red tint shift. The integration caps white brightness at 99% (`0x63`) under the hood, ensuring pure daylight output.
 * **Independent Brightness & State Retention**: White daylight and RGB moodlight brightness levels are tracked and scaled independently (0–255 in Home Assistant, 1–100% on hardware).
 * **Full Moodlight Scenes / Effects**: Support for all 11 built-in moodlight effect presets (Rainbow, Rainbow Slow, Pulse, Wave, Forest, Summer, etc.).
-* **Hardware Countdown Timer Support**: Configurable countdown off-timer matching the lamp's 5 physical presets (15, 30, 45, 90, 120 min) exposed via dedicated Home Assistant `select`, `switch`, and `sensor` entities, with built-in safety preventing timer activation when the lamp is off.
+* **Hardware Countdown Timer Support**: Configurable countdown off-timer (1–120 minutes) exposed via dedicated Home Assistant `number`, `switch`, and `sensor` entities, with built-in safety preventing timer activation when the lamp is off.
 * **Hardware Timer-End Events**: Intercepts `0xEB` and `0xEC` BLE notifications to immediately update entity states when the lamp shuts off on timer completion.
 * **Reliable Connection Management & Serialization**: BLE writes are serialized using asynchronous locks and status queries are debounced to prevent packet collision and connection drops.
 * **Graceful Shutdown & Unload**: Properly cancels background reconnection tasks and disconnects cleanly when Home Assistant stops or the integration is reloaded.
@@ -73,7 +73,7 @@ This repository is an actively maintained fork of [Deadolus/ha-beurer](https://g
 
 * **Daylight Therapy (White Mode)**: Full on/off and brightness control.
 * **Moodlight (RGB Mode)**: Color picker, independent color brightness control, and scene selection.
-* **Hardware Countdown Timer**: Built-in hardware timer control via `select` (duration presets: 15, 30, 45, 90, 120 min), `switch` (start/cancel), and `sensor` (remaining time) entities.
+* **Hardware Countdown Timer**: Built-in hardware timer control via `number` (duration: 1–120 min), `switch` (start/cancel), and `sensor` (remaining time) entities.
 * **Hardware Timer-End Events (`0xEB` / `0xEC`)**: Immediate state updates when the lamp turns off after timer expiration.
 * **Physical Controls**: State stays in sync when using the buttons on the lamp.
 * **Bluetooth Proxy Compatibility**: Works with standard Linux Bluetooth adapters and ESPHome Bluetooth Proxies.

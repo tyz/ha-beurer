@@ -46,16 +46,9 @@
     }
   },
   "entity": {
-    "select": {
+    "number": {
       "timer_duration": {
-        "name": "Hyd yr amserydd",
-        "state": {
-          "15": "15 munud",
-          "30": "30 munud",
-          "45": "45 munud",
-          "90": "90 munud (1.5 awr)",
-          "120": "120 munud (2 awr)"
-        }
+        "name": "Hyd yr amserydd"
       }
     },
     "switch": {

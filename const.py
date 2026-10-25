@@ -128,6 +128,7 @@ EFFECTS: Final[list[str]] = [
     "Summer",
 ]
 
-# Supported hardware countdown timer durations in minutes
-VALID_TIMER_DURATIONS: Final[tuple[int, ...]] = (15, 30, 45, 90, 120)
+# Hardware countdown timer limits in minutes
+MIN_TIMER_DURATION: Final = 1
+MAX_TIMER_DURATION: Final = 120
 DEFAULT_TIMER_DURATION: Final = 15

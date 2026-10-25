@@ -46,16 +46,9 @@
     }
   },
   "entity": {
-    "select": {
+    "number": {
       "timer_duration": {
-        "name": "Timer-varighed",
-        "state": {
-          "15": "15 minutter",
-          "30": "30 minutter",
-          "45": "45 minutter",
-          "90": "90 minutter (1,5 time)",
-          "120": "120 minutter (2 timer)"
-        }
+        "name": "Timer-varighed"
       }
     },
     "switch": {

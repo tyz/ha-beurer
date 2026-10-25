@@ -46,16 +46,9 @@
     }
   },
   "entity": {
-    "select": {
+    "number": {
       "timer_duration": {
-        "name": "Durada del temporitzador",
-        "state": {
-          "15": "15 minuts",
-          "30": "30 minuts",
-          "45": "45 minuts",
-          "90": "90 minuts (1,5 hores)",
-          "120": "120 minuts (2 hores)"
-        }
+        "name": "Durada del temporitzador"
       }
     },
     "switch": {

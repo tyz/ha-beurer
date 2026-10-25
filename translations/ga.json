@@ -46,16 +46,9 @@
     }
   },
   "entity": {
-    "select": {
+    "number": {
       "timer_duration": {
-        "name": "Fad an amadóra",
-        "state": {
-          "15": "15 nóiméad",
-          "30": "30 nóiméad",
-          "45": "45 nóiméad",
-          "90": "90 nóiméad (1.5 uair)",
-          "120": "120 nóiméad (2 uair)"
-        }
+        "name": "Fad an amadóra"
       }
     },
     "switch": {

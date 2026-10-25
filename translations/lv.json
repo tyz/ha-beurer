@@ -46,16 +46,9 @@
     }
   },
   "entity": {
-    "select": {
+    "number": {
       "timer_duration": {
-        "name": "Taimera ilgums",
-        "state": {
-          "15": "15 minūtes",
-          "30": "30 minūtes",
-          "45": "45 minūtes",
-          "90": "90 minūtes (1,5 stundas)",
-          "120": "120 minūtes (2 stundas)"
-        }
+        "name": "Taimera ilgums"
       }
     },
     "switch": {

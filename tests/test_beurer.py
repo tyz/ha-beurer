@@ -1796,14 +1796,21 @@ async def test_timer_properties_and_duration_configuration(beurer_instance: Beur
     assert pkt[8] == 0x01  # CHANNEL_WHITE
     assert pkt[9] == 45
 
-    # Setting invalid preset raises ValueError
-    with pytest.raises(ValueError, match="Invalid timer duration"):
-        await beurer_instance.set_timer_duration(3)
+    # Set valid duration to 7 min (arbitrary minute values supported)
+    sent_packets.clear()
+    await beurer_instance.set_timer_duration(7)
+    assert beurer_instance.timer_duration == 7
+    assert len(sent_packets) == 1
+    pkt7 = list(sent_packets[0])
+    assert pkt7[7] == 0x33  # CMD_SET_TIMER_DURATION
+    assert pkt7[8] == 0x01  # CHANNEL_WHITE
+    assert pkt7[9] == 7
 
-    with pytest.raises(ValueError, match="Invalid timer duration"):
+    # Setting duration out of range raises ValueError
+    with pytest.raises(ValueError, match="Timer duration must be between 1 and 120 minutes"):
         await beurer_instance.set_timer_duration(0)
 
-    with pytest.raises(ValueError, match="Invalid timer duration"):
+    with pytest.raises(ValueError, match="Timer duration must be between 1 and 120 minutes"):
         await beurer_instance.set_timer_duration(150)
 
     # When lamp is off, setting duration stores value without sending packets

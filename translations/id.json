@@ -46,16 +46,9 @@
     }
   },
   "entity": {
-    "select": {
+    "number": {
       "timer_duration": {
-        "name": "Durasi pengatur waktu",
-        "state": {
-          "15": "15 menit",
-          "30": "30 menit",
-          "45": "45 menit",
-          "90": "90 menit (1,5 jam)",
-          "120": "120 menit (2 jam)"
-        }
+        "name": "Durasi pengatur waktu"
       }
     },
     "switch": {

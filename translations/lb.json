@@ -46,16 +46,9 @@
     }
   },
   "entity": {
-    "select": {
+    "number": {
       "timer_duration": {
-        "name": "Timer-Dauer",
-        "state": {
-          "15": "15 Minutten",
-          "30": "30 Minutten",
-          "45": "45 Minutten",
-          "90": "90 Minutten (1,5 Stonnen)",
-          "120": "120 Minutten (2 Stonnen)"
-        }
+        "name": "Timer-Dauer"
       }
     },
     "switch": {

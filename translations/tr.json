@@ -46,16 +46,9 @@
     }
   },
   "entity": {
-    "select": {
+    "number": {
       "timer_duration": {
-        "name": "Zamanlayıcı süresi",
-        "state": {
-          "15": "15 dakika",
-          "30": "30 dakika",
-          "45": "45 dakika",
-          "90": "90 dakika (1,5 saat)",
-          "120": "120 dakika (2 saat)"
-        }
+        "name": "Zamanlayıcı süresi"
       }
     },
     "switch": {

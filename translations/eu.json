@@ -46,16 +46,9 @@
     }
   },
   "entity": {
-    "select": {
+    "number": {
       "timer_duration": {
-        "name": "Tenporizadorearen iraupena",
-        "state": {
-          "15": "15 minutu",
-          "30": "30 minutu",
-          "45": "45 minutu",
-          "90": "90 minutu (1,5 ordu)",
-          "120": "120 minutu (2 ordu)"
-        }
+        "name": "Tenporizadorearen iraupena"
       }
     },
     "switch": {

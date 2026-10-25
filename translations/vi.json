@@ -46,16 +46,9 @@
     }
   },
   "entity": {
-    "select": {
+    "number": {
       "timer_duration": {
-        "name": "Thời lượng hẹn giờ",
-        "state": {
-          "15": "15 phút",
-          "30": "30 phút",
-          "45": "45 phút",
-          "90": "90 phút (1,5 giờ)",
-          "120": "120 phút (2 giờ)"
-        }
+        "name": "Thời lượng hẹn giờ"
       }
     },
     "switch": {

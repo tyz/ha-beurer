@@ -51,12 +51,13 @@ from .const import (
     IDX_TIMER_ACTIVE,
     IDX_TIMER_MINUTES,
     LOGGER,
+    MAX_TIMER_DURATION,
+    MIN_TIMER_DURATION,
     PACKET_FOOTER,
     PACKET_HEADER,
     PACKET_SYNC_COMMAND,
     PACKET_TYPE_COMMAND,
     READ_CHARACTERISTIC_UUIDS,
-    VALID_TIMER_DURATIONS,
     VERSION_CHARACTERISTIC_UUIDS,
     WRITE_CHARACTERISTIC_UUIDS,
     Channel,
@@ -353,16 +354,18 @@ class BeurerInstance:
         return self._timer_minutes_remaining
 
     async def set_timer_duration(self, minutes: int) -> None:
-        """Configure hardware countdown timer duration (presets: 15, 30, 45, 90, 120 minutes).
+        """Configure hardware countdown timer duration (1 to 120 minutes).
 
         Args:
             minutes: Countdown duration in minutes.
 
         Raises:
-            ValueError: If minutes is not one of VALID_TIMER_DURATIONS.
+            ValueError: If minutes is not between MIN_TIMER_DURATION and MAX_TIMER_DURATION.
         """
-        if minutes not in VALID_TIMER_DURATIONS:
-            raise ValueError(f"Invalid timer duration: {minutes}. Valid presets are: {VALID_TIMER_DURATIONS}")
+        if not (MIN_TIMER_DURATION <= minutes <= MAX_TIMER_DURATION):
+            raise ValueError(
+                f"Timer duration must be between {MIN_TIMER_DURATION} and {MAX_TIMER_DURATION} minutes, got {minutes}"
+            )
         LOGGER.debug("Setting timer duration to %d minutes", minutes)
         self._timer_duration = minutes
         if self._is_on:
@@ -778,7 +781,11 @@ class BeurerInstance:
                     prev_timer_active = self._timer_active
                     self._timer_active = data[IDX_TIMER_ACTIVE] == 1
                     self._timer_minutes_remaining = data[IDX_TIMER_MINUTES]
-                    if not prev_timer_active and self._timer_active and data[IDX_TIMER_MINUTES] in VALID_TIMER_DURATIONS:
+                    if (
+                        not prev_timer_active
+                        and self._timer_active
+                        and MIN_TIMER_DURATION <= data[IDX_TIMER_MINUTES] <= MAX_TIMER_DURATION
+                    ):
                         self._timer_duration = data[IDX_TIMER_MINUTES]
             elif not self._color_on:
                 self._timer_active = False
@@ -812,7 +819,11 @@ class BeurerInstance:
                     prev_timer_active = self._timer_active
                     self._timer_active = data[IDX_TIMER_ACTIVE] == 1
                     self._timer_minutes_remaining = data[IDX_TIMER_MINUTES]
-                    if not prev_timer_active and self._timer_active and data[IDX_TIMER_MINUTES] in VALID_TIMER_DURATIONS:
+                    if (
+                        not prev_timer_active
+                        and self._timer_active
+                        and MIN_TIMER_DURATION <= data[IDX_TIMER_MINUTES] <= MAX_TIMER_DURATION
+                    ):
                         self._timer_duration = data[IDX_TIMER_MINUTES]
             elif not self._light_on:
                 self._timer_active = False
