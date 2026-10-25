@@ -39,6 +39,9 @@ def mock_instance() -> MagicMock:
     instance.rgb_color = (255, 255, 255)
     instance.effect = "Off"
     instance.supported_effects = ["Off", "Random", "Rainbow"]
+    instance.timer_duration = 15
+    instance.timer_active = False
+    instance.timer_minutes_remaining = 0
     instance._last_notification_cmd = 0xE8
     instance._last_queried_channel = 1
     instance.is_closing = False
@@ -67,6 +70,9 @@ async def test_async_get_config_entry_diagnostics(mock_entry: ConfigEntry, mock_
     assert diagnostics["device"]["is_on"] is True
     assert diagnostics["device"]["white_brightness"] == 200
     assert diagnostics["device"]["last_notification_cmd"] == "0xe8"
+    assert diagnostics["device"]["timer_duration"] == 15
+    assert diagnostics["device"]["timer_active"] is False
+    assert diagnostics["device"]["timer_minutes_remaining"] == 0
     assert diagnostics["device"]["is_closing"] is False
 
 

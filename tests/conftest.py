@@ -116,6 +116,19 @@ def _setup_mock_modules() -> None:
         ha_const = ModuleType("homeassistant.const")
         ha_const.CONF_MAC = "mac"  # type: ignore[attr-defined]
         ha_const.EVENT_HOMEASSISTANT_STOP = "homeassistant_stop"  # type: ignore[attr-defined]
+
+        class Platform(str, enum.Enum):
+            LIGHT = "light"
+            NUMBER = "number"
+            SWITCH = "switch"
+            SENSOR = "sensor"
+
+        class UnitOfTime(str, enum.Enum):
+            MINUTES = "min"
+            SECONDS = "s"
+
+        ha_const.Platform = Platform  # type: ignore[attr-defined]
+        ha_const.UnitOfTime = UnitOfTime  # type: ignore[attr-defined]
         sys.modules["homeassistant.const"] = ha_const
 
         # exceptions
@@ -297,6 +310,167 @@ def _setup_mock_modules() -> None:
 
         ha_light.PLATFORM_SCHEMA = MockPlatformSchema()  # type: ignore[attr-defined]
         sys.modules["homeassistant.components.light"] = ha_light
+
+        # components.number
+        ha_number = ModuleType("homeassistant.components.number")
+
+        class NumberMode(str, enum.Enum):
+            AUTO = "auto"
+            BOX = "box"
+            SLIDER = "slider"
+
+        class NumberEntity:
+            hass: Any = None
+            _attr_has_entity_name: bool = False
+            _attr_translation_key: str | None = None
+            _attr_unique_id: str | None = None
+            _attr_native_value: float | None = None
+            _attr_native_min_value: float = 0.0
+            _attr_native_max_value: float = 100.0
+            _attr_native_step: float = 1.0
+            _attr_native_unit_of_measurement: str | None = None
+            _attr_mode: NumberMode | str = NumberMode.AUTO
+
+            def async_write_ha_state(self) -> None:
+                pass
+
+            @property
+            def unique_id(self) -> str | None:
+                return self._attr_unique_id
+
+            @property
+            def translation_key(self) -> str | None:
+                return self._attr_translation_key
+
+            @property
+            def has_entity_name(self) -> bool:
+                return self._attr_has_entity_name
+
+            @property
+            def native_value(self) -> float | None:
+                return self._attr_native_value
+
+            @property
+            def native_min_value(self) -> float:
+                return self._attr_native_min_value
+
+            @property
+            def native_max_value(self) -> float:
+                return self._attr_native_max_value
+
+            @property
+            def native_step(self) -> float:
+                return self._attr_native_step
+
+            @property
+            def native_unit_of_measurement(self) -> str | None:
+                return self._attr_native_unit_of_measurement
+
+            @property
+            def mode(self) -> str:
+                return str(self._attr_mode)
+
+            async def async_set_native_value(self, value: float) -> None:
+                raise NotImplementedError
+
+        ha_number.NumberEntity = NumberEntity  # type: ignore[attr-defined]
+        ha_number.NumberMode = NumberMode  # type: ignore[attr-defined]
+        sys.modules["homeassistant.components.number"] = ha_number
+
+        # components.switch
+        ha_switch = ModuleType("homeassistant.components.switch")
+
+        class SwitchEntity:
+            hass: Any = None
+            _attr_has_entity_name: bool = False
+            _attr_translation_key: str | None = None
+            _attr_unique_id: str | None = None
+            _attr_is_on: bool | None = None
+
+            def async_write_ha_state(self) -> None:
+                pass
+
+            @property
+            def unique_id(self) -> str | None:
+                return self._attr_unique_id
+
+            @property
+            def translation_key(self) -> str | None:
+                return self._attr_translation_key
+
+            @property
+            def has_entity_name(self) -> bool:
+                return self._attr_has_entity_name
+
+            @property
+            def is_on(self) -> bool | None:
+                return self._attr_is_on
+
+            async def async_turn_on(self, **kwargs: Any) -> None:
+                raise NotImplementedError
+
+            async def async_turn_off(self, **kwargs: Any) -> None:
+                raise NotImplementedError
+
+        ha_switch.SwitchEntity = SwitchEntity  # type: ignore[attr-defined]
+        sys.modules["homeassistant.components.switch"] = ha_switch
+
+        # components.sensor
+        ha_sensor = ModuleType("homeassistant.components.sensor")
+
+        class SensorDeviceClass(str, enum.Enum):
+            DURATION = "duration"
+
+        class SensorStateClass(str, enum.Enum):
+            MEASUREMENT = "measurement"
+            TOTAL = "total"
+            TOTAL_INCREASING = "total_increasing"
+
+        class SensorEntity:
+            hass: Any = None
+            _attr_has_entity_name: bool = False
+            _attr_translation_key: str | None = None
+            _attr_unique_id: str | None = None
+            _attr_native_value: Any = None
+            _attr_native_unit_of_measurement: str | None = None
+            _attr_device_class: SensorDeviceClass | None = None
+            _attr_state_class: SensorStateClass | None = None
+
+            def async_write_ha_state(self) -> None:
+                pass
+
+            @property
+            def unique_id(self) -> str | None:
+                return self._attr_unique_id
+
+            @property
+            def translation_key(self) -> str | None:
+                return self._attr_translation_key
+
+            @property
+            def has_entity_name(self) -> bool:
+                return self._attr_has_entity_name
+
+            @property
+            def native_value(self) -> Any:
+                return self._attr_native_value
+
+            @property
+            def native_unit_of_measurement(self) -> str | None:
+                return self._attr_native_unit_of_measurement
+
+            @property
+            def device_class(self) -> SensorDeviceClass | None:
+                return self._attr_device_class
+
+            @property
+            def state_class(self) -> SensorStateClass | None:
+                return self._attr_state_class
+
+        ha_sensor.SensorEntity = SensorEntity  # type: ignore[attr-defined]
+        ha_sensor.SensorDeviceClass = SensorDeviceClass  # type: ignore[attr-defined]
+        ha_sensor.SensorStateClass = SensorStateClass  # type: ignore[attr-defined]
+        sys.modules["homeassistant.components.sensor"] = ha_sensor
 
         # helpers
         ha_help = ModuleType("homeassistant.helpers")

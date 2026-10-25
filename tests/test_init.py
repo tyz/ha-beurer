@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from bleak import BLEDevice
-from custom_components.beurer import async_setup_entry, async_unload_entry
+from custom_components.beurer import PLATFORMS, async_setup_entry, async_unload_entry
 from custom_components.beurer.const import DOMAIN
 from homeassistant.components import bluetooth
 from homeassistant.config_entries import ConfigEntry
@@ -55,7 +55,7 @@ async def test_async_setup_entry_success(mock_hass: MagicMock, mock_entry: Confi
         assert result is True
         assert DOMAIN in mock_hass.data
         assert "test_entry_id" in mock_hass.data[DOMAIN]
-        mock_hass.config_entries.async_forward_entry_setups.assert_awaited_once_with(mock_entry, ["light"])
+        mock_hass.config_entries.async_forward_entry_setups.assert_awaited_once_with(mock_entry, PLATFORMS)
 
 
 @pytest.mark.asyncio

@@ -1768,3 +1768,296 @@ async def test_notification_handler_boundary_conditions(beurer_instance: BeurerI
             char, bytearray([0xFE, 0xEF, 0x0C, 0x08, 0xAB, 0xBB, 0x03, 0xD0, 0x99, 0x01])
         )
         assert any("unknown notification channel" in str(call).lower() for call in mock_logger.debug.call_args_list)
+
+
+@pytest.mark.asyncio
+async def test_timer_properties_and_duration_configuration(beurer_instance: BeurerInstance) -> None:
+    """Test timer properties, clamping and duration configuration."""
+    assert beurer_instance.timer_duration == 15
+    assert beurer_instance.timer_active is False
+    assert beurer_instance.timer_minutes_remaining == 0
+
+    sent_packets: list[bytearray] = []
+
+    async def mock_write(data: bytearray) -> None:
+        sent_packets.append(data)
+
+    beurer_instance._write = mock_write
+    beurer_instance._mode = ColorMode.WHITE
+    beurer_instance._color_on = False
+
+    # Set duration to 45 min
+    await beurer_instance.set_timer_duration(45)
+    assert beurer_instance.timer_duration == 45
+    assert len(sent_packets) == 1
+    pkt = list(sent_packets[0])
+    assert pkt[7] == 0x33  # CMD_SET_TIMER_DURATION
+    assert pkt[8] == 0x01  # CHANNEL_WHITE
+    assert pkt[9] == 45
+
+    # Clamping below 1
+    sent_packets.clear()
+    await beurer_instance.set_timer_duration(0)
+    assert beurer_instance.timer_duration == 1
+    assert list(sent_packets[0])[9] == 1
+
+    # Clamping above 120
+    sent_packets.clear()
+    await beurer_instance.set_timer_duration(150)
+    assert beurer_instance.timer_duration == 120
+    assert list(sent_packets[0])[9] == 120
+
+    # Setting duration while timer active updates minutes remaining
+    beurer_instance._timer_active = True
+    await beurer_instance.set_timer_duration(30)
+    assert beurer_instance.timer_minutes_remaining == 30
+
+    # In RGB mode, routes to color channel
+    sent_packets.clear()
+    beurer_instance._mode = ColorMode.RGB
+    await beurer_instance.set_timer_duration(25)
+    pkt_rgb = list(sent_packets[0])
+    assert pkt_rgb[8] == 0x02  # CHANNEL_COLOR
+    assert pkt_rgb[9] == 25
+
+
+@pytest.mark.asyncio
+async def test_enable_and_disable_timer(beurer_instance: BeurerInstance) -> None:
+    """Test starting and canceling hardware countdown timer."""
+    sent_packets: list[bytearray] = []
+
+    async def mock_write(data: bytearray) -> None:
+        sent_packets.append(data)
+
+    beurer_instance._write = mock_write
+    beurer_instance._mode = ColorMode.WHITE
+    beurer_instance._color_on = False
+    beurer_instance._timer_duration = 20
+
+    with patch("asyncio.sleep", AsyncMock()):
+        await beurer_instance.enable_timer()
+
+    assert beurer_instance.timer_active is True
+    assert beurer_instance.timer_minutes_remaining == 20
+    assert len(sent_packets) == 2
+    pkt1 = list(sent_packets[0])
+    pkt2 = list(sent_packets[1])
+    assert pkt1[7] == 0x33  # CMD_SET_TIMER_DURATION
+    assert pkt1[8] == 0x01  # CHANNEL_WHITE
+    assert pkt1[9] == 20
+    assert pkt2[7] == 0x38  # CMD_ENABLE_TIMER
+    assert pkt2[8] == 0x01
+
+    # Test disable timer
+    sent_packets.clear()
+    with patch("asyncio.sleep", AsyncMock()):
+        await beurer_instance.disable_timer()
+
+    assert beurer_instance.timer_active is False
+    assert beurer_instance.timer_minutes_remaining == 0
+    assert len(sent_packets) == 2
+    assert list(sent_packets[0])[7] == 0x36  # CMD_DISABLE_TIMER white
+    assert list(sent_packets[0])[8] == 0x01
+    assert list(sent_packets[1])[7] == 0x36  # CMD_DISABLE_TIMER color
+    assert list(sent_packets[1])[8] == 0x02
+
+
+@pytest.mark.asyncio
+async def test_notification_handler_channel_white_timer_status(beurer_instance: BeurerInstance) -> None:
+    """Test notification_handler parses timer active and remaining fields on white channel."""
+    char = MagicMock()
+
+    # White channel status packet with timer active (res[11]=0x01) and 42 minutes remaining (res[12]=0x2A)
+    data = bytearray(
+        [
+            0xFE,
+            0xEF,
+            0x0C,
+            0x0E,
+            0xAB,
+            0xBB,
+            0x09,
+            0xD0,  # CMD_STATUS_RESPONSE
+            0x01,  # CHANNEL_WHITE
+            0x01,  # State ON
+            0x50,  # Brightness
+            0x01,  # Timer active
+            0x2A,  # Timer minutes remaining = 42
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+        ]
+    )
+
+    await beurer_instance.notification_handler(char, data)
+    assert beurer_instance.timer_active is True
+    assert beurer_instance.timer_minutes_remaining == 42
+
+    # White channel turns off while color channel is off -> timer resets
+    off_data = bytearray(
+        [
+            0xFE,
+            0xEF,
+            0x0C,
+            0x0E,
+            0xAB,
+            0xBB,
+            0x09,
+            0xD0,
+            0x01,
+            0x00,  # State OFF
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+        ]
+    )
+    await beurer_instance.notification_handler(char, off_data)
+    assert beurer_instance.timer_active is False
+    assert beurer_instance.timer_minutes_remaining == 0
+
+
+@pytest.mark.asyncio
+async def test_notification_handler_channel_color_timer_status(beurer_instance: BeurerInstance) -> None:
+    """Test notification_handler parses timer active and remaining fields on color channel."""
+    char = MagicMock()
+
+    # Color channel status packet with timer active (res[11]=0x01) and 18 minutes remaining (res[12]=0x12)
+    data = bytearray(
+        [
+            0xFE,
+            0xEF,
+            0x0C,
+            0x12,
+            0xAB,
+            0xBB,
+            0x0D,
+            0xD0,  # CMD_STATUS_RESPONSE
+            0x02,  # CHANNEL_COLOR
+            0x01,  # State ON
+            0x50,  # Brightness
+            0x01,  # Timer active
+            0x12,  # Timer minutes remaining = 18
+            0xFF,
+            0x00,
+            0x00,  # RGB
+            0x01,  # Scene
+            0x00,
+            0x00,
+            0x00,
+        ]
+    )
+
+    await beurer_instance.notification_handler(char, data)
+    assert beurer_instance.timer_active is True
+    assert beurer_instance.timer_minutes_remaining == 18
+
+    # Color channel turns off while white channel is off -> timer resets
+    off_data = bytearray(
+        [
+            0xFE,
+            0xEF,
+            0x0C,
+            0x12,
+            0xAB,
+            0xBB,
+            0x0D,
+            0xD0,
+            0x02,
+            0x00,  # State OFF
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+        ]
+    )
+    await beurer_instance.notification_handler(char, off_data)
+    assert beurer_instance.timer_active is False
+    assert beurer_instance.timer_minutes_remaining == 0
+
+
+@pytest.mark.asyncio
+async def test_timer_reset_on_e8_shutdown_and_events(beurer_instance: BeurerInstance) -> None:
+    """Test timer resets on button shutdown (0xE8) and timer-end notifications (0xEB, 0xEC)."""
+    char = MagicMock()
+    beurer_instance._is_on = True
+    beurer_instance._light_on = True
+    beurer_instance._color_on = False
+    beurer_instance._timer_active = True
+    beurer_instance._timer_minutes_remaining = 30
+
+    # 0xE8 turns off
+    e8_payload = bytearray([0xFE, 0xEF, 0x0C, 0x09, 0xAB, 0xBB, 0x04, 0xE8, 0x00, 0xEE, 0x55, 0x0D, 0x0A])
+    await beurer_instance.notification_handler(char, e8_payload)
+    assert beurer_instance.timer_active is False
+    assert beurer_instance.timer_minutes_remaining == 0
+
+    # 0xEB daylight timer end
+    beurer_instance._is_on = True
+    beurer_instance._light_on = True
+    beurer_instance._color_on = False
+    beurer_instance._timer_active = True
+    beurer_instance._timer_minutes_remaining = 10
+    beurer_instance._last_notification_cmd = None
+    eb_payload = bytearray([0xFE, 0xEF, 0x0C, 0x09, 0xAB, 0xBB, 0x04, 0xEB, 0x00, 0xEE, 0x55, 0x0D, 0x0A])
+    await beurer_instance.notification_handler(char, eb_payload)
+    assert beurer_instance.timer_active is False
+    assert beurer_instance.timer_minutes_remaining == 0
+
+    # 0xEC moodlight timer end
+    beurer_instance._is_on = True
+    beurer_instance._light_on = False
+    beurer_instance._color_on = True
+    beurer_instance._timer_active = True
+    beurer_instance._timer_minutes_remaining = 10
+    beurer_instance._last_notification_cmd = None
+    ec_payload = bytearray([0xFE, 0xEF, 0x0C, 0x09, 0xAB, 0xBB, 0x04, 0xEC, 0x00, 0xEE, 0x55, 0x0D, 0x0A])
+    await beurer_instance.notification_handler(char, ec_payload)
+    assert beurer_instance.timer_active is False
+    assert beurer_instance.timer_minutes_remaining == 0
+
+
+@pytest.mark.asyncio
+async def test_multiple_update_callbacks(beurer_instance: BeurerInstance) -> None:
+    """Test register_update_callback supports multiple callbacks, error isolation, and unregister."""
+    cb1_called = False
+    cb2_called = False
+
+    def cb1() -> None:
+        nonlocal cb1_called
+        cb1_called = True
+        raise RuntimeError("Callback 1 error")
+
+    def cb2() -> None:
+        nonlocal cb2_called
+        cb2_called = True
+
+    unreg1 = beurer_instance.register_update_callback(cb1)
+    unreg2 = beurer_instance.register_update_callback(cb2)
+
+    await beurer_instance.trigger_entity_update()
+    assert cb1_called is True
+    assert cb2_called is True
+
+    # Unregister cb1
+    cb1_called = False
+    cb2_called = False
+    unreg1()
+
+    await beurer_instance.trigger_entity_update()
+    assert cb1_called is False
+    assert cb2_called is True
+    unreg2()

@@ -42,6 +42,9 @@ async def async_get_config_entry_diagnostics(hass: HomeAssistant, entry: ConfigE
             "rgb_color": instance.rgb_color,
             "effect": instance.effect,
             "supported_effects": instance.supported_effects,
+            "timer_duration": instance.timer_duration,
+            "timer_active": instance.timer_active,
+            "timer_minutes_remaining": instance.timer_minutes_remaining,
             "last_notification_cmd": hex(instance._last_notification_cmd)
             if instance._last_notification_cmd is not None
             else None,

@@ -41,5 +41,22 @@
     "communication_error": {
       "message": "Failed to communicate with Beurer lamp {name}: {error}"
     }
+  },
+  "entity": {
+    "number": {
+      "timer_duration": {
+        "name": "Timer duration"
+      }
+    },
+    "switch": {
+      "timer": {
+        "name": "Timer"
+      }
+    },
+    "sensor": {
+      "timer_remaining": {
+        "name": "Timer remaining"
+      }
+    }
   }
 }

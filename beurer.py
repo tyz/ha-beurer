@@ -22,7 +22,9 @@ from .const import (
     CHANNEL_SHUTDOWN,
     CHANNEL_WHITE,
     CMD_DISABLE_CHANNEL,
+    CMD_DISABLE_TIMER,
     CMD_ENABLE_CHANNEL,
+    CMD_ENABLE_TIMER,
     CMD_EVENT_LIGHT_TIMER_END,
     CMD_EVENT_MOONLIGHT_TIMER_END,
     CMD_EVENT_SHUTDOWN,
@@ -31,6 +33,7 @@ from .const import (
     CMD_SET_BRIGHTNESS,
     CMD_SET_COLOR,
     CMD_SET_EFFECT,
+    CMD_SET_TIMER_DURATION,
     CMD_STATUS_RESPONSE,
     EFFECTS,
     IDX_BLUE,
@@ -44,6 +47,8 @@ from .const import (
     IDX_RED,
     IDX_SCENE,
     IDX_STATE,
+    IDX_TIMER_ACTIVE,
+    IDX_TIMER_MINUTES,
     LOGGER,
     PACKET_FOOTER,
     PACKET_HEADER,
@@ -122,6 +127,7 @@ class BeurerInstance:
         self._connect_lock = asyncio.Lock()
         self._write_lock = asyncio.Lock()
         self._trigger_update: Callable[[], None] | None = None
+        self._update_callbacks: list[Callable[[], None]] = []
         self._is_on: bool = False
         self._light_on: bool | None = None
         self._color_on: bool | None = None
@@ -145,6 +151,9 @@ class BeurerInstance:
         self._last_reconnect_time: float = 0.0
         self._mode: ColorMode | None = ColorMode.WHITE
         self._supported_effects: list[str] = list(EFFECTS)
+        self._timer_duration: int = 15
+        self._timer_active: bool = False
+        self._timer_minutes_remaining: int = 0
 
     def set_device(self, device: BLEDevice) -> None:
         """Update the underlying BLEDevice.
@@ -224,6 +233,24 @@ class BeurerInstance:
         except Exception as error:  # noqa: BLE001
             LOGGER.debug("Auto-reconnect attempt failed: %s", error)
 
+    def register_update_callback(self, trigger_update: Callable[[], None]) -> Callable[[], None]:
+        """Register an entity update callback and return an unregister callable.
+
+        Args:
+            trigger_update: Function to call when state updates occur.
+
+        Returns:
+            Callable to unregister the callback.
+        """
+        if trigger_update not in self._update_callbacks:
+            self._update_callbacks.append(trigger_update)
+
+        def unregister() -> None:
+            if trigger_update in self._update_callbacks:
+                self._update_callbacks.remove(trigger_update)
+
+        return unregister
+
     def set_update_callback(self, trigger_update: Callable[[], None]) -> None:
         """Register the entity update callback.
 
@@ -232,6 +259,8 @@ class BeurerInstance:
         """
         LOGGER.debug("Setting update callback to %s", trigger_update)
         self._trigger_update = trigger_update
+        if trigger_update not in self._update_callbacks:
+            self._update_callbacks.append(trigger_update)
 
     async def _write(self, data: bytearray) -> None:
         """Send raw data to write characteristic.
@@ -305,6 +334,57 @@ class BeurerInstance:
     def supported_effects(self) -> list[str]:
         """Return list of supported effect names."""
         return self._supported_effects
+
+    @property
+    def timer_duration(self) -> int:
+        """Return configured countdown timer duration in minutes."""
+        return self._timer_duration
+
+    @property
+    def timer_active(self) -> bool:
+        """Return True if hardware countdown timer is actively running."""
+        return self._timer_active
+
+    @property
+    def timer_minutes_remaining(self) -> int:
+        """Return countdown minutes remaining."""
+        return self._timer_minutes_remaining
+
+    async def set_timer_duration(self, minutes: int) -> None:
+        """Configure hardware countdown timer duration (1 to 120 minutes).
+
+        Args:
+            minutes: Countdown duration in minutes.
+        """
+        clamped_minutes = max(1, min(120, int(minutes)))
+        LOGGER.debug("Setting timer duration to %d minutes", clamped_minutes)
+        self._timer_duration = clamped_minutes
+        channel = CHANNEL_COLOR if self._mode == ColorMode.RGB or self._color_on else CHANNEL_WHITE
+        await self.sendPacket([CMD_SET_TIMER_DURATION, channel, clamped_minutes])
+        if self._timer_active:
+            self._timer_minutes_remaining = clamped_minutes
+        await self.trigger_entity_update()
+
+    async def enable_timer(self) -> None:
+        """Start/enable hardware countdown timer on the active channel."""
+        channel = CHANNEL_COLOR if self._mode == ColorMode.RGB or self._color_on else CHANNEL_WHITE
+        LOGGER.debug("Enabling hardware countdown timer on channel %s for %d min", channel, self._timer_duration)
+        await self.sendPacket([CMD_SET_TIMER_DURATION, channel, self._timer_duration])
+        await asyncio.sleep(0.1)
+        await self.sendPacket([CMD_ENABLE_TIMER, channel])
+        self._timer_active = True
+        self._timer_minutes_remaining = self._timer_duration
+        await self.trigger_entity_update()
+
+    async def disable_timer(self) -> None:
+        """Cancel/disable hardware countdown timer on both channels."""
+        LOGGER.debug("Disabling hardware countdown timer")
+        await self.sendPacket([CMD_DISABLE_TIMER, CHANNEL_WHITE])
+        await asyncio.sleep(0.1)
+        await self.sendPacket([CMD_DISABLE_TIMER, CHANNEL_COLOR])
+        self._timer_active = False
+        self._timer_minutes_remaining = 0
+        await self.trigger_entity_update()
 
     def find_effect_position(self, effect: str) -> int:
         """Look up index position of an effect name.
@@ -495,6 +575,8 @@ class BeurerInstance:
         self._is_on = False
         self._light_on = False
         self._color_on = False
+        self._timer_active = False
+        self._timer_minutes_remaining = 0
         await self.trigger_entity_update()
 
     async def triggerStatus(self, force: bool = False) -> None:
@@ -544,12 +626,18 @@ class BeurerInstance:
                 await self.trigger_entity_update()
 
     async def trigger_entity_update(self) -> None:
-        """Notify the entity callback of a state change."""
-        if self._trigger_update:
-            LOGGER.debug("Triggering async update")
+        """Notify registered entity callbacks of a state change."""
+        if not self._update_callbacks and not self._trigger_update:
+            LOGGER.debug("No async update function registered yet")
+            return
+        LOGGER.debug("Triggering async update for %d callbacks", len(self._update_callbacks))
+        for callback_fn in list(self._update_callbacks):
+            try:
+                callback_fn()
+            except Exception as err:  # noqa: BLE001
+                LOGGER.debug("Error running entity update callback: %s", err)
+        if self._trigger_update and self._trigger_update not in self._update_callbacks:
             self._trigger_update()
-        else:
-            LOGGER.debug("No async update function registered yet: %s", self._trigger_update)
 
     async def notification_handler(self, characteristic: BleakGATTCharacteristic, data: bytearray) -> None:
         """Handle incoming GATT notifications from the device.
@@ -591,6 +679,8 @@ class BeurerInstance:
             if not new_state:
                 self._light_on = False
                 self._color_on = False
+                self._timer_active = False
+                self._timer_minutes_remaining = 0
             else:
                 self._light_on = True
                 self._color_on = False
@@ -610,6 +700,9 @@ class BeurerInstance:
             LOGGER.debug("Received daylight timer end event 0xEB - turning off daylight")
             self._light_on = False
             self._is_on = bool(self._light_on or self._color_on)
+            if not self._color_on:
+                self._timer_active = False
+                self._timer_minutes_remaining = 0
             await self.trigger_entity_update()
             return
 
@@ -625,6 +718,9 @@ class BeurerInstance:
                 self._rgb_color = (255, 255, 255)
                 self._effect = "Off"
             self._is_on = bool(self._light_on or self._color_on)
+            if not self._light_on:
+                self._timer_active = False
+                self._timer_minutes_remaining = 0
             await self.trigger_entity_update()
             return
 
@@ -664,12 +760,20 @@ class BeurerInstance:
                 self._color_on = False
                 self._rgb_color = (255, 255, 255)
                 self._effect = "Off"
+                if len(data) > IDX_TIMER_MINUTES:
+                    self._timer_active = data[IDX_TIMER_ACTIVE] == 1
+                    self._timer_minutes_remaining = data[IDX_TIMER_MINUTES]
+            elif not self._color_on:
+                self._timer_active = False
+                self._timer_minutes_remaining = 0
             self._is_on = bool(self._light_on or self._color_on)
             LOGGER.debug(
-                "White status: is_on=%s, light_on=%s, brightness=%s",
+                "White status: is_on=%s, light_on=%s, brightness=%s, timer_active=%s, timer_rem=%s",
                 self._is_on,
                 self._light_on,
                 self._brightness,
+                self._timer_active,
+                self._timer_minutes_remaining,
             )
             if not self._status_lock.locked():
                 await self.trigger_entity_update()
@@ -687,14 +791,22 @@ class BeurerInstance:
                 )
                 if len(data) > IDX_BLUE:
                     self._rgb_color = (data[IDX_RED], data[IDX_GREEN], data[IDX_BLUE])
+                if len(data) > IDX_TIMER_MINUTES:
+                    self._timer_active = data[IDX_TIMER_ACTIVE] == 1
+                    self._timer_minutes_remaining = data[IDX_TIMER_MINUTES]
+            elif not self._light_on:
+                self._timer_active = False
+                self._timer_minutes_remaining = 0
             self._is_on = bool(self._light_on or self._color_on)
             LOGGER.debug(
-                "RGB status: is_on=%s, color_on=%s, brightness=%s, rgb color=%s, effect=%s",
+                "RGB status: is_on=%s, color_on=%s, brightness=%s, rgb color=%s, effect=%s, timer_active=%s, timer_rem=%s",
                 self._is_on,
                 self._color_on,
                 self._color_brightness,
                 self._rgb_color,
                 self._effect,
+                self._timer_active,
+                self._timer_minutes_remaining,
             )
             LOGGER.debug(
                 "state: %s, light_on %s, color_on %s",
@@ -860,6 +972,8 @@ class BeurerInstance:
         self._is_on = False
         self._light_on = False
         self._color_on = False
+        self._timer_active = False
+        self._timer_minutes_remaining = 0
         if client is not None:
             try:
                 if read_uuid is not None and client.is_connected:

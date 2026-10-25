@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import timedelta
 from typing import Any
 
@@ -69,15 +70,23 @@ class BeurerLight(LightEntity):
         self._attr_supported_color_modes: set[ColorMode] = {ColorMode.RGB, ColorMode.WHITE}
         self._attr_name: str = name
         self._attr_unique_id: str = self._instance.mac
+        self._unregister_callback: Callable[[], None] | None = None
 
     async def async_added_to_hass(self) -> None:
         """Register callbacks after being added to Home Assistant."""
         self._instance.set_update_callback(self.update_callback)
+        self._unregister_callback = self._instance.register_update_callback(self.update_callback)
         self._async_update_device_info()
         if not self._instance.is_connected:
             self._instance.trigger_reconnect()
         else:
             await self._instance.update()
+
+    async def async_will_remove_from_hass(self) -> None:
+        """Unregister callback when entity is removed from Home Assistant."""
+        if self._unregister_callback is not None:
+            self._unregister_callback()
+            self._unregister_callback = None
 
     def update_callback(self) -> None:
         """Write updated state to Home Assistant state machine."""
