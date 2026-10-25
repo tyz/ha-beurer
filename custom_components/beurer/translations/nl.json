@@ -27,20 +27,11 @@
         "title": "Beurer TL 100 ontdekt",
         "description": "Wil je {name} instellen?"
       },
-      "reauth_confirm": {
-        "title": "Beurer TL 100 opnieuw verbinden",
-        "description": "De lamp op het ingestelde adres is niet meer bereikbaar. Controleer of hij aan staat, binnen bereik is en pas het MAC-adres aan als dat is gewijzigd.",
-        "data": {
-          "mac": "Bluetooth MAC-adres",
-          "name": "Naam"
-        }
-      },
       "reconfigure": {
         "title": "Beurer TL 100 opnieuw configureren",
-        "description": "Werk het adres of de naam van {name} bij.",
+        "description": "Change the name of {name}. The address {mac} stays fixed; to move the entry to a different lamp, delete it and set it up again.",
         "data": {
-          "mac": "Bluetooth MAC-adres",
-          "name": "Naam"
+          "name": "Name"
         }
       }
     },
@@ -51,9 +42,7 @@
       "already_configured": "Apparaat is al geconfigureerd",
       "cannot_connect": "Kan geen verbinding maken met Beurer",
       "cannot_validate": "Kan Beurer-lamp niet valideren",
-      "reauth_successful": "Opnieuw verifiëren is gelukt",
-      "reconfigure_successful": "Opnieuw configureren is gelukt",
-      "wrong_device": "Het MAC-adres hoort bij een andere lamp"
+      "reconfigure_successful": "Opnieuw configureren is gelukt"
     }
   },
   "exceptions": {

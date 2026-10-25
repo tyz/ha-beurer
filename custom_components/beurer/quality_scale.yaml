@@ -25,7 +25,7 @@ rules:
     status: done
   config-flow-test-coverage:
     status: done
-    comment: tests/test_config_flow.py covers discovery, manual, reauth and reconfigure.
+    comment: tests/test_config_flow.py covers discovery, manual and reconfigure.
   dependency-transparency:
     status: done
   docs-actions:
@@ -93,7 +93,12 @@ rules:
       Entities do not implement async_update entities; BLE writes are serialized
       by an internal lock inside BeurerInstance.
   reauthentication-flow:
-    status: done
+    status: exempt
+    comment: |
+      BLE offers no credentials to reauthenticate. A lamp that is unreachable at
+      its stored address is retried indefinitely and shown as unavailable; a
+      lamp that moved to a different address needs the entry to be deleted and
+      re-added, because entity unique IDs are derived from the address.
   test-coverage:
     status: done
 

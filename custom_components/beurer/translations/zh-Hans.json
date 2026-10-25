@@ -27,19 +27,10 @@
         "title": "发现 Beurer TL 100",
         "description": "您想要设置 {name} 吗？"
       },
-      "reauth_confirm": {
-        "title": "Reconnect Beurer TL 100",
-        "description": "The lamp at the configured address can no longer be reached. Check that it is powered on and in range, and correct the MAC address if it changed.",
-        "data": {
-          "mac": "Bluetooth MAC address",
-          "name": "Name"
-        }
-      },
       "reconfigure": {
         "title": "Reconfigure Beurer TL 100",
-        "description": "Update the address or name of {name}.",
+        "description": "Change the name of {name}. The address {mac} stays fixed; to move the entry to a different lamp, delete it and set it up again.",
         "data": {
-          "mac": "Bluetooth MAC address",
           "name": "Name"
         }
       }
@@ -51,9 +42,7 @@
       "already_configured": "设备已配置",
       "cannot_connect": "无法连接到 Beurer",
       "cannot_validate": "无法验证 Beurer 灯",
-      "reauth_successful": "Reauthentication was successful",
-      "reconfigure_successful": "Reconfiguration was successful",
-      "wrong_device": "The MAC address belongs to a different lamp"
+      "reconfigure_successful": "Reconfiguration was successful"
     }
   },
   "exceptions": {

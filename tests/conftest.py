@@ -256,10 +256,12 @@ def _setup_mock_modules() -> None:
             def _set_reconfigure_entry(self, entry: ConfigEntry) -> None:
                 self._reconfigure_entry = entry
 
-            def async_update_reload_and_abort(self, entry: ConfigEntry, **kwargs: Any) -> dict[str, Any]:
+            def async_update_reload_and_abort(
+                self, entry: ConfigEntry, *, reason: str = "reconfigure_successful", **kwargs: Any
+            ) -> dict[str, Any]:
                 return {
                     "type": "abort",
-                    "reason": "reauth_successful",
+                    "reason": reason,
                     "data_updates": kwargs.get("data"),
                     "title": kwargs.get("title"),
                 }

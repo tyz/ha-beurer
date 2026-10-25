@@ -17,7 +17,7 @@ This repository is an actively maintained fork of [Deadolus/ha-beurer](https://g
 * **Full Moodlight Scenes / Effects**: Support for all 11 built-in moodlight effect presets (Rainbow, Rainbow Slow, Pulse, Wave, Forest, Summer, etc.).
 * **Hardware Countdown Timer Support**: Configurable countdown off-timer (1–120 minutes) exposed via dedicated Home Assistant `number`, `switch`, and `sensor` entities, with built-in safety preventing timer activation when the lamp is off.
 * **Duplicate-Packet Suppression**: The lamp repeats button and timer events up to five times; identical notifications inside a 0.3 s window are collapsed so a single physical press is a single state change.
-* **Reauthentication & Reconfiguration**: **Reconfigure** changes the MAC address or name in place, keeping entity IDs and automations intact, and the reauthentication flow re-validates a lamp whose address changed. A lamp that is only temporarily out of reach is retried automatically and shown as unavailable instead.
+* **Reconfiguration**: **Reconfigure** renames the entry in place, keeping entity IDs and automations intact, and re-validates that the lamp answers before saving. The Bluetooth address is deliberately not editable, because entity unique IDs derive from it. A lamp that is only temporarily out of reach is retried automatically and shown as unavailable instead.
 * **Honest Availability**: Entities are marked unavailable whenever no BLE connection exists, so a lamp that cannot be controlled never looks as if it can.
 * **Hardware Timer-End Events**: Intercepts `0xEB` and `0xEC` BLE notifications to immediately update entity states when the lamp shuts off on timer completion.
 * **Reliable Connection Management & Serialization**: BLE writes are serialized using asynchronous locks and status queries are debounced to prevent packet collision and connection drops.
@@ -61,15 +61,17 @@ This repository is an actively maintained fork of [Deadolus/ha-beurer](https://g
 4. During setup, the integration will briefly toggle the lamp to confirm communication.
 5. If you have multiple Beurer lamps, repeat the setup process for each device.
 
-### Changing the address or name
+### Renaming the entry
 
-If the lamp was factory reset, replaced, or renamed, open the integration entry, click **⋮** and choose **Reconfigure**. You can adjust the MAC address and the name; the entry and its entity IDs are preserved. The integration verifies the new address by blinking the lamp before saving it, and refuses an address that belongs to a different lamp.
+Open the integration entry, click **⋮** and choose **Reconfigure**. You can change the name; the entry and its entity IDs are preserved. The integration blinks the lamp before saving so a typo cannot rename an entry whose lamp is out of reach.
+
+The Bluetooth address is shown for reference but cannot be changed here. Entity unique IDs are derived from the address (`57:4C:42:80:71:BA`, `57:4C:42:80:71:BA_timer`, …), so accepting a different address would create a second set of entities and orphan the existing ones along with their dashboards and automations. To move the integration to a different lamp, delete the entry and set it up again.
 
 ### Reconnecting after the lamp becomes unreachable
 
 While the lamp is unreachable its entities are reported as **unavailable**: it cannot be controlled, so Home Assistant does not pretend otherwise. The integration retries in the background and reconnects as soon as the lamp is reachable again — for example after you move it, after a Bluetooth proxy reboots, or after a power cut. The log shows a single line when the connection is lost and another when it returns, instead of one error per attempt.
 
-If the lamp is gone for good (sold, broken, or reset to a different address), use **Reconfigure** to point the entry at its new address, or delete the integration entry.
+If the lamp is gone for good (sold, broken, or reset to a different address), delete the integration entry and set it up again for the new lamp.
 
 ---
 
@@ -174,15 +176,15 @@ Home Assistant only marks the entities as available while there is a live BLE co
 
 1. Check that the lamp has power and is within range of an adapter or proxy.
 2. Wait up to a few seconds after powering it back on; the integration reconnects as soon as an advertisement arrives.
-3. If it stays unavailable, verify the address under **Settings** > **Devices & services** > **Beurer TL 100** > **Reconfigure**.
+3. If it stays unavailable, check that the lamp still advertises at the address shown under **Settings** > **Devices & services** > **Beurer TL 100** > **Reconfigure**. A lamp that was factory reset or replaced needs to be set up again.
 
 ### The lamp cannot be found during setup
 
 The setup flow needs the lamp to advertise over Bluetooth Low Energy. Turn the lamp on, keep it close to an adapter, and retry. If it still does not appear, use **Configure manually** and enter the MAC address by hand.
 
-### Reconfigure rejects my MAC address
+### The address is not editable in Reconfigure
 
-Reconfigure refuses an address that belongs to a different lamp, to prevent accidentally pointing an existing entry at another device. If you really want to move the entry to a different lamp, delete the entry and set it up again.
+That is intentional. Entity unique IDs derive from the Bluetooth address, so changing it would orphan every entity of the entry. Delete the entry and set it up again to move the integration to a different lamp.
 
 ### Everything is set up but commands fail
 
