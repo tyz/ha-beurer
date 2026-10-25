@@ -93,6 +93,107 @@ If the lamp is gone for good (sold, broken, or reset to a different address), us
 
 ---
 
+## Use Cases
+
+* **Sunrise simulation for winter mornings**: schedule the daylight channel to brighten gradually with an automation that steps the brightness up over 20 minutes, so the room is already bright when the alarm goes off.
+* **Light therapy sessions with a hard stop**: set the timer duration to your session length (for example 30 minutes) and turn the timer on. The lamp switches itself off when the session ends, and Home Assistant picks up the `0xEB` event immediately, so your dashboard stays accurate without polling.
+* **Moodlight as an evening wind-down light**: switch to the RGB channel with one of the built-in effects and a low brightness, and use the hardware timer to make sure it does not burn all night.
+* **Presence simulation while away**: turn the lamp on and off on a schedule through the countdown timer, which runs on the lamp itself and therefore keeps working even if Home Assistant or the network goes down.
+
+---
+
+## Examples
+
+Turn on the daylight channel at 60% brightness for 20 minutes, then let the lamp switch itself off:
+
+```yaml
+automation:
+  - alias: Morning light therapy
+    triggers:
+      - trigger: time
+        at: "07:00:00"
+    actions:
+      - action: number.set_value
+        target:
+          entity_id: number.tl100_71ba_timer_duration
+        data:
+          value: 20
+      - action: light.turn_on
+        target:
+          entity_id: light.tl100_71ba
+        data:
+          brightness_pct: 60
+      - action: switch.turn_on
+        target:
+          entity_id: switch.tl100_71ba_timer
+```
+
+> The timer can only be started while the lamp is on. Turning the switch on while the lamp is off raises an error instead of locking up the firmware, so always turn the light on first.
+
+Turn the timer off again when the session is cancelled early:
+
+```yaml
+actions:
+  - action: switch.turn_off
+    target:
+      entity_id: switch.tl100_71ba_timer
+```
+
+Switch to the moodlight with the `Rainbow` effect:
+
+```yaml
+actions:
+  - action: light.turn_on
+    target:
+      entity_id: light.tl100_71ba
+    data:
+      effect: Rainbow
+      brightness_pct: 40
+```
+
+Entity IDs depend on the name you gave the lamp during setup; check **Developer tools** > **States** for the exact IDs.
+
+---
+
+## Known Limitations
+
+* **Timer cannot be configured while the lamp is off**: the lamp firmware hangs when timer commands are sent to a channel that is off. The integration refuses these commands with an error rather than risking a lockup that needs a power cycle.
+* **Daylight brightness is capped at 99%**: some firmware versions switch to a red-tinted RGB mode when white brightness is set to exactly 100%. The integration sends 99% instead, which is not visible in practice.
+* **Timer duration must be set before enabling the timer**: the lamp initialises the countdown to 120 minutes whenever the timer is enabled. The integration always enables the timer before sending the duration, which keeps the value you chose.
+* **One BLE connection at a time**: the lamp accepts a single connection, so the Beurer app on your phone cannot control it while Home Assistant is connected.
+* **Firmware version is not reported on the TL 100**: the lamp does not expose the standard Device Information characteristic, so the firmware version stays empty in the device registry. Compatible models that do expose it are reported normally.
+* **No separate `select` entity for moodlight effects**: the presets are exposed through the light entity's `effect` attribute, which is scriptable but does not appear as its own entity.
+
+---
+
+## Troubleshooting
+
+### The lamp shows up as unavailable
+
+Home Assistant only marks the entities as available while there is a live BLE connection. This happens when the lamp is out of reach, switched off at the wall, or the Bluetooth adapter or proxy is rebooting.
+
+1. Check that the lamp has power and is within range of an adapter or proxy.
+2. Wait up to a few seconds after powering it back on; the integration reconnects as soon as an advertisement arrives.
+3. If it stays unavailable, verify the address under **Settings** > **Devices & services** > **Beurer TL 100** > **Reconfigure**.
+
+### The lamp cannot be found during setup
+
+The setup flow needs the lamp to advertise over Bluetooth Low Energy. Turn the lamp on, keep it close to an adapter, and retry. If it still does not appear, use **Configure manually** and enter the MAC address by hand.
+
+### Reconfigure rejects my MAC address
+
+Reconfigure refuses an address that belongs to a different lamp, to prevent accidentally pointing an existing entry at another device. If you really want to move the entry to a different lamp, delete the entry and set it up again.
+
+### Everything is set up but commands fail
+
+The lamp accepts only one BLE connection. Close the Beurer LightUp app on your phone, then retry. If the problem persists, enable debug logging (see below) and reproduce the failure.
+
+### Collecting diagnostics for a bug report
+
+The integration provides anonymised diagnostics that include the connection state, brightness and timer values, but no MAC address. In **Settings** > **Devices & services** > **Beurer TL 100**, click **⋮** and choose **Download diagnostics**.
+
+---
+
 ## Debugging & Logs
 
 To enable verbose debug logging for troubleshooting, add the following to your `configuration.yaml`:

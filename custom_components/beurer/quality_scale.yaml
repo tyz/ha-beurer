@@ -52,10 +52,8 @@ rules:
   has-entity-name:
     status: done
   runtime-data:
-    status: exempt
-    comment: |
-      The client is stored in hass.data[DOMAIN][entry.entry_id]. Migrating to
-      entry.runtime_data is planned but was not part of the 1.0 release.
+    status: done
+    comment: The client is stored on entry.runtime_data via BeurerConfigEntry.
   test-before-configure:
     status: done
     comment: The setup flow toggles the lamp and asks whether it blinked.
@@ -113,23 +111,17 @@ rules:
   docs-data-update:
     status: done
   docs-examples:
-    status: todo
-    comment: Automation examples for the timer and daylight therapy are not written yet.
+    status: done
   docs-known-limitations:
-    status: todo
-    comment: |
-      The firmware hang when enabling the timer while the lamp is off is
-      documented in README.bluetooth.md but not in README.md yet.
+    status: done
   docs-supported-devices:
     status: done
   docs-supported-functions:
     status: done
   docs-troubleshooting:
-    status: todo
-    comment: The logger snippet exists, a troubleshooting section does not.
+    status: done
   docs-use-cases:
-    status: todo
-    comment: Use cases (daylight therapy schedules, moodlight scenes) are missing.
+    status: done
   dynamic-devices:
     status: exempt
     comment: One config entry corresponds to exactly one lamp.
@@ -138,23 +130,25 @@ rules:
   entity-device-class:
     status: done
   entity-disabled-by-default:
-    status: todo
-    comment: The timer diagnostic entities could default to disabled, still enabled.
+    status: exempt
+    comment: |
+      Every entity the integration creates is a primary control the user set
+      the integration up for. Disabling them by default would only add a step.
   entity-translations:
     status: done
   exception-translations:
     status: done
   icon-translations:
-    status: todo
-    comment: Entities rely on default icons instead of translations/icons.json.
+    status: done
   reconfiguration-flow:
     status: done
   repair-issues:
-    status: todo
+    status: exempt
     comment: |
-      A lamp that is out of range is handled by retrying plus unavailable
-      entities, not by a repair. A dedicated repair issue for a lamp whose
-      address no longer matches would still be an improvement.
+      An unreachable lamp is a normal, temporary condition, handled by retrying
+      and reporting the entities unavailable. A repair issue would surface on
+      every relocation or proxy reboot. A permanent address change is fixed
+      through the reconfigure flow instead.
   stale-devices:
     status: exempt
     comment: The integration only ever registers the single device of its config entry.
