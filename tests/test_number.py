@@ -122,3 +122,10 @@ async def test_async_setup_entry_number(mock_instance: MagicMock) -> None:
     entities = mock_add_entities.call_args[0][0]
     assert len(entities) == 1
     assert isinstance(entities[0], BeurerTimerDurationNumber)
+
+
+def test_number_does_not_poll(mock_instance: MagicMock) -> None:
+    """Test the push-only number entity is not polled by Home Assistant."""
+    number = BeurerTimerDurationNumber(mock_instance, "TL100", "entry_123")
+
+    assert number.should_poll is False

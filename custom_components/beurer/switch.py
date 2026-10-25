@@ -40,6 +40,8 @@ class BeurerTimerSwitch(SwitchEntity):
     _attr_has_entity_name = True
     _attr_translation_key = "timer"
 
+    _attr_should_poll = False
+
     def __init__(self, beurer_instance: BeurerInstance, name: str, entry_id: str) -> None:
         """Initialize the Beurer timer switch entity.
 

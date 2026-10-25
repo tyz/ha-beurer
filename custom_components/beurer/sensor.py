@@ -46,6 +46,8 @@ class BeurerTimerRemainingSensor(SensorEntity):
     _attr_device_class = SensorDeviceClass.DURATION
     _attr_state_class = SensorStateClass.MEASUREMENT
 
+    _attr_should_poll = False
+
     def __init__(self, beurer_instance: BeurerInstance, name: str, entry_id: str) -> None:
         """Initialize the Beurer timer remaining sensor entity.
 

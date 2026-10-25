@@ -126,7 +126,15 @@ class BeurerLight(LightEntity):
     @property
     @override
     def should_poll(self) -> bool:
-        """Return True to poll as a fallback for offline/missed state updates."""
+        """Return True to resync after missed notifications.
+
+        Every state change the lamp reports is pushed over GATT, but events that
+        happen while the BLE link is down are not replayed on reconnect, and a
+        notification can be lost. The 60 s poll issues one status query per
+        channel as a cheap resync path. The timer entities do not poll: they
+        carry no state of their own and every value they show comes from the
+        same notifications.
+        """
         return True
 
     @property

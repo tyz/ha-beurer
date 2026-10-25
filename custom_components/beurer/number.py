@@ -47,6 +47,8 @@ class BeurerTimerDurationNumber(NumberEntity):
     _attr_native_unit_of_measurement = UnitOfTime.MINUTES
     _attr_mode = NumberMode.BOX
 
+    _attr_should_poll = False
+
     def __init__(self, beurer_instance: BeurerInstance, name: str, entry_id: str) -> None:
         """Initialize the Beurer countdown duration entity.
 

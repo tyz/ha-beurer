@@ -153,3 +153,10 @@ async def test_async_setup_entry_switch(mock_instance: MagicMock) -> None:
     entities = mock_add_entities.call_args[0][0]
     assert len(entities) == 1
     assert isinstance(entities[0], BeurerTimerSwitch)
+
+
+def test_switch_does_not_poll(mock_instance: MagicMock) -> None:
+    """Test the push-only switch is not polled by Home Assistant."""
+    switch = BeurerTimerSwitch(mock_instance, "TL100", "entry_123")
+
+    assert switch.should_poll is False

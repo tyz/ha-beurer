@@ -100,3 +100,10 @@ async def test_async_setup_entry_sensor(mock_instance: MagicMock) -> None:
     entities = mock_add_entities.call_args[0][0]
     assert len(entities) == 1
     assert isinstance(entities[0], BeurerTimerRemainingSensor)
+
+
+def test_sensor_does_not_poll(mock_instance: MagicMock) -> None:
+    """Test the push-only sensor is not polled by Home Assistant."""
+    sensor = BeurerTimerRemainingSensor(mock_instance, "TL100", "entry_123")
+
+    assert sensor.should_poll is False

@@ -353,6 +353,10 @@ def _setup_mock_modules() -> None:
                 pass
 
             @property
+            def should_poll(self) -> bool:
+                return self._attr_should_poll
+
+            @property
             def name(self) -> str | None:
                 return self._attr_name
 
@@ -398,6 +402,7 @@ def _setup_mock_modules() -> None:
             SLIDER = "slider"
 
         class NumberEntity:
+            _attr_should_poll: bool = True
             hass: Any = None
             _attr_has_entity_name: bool = False
             _attr_translation_key: str | None = None
@@ -412,6 +417,10 @@ def _setup_mock_modules() -> None:
 
             def async_write_ha_state(self) -> None:
                 pass
+
+            @property
+            def should_poll(self) -> bool:
+                return self._attr_should_poll
 
             @property
             def entity_category(self) -> Any:
@@ -476,6 +485,10 @@ def _setup_mock_modules() -> None:
                 pass
 
             @property
+            def should_poll(self) -> bool:
+                return self._attr_should_poll
+
+            @property
             def unique_id(self) -> str | None:
                 return self._attr_unique_id
 
@@ -509,6 +522,7 @@ def _setup_mock_modules() -> None:
         ha_switch = ModuleType("homeassistant.components.switch")
 
         class SwitchEntity:
+            _attr_should_poll: bool = True
             hass: Any = None
             _attr_has_entity_name: bool = False
             _attr_translation_key: str | None = None
@@ -517,6 +531,10 @@ def _setup_mock_modules() -> None:
 
             def async_write_ha_state(self) -> None:
                 pass
+
+            @property
+            def should_poll(self) -> bool:
+                return self._attr_should_poll
 
             @property
             def unique_id(self) -> str | None:
@@ -555,6 +573,7 @@ def _setup_mock_modules() -> None:
             TOTAL_INCREASING = "total_increasing"
 
         class SensorEntity:
+            _attr_should_poll: bool = True
             hass: Any = None
             _attr_has_entity_name: bool = False
             _attr_translation_key: str | None = None
@@ -566,6 +585,10 @@ def _setup_mock_modules() -> None:
 
             def async_write_ha_state(self) -> None:
                 pass
+
+            @property
+            def should_poll(self) -> bool:
+                return self._attr_should_poll
 
             @property
             def unique_id(self) -> str | None:
