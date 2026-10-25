@@ -473,3 +473,47 @@ async def test_turn_on_in_rgb_mode(beurer_instance: BeurerInstance) -> None:
     assert len(sent_packets) == 3
     pkt_color = list(sent_packets[1])
     assert pkt_color[7] == 0x32  # CMD_SET_COLOR
+
+
+@pytest.mark.asyncio
+async def test_low_brightness_stays_within_protocol_range(beurer_instance: BeurerInstance) -> None:
+    """Test brightness values below 1% are never sent as an out-of-spec 0x00.
+
+    0x31 accepts 1-100 only. Home Assistant brightness 1 scales to 0 percent,
+    which is not a valid frame and was previously sent as-is.
+    """
+    sent_packets: list[bytearray] = []
+
+    async def mock_write(data: bytearray) -> None:
+        sent_packets.append(data)
+
+    beurer_instance._write = mock_write
+    beurer_instance._color_on = False
+
+    with patch("asyncio.sleep", AsyncMock()):
+        await beurer_instance.set_white(1)
+
+    brightness_packets = [list(packet) for packet in sent_packets if list(packet)[7] == 0x31]
+    assert brightness_packets, "expected a set-brightness frame"
+    assert brightness_packets[-1][9] == 1
+
+
+@pytest.mark.asyncio
+async def test_zero_brightness_disables_the_channel(beurer_instance: BeurerInstance) -> None:
+    """Test brightness 0 turns the channel off instead of writing 0x31 0x00."""
+    sent_packets: list[bytearray] = []
+
+    async def mock_write(data: bytearray) -> None:
+        sent_packets.append(data)
+
+    beurer_instance._write = mock_write
+    beurer_instance._color_on = False
+    beurer_instance._light_on = True
+
+    with patch("asyncio.sleep", AsyncMock()):
+        await beurer_instance.set_white(0)
+
+    opcodes = [list(packet)[7] for packet in sent_packets]
+    assert 0x31 not in opcodes, "0x31 must not be sent with a 0 percent payload"
+    assert 0x35 in opcodes, "the channel must be disabled instead"
+    assert beurer_instance.is_on is False

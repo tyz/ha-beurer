@@ -566,11 +566,18 @@ class BeurerInstance:
                 await self.sendPacket([CMD_ENABLE_CHANNEL, CHANNEL_COLOR])
                 self._color_on = True
                 await asyncio.sleep(0.1)
-            brightness_percent = max(0, min(100, int(brightness / 255 * 100)))
-            await self.sendPacket([CMD_SET_BRIGHTNESS, CHANNEL_COLOR, brightness_percent])
-            self._color_brightness = brightness
-            self._color_on = True
-            self._is_on = True
+            if brightness <= 0:
+                # 0x31 only accepts 1-100; brightness 0 means "channel off".
+                await self.sendPacket([CMD_DISABLE_CHANNEL, CHANNEL_COLOR])
+                self._color_brightness = 0
+                self._color_on = False
+                self._is_on = bool(self._light_on)
+            else:
+                brightness_percent = max(1, min(100, int(brightness / 255 * 100)))
+                await self.sendPacket([CMD_SET_BRIGHTNESS, CHANNEL_COLOR, brightness_percent])
+                self._color_brightness = brightness
+                self._color_on = True
+                self._is_on = True
         self.trigger_entity_update()
 
     async def set_white(self, intensity: int = 255) -> None:
@@ -593,15 +600,22 @@ class BeurerInstance:
                 await self.sendPacket([CMD_ENABLE_CHANNEL, CHANNEL_WHITE])
                 self._light_on = True
                 await asyncio.sleep(0.1)
-            intensity_percent = max(0, min(100, int(intensity / 255 * 100)))
-            # Cap at 99% to work around firmware bug where 100% in white mode
-            # causes the device to switch to red/RGB mode (Deadolus#11)
-            if intensity_percent == 100:
-                intensity_percent = 99
-            await self.sendPacket([CMD_SET_BRIGHTNESS, CHANNEL_WHITE, intensity_percent])
-            self._brightness = intensity
-            self._light_on = True
-            self._is_on = True
+            if intensity <= 0:
+                # 0x31 only accepts 1-100; intensity 0 means "channel off".
+                await self.sendPacket([CMD_DISABLE_CHANNEL, CHANNEL_WHITE])
+                self._brightness = 0
+                self._light_on = False
+                self._is_on = bool(self._color_on)
+            else:
+                intensity_percent = max(1, min(100, int(intensity / 255 * 100)))
+                # Cap at 99% to work around firmware bug where 100% in white mode
+                # causes the device to switch to red/RGB mode (Deadolus#11)
+                if intensity_percent == 100:
+                    intensity_percent = 99
+                await self.sendPacket([CMD_SET_BRIGHTNESS, CHANNEL_WHITE, intensity_percent])
+                self._brightness = intensity
+                self._light_on = True
+                self._is_on = True
         self.trigger_entity_update()
 
     async def set_effect(self, effect: str) -> None:
@@ -645,7 +659,7 @@ class BeurerInstance:
                     await self.sendPacket([CMD_SET_COLOR, self._rgb_color[0], self._rgb_color[1], self._rgb_color[2]])
                 if self._color_brightness is not None:
                     await asyncio.sleep(0.1)
-                    brightness_percent = max(0, min(100, int(self._color_brightness / 255 * 100)))
+                    brightness_percent = max(1, min(100, int(self._color_brightness / 255 * 100)))
                     await self.sendPacket([CMD_SET_BRIGHTNESS, CHANNEL_COLOR, brightness_percent])
             else:
                 self._mode = ColorMode.WHITE
@@ -656,7 +670,7 @@ class BeurerInstance:
                     self._brightness = 255
                 await self.sendPacket([CMD_ENABLE_CHANNEL, CHANNEL_WHITE])
                 await asyncio.sleep(0.1)
-                intensity_percent = max(0, min(99, int(self._brightness / 255 * 100)))
+                intensity_percent = max(1, min(99, int(self._brightness / 255 * 100)))
                 await self.sendPacket([CMD_SET_BRIGHTNESS, CHANNEL_WHITE, intensity_percent])
             self._is_on = True
         self.trigger_entity_update()
