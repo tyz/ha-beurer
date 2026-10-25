@@ -56,7 +56,6 @@ else:
         _attr_has_entity_name = True
         _attr_translation_key = "timer_duration"
         _attr_entity_category = EntityCategory.CONFIG
-        _attr_options = [str(d) for d in VALID_TIMER_DURATIONS]
 
         def __init__(self, beurer_instance: BeurerInstance, name: str, entry_id: str) -> None:
             """Initialize the Beurer countdown duration entity.
@@ -70,6 +69,7 @@ else:
             self._name: str = name
             self._entry_id: str = entry_id
             self._attr_unique_id: str = f"{self._instance.mac}_timer_duration"
+            self._attr_options: list[str] = [str(d) for d in VALID_TIMER_DURATIONS]
             self._unregister_callback: Callable[[], None] | None = None
 
         async def async_added_to_hass(self) -> None:
@@ -114,10 +114,7 @@ else:
             if self._instance.is_connected:
                 return True
             if getattr(self, "hass", None) is not None:
-                return (
-                    bluetooth.async_ble_device_from_address(self.hass, self._instance.mac, connectable=True)
-                    is not None
-                )
+                return bluetooth.async_ble_device_from_address(self.hass, self._instance.mac, connectable=True) is not None
             return True
 
         @property

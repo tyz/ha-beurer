@@ -7,7 +7,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from bleak import BleakError
 from custom_components.beurer.beurer import BeurerInstance
-from custom_components.beurer.const import DEFAULT_TIMER_DURATION, DOMAIN, VALID_TIMER_DURATIONS
+from custom_components.beurer.const import (
+    DEFAULT_TIMER_DURATION,
+    DOMAIN,
+    VALID_TIMER_DURATIONS,
+)
 from custom_components.beurer.select import (
     BeurerTimerDurationSelect,
     async_setup_entry,
