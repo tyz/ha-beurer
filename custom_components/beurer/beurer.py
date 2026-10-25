@@ -158,6 +158,7 @@ class BeurerInstance:
         self._status_response_event: asyncio.Event | None = None
         self._status_lock: asyncio.Lock = asyncio.Lock()
         self._last_notification_cmd: int | None = None
+        self._last_notification_cmd_time: float = 0.0
         self._last_notification_data: bytearray | None = None
         self._last_notification_time: float = 0.0
         self._reconnect_task: asyncio.Task[None] | None = None
@@ -754,6 +755,24 @@ class BeurerInstance:
             except Exception as err:  # noqa: BLE001
                 LOGGER.debug("Error running entity update callback: %s", err)
 
+    def _is_duplicate_event(self, cmd: int, now: float) -> bool:
+        """Return whether an event command repeats the previous one within the burst window.
+
+        The lamp retransmits hardware events several times, and the retransmits
+        do not always carry identical bytes, so the payload comparison at the
+        top of notification_handler() does not catch all of them. This guard is
+        deliberately time-bounded: an unbounded guard also swallowed a second
+        real button press, because nothing but a different opcode could clear it.
+
+        Args:
+            cmd: Opcode of the event just received.
+            now: Monotonic timestamp of the notification.
+
+        Returns:
+            True if the event is a retransmission that should be ignored.
+        """
+        return self._last_notification_cmd == cmd and now - self._last_notification_cmd_time < NOTIFICATION_DUPLICATE_WINDOW
+
     async def notification_handler(self, characteristic: BleakGATTCharacteristic, data: bytearray) -> None:
         """Handle incoming GATT notifications from the device.
 
@@ -780,10 +799,11 @@ class BeurerInstance:
         cmd = data[IDX_OPCODE]
 
         if cmd == CMD_EVENT_SHUTDOWN:
-            if self._last_notification_cmd == CMD_EVENT_SHUTDOWN:
+            if self._is_duplicate_event(cmd, now):
                 LOGGER.debug("Ignoring duplicate 0xE8 burst notification")
                 return
             self._last_notification_cmd = CMD_EVENT_SHUTDOWN
+            self._last_notification_cmd_time = now
             new_state = not self._is_on
             LOGGER.debug(
                 "Received device event 0xE8 (button toggle, is_on was %s -> now %s)",
@@ -809,10 +829,11 @@ class BeurerInstance:
             return
 
         if cmd == CMD_EVENT_LIGHT_TIMER_END:
-            if self._last_notification_cmd == CMD_EVENT_LIGHT_TIMER_END and not self._light_on:
+            if self._is_duplicate_event(cmd, now) and not self._light_on:
                 LOGGER.debug("Ignoring duplicate 0xEB burst notification")
                 return
             self._last_notification_cmd = CMD_EVENT_LIGHT_TIMER_END
+            self._last_notification_cmd_time = now
             LOGGER.debug("Received daylight timer end event 0xEB - turning off daylight")
             self._light_on = False
             self._is_on = bool(self._light_on or self._color_on)
@@ -824,10 +845,11 @@ class BeurerInstance:
             return
 
         if cmd == CMD_EVENT_MOONLIGHT_TIMER_END:
-            if self._last_notification_cmd == CMD_EVENT_MOONLIGHT_TIMER_END and not self._color_on:
+            if self._is_duplicate_event(cmd, now) and not self._color_on:
                 LOGGER.debug("Ignoring duplicate 0xEC burst notification")
                 return
             self._last_notification_cmd = CMD_EVENT_MOONLIGHT_TIMER_END
+            self._last_notification_cmd_time = now
             LOGGER.debug("Received moodlight timer end event 0xEC - turning off moodlight")
             self._color_on = False
             if self._light_on:

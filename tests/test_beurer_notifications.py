@@ -1256,3 +1256,41 @@ async def test_timer_duration_confirmation_tracks_lamp_state(
     )
     await beurer_instance.notification_handler(char, off_status)
     assert beurer_instance._timer_lamp_duration is None
+
+
+@pytest.mark.asyncio
+async def test_event_e8_burst_guard_expires_after_window(
+    beurer_instance: BeurerInstance,
+) -> None:
+    """Test a second real button press is honoured once the burst window passed.
+
+    The burst guard used to be cleared only by a different opcode, so two
+    consecutive presses of the physical button toggled the lamp once and then
+    left the integration deaf to the button until some unrelated notification
+    happened to arrive.
+    """
+    beurer_instance._is_on = False
+    beurer_instance._light_on = False
+    beurer_instance._color_on = False
+
+    press_a = bytearray([0xFE, 0xEF, 0x0C, 0x0B, 0xAB, 0xBB, 0x06, 0xE8, 0x00, 0x00, 0x00, 0xEE, 0x55, 0x0D, 0x0A])
+    # Same opcode, different trailing byte: a retransmission variant the
+    # payload comparison cannot filter.
+    press_b = bytearray([0xFE, 0xEF, 0x0C, 0x0B, 0xAB, 0xBB, 0x06, 0xE8, 0x00, 0x00, 0x01, 0xEF, 0x55, 0x0D, 0x0A])
+    char = MagicMock()
+    clock = [1000.0]
+
+    with patch("custom_components.beurer.beurer.time.monotonic", lambda: clock[0]):
+        await beurer_instance.notification_handler(char, press_a)
+        assert beurer_instance.is_on is True
+
+        # A retransmission variant 0.1 s later is still part of the same press.
+        clock[0] += 0.1
+        await beurer_instance.notification_handler(char, press_b)
+        assert beurer_instance.is_on is True
+
+        # A new press 1 s later must toggle the lamp off again.
+        clock[0] += 1.0
+        await beurer_instance.notification_handler(char, press_b)
+
+    assert beurer_instance.is_on is False
