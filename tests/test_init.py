@@ -48,15 +48,20 @@ async def test_async_setup_entry_device_not_found_raises_config_entry_not_ready(
 
 
 @pytest.mark.asyncio
-async def test_async_setup_entry_device_not_found_starts_reauth(mock_hass: MagicMock, mock_entry: ConfigEntry) -> None:
-    """Test that an unreachable lamp triggers the reauthentication flow."""
+async def test_async_setup_entry_does_not_start_reauth(mock_hass: MagicMock, mock_entry: ConfigEntry) -> None:
+    """Test that a temporarily unreachable lamp retries instead of starting reauth.
+
+    A lamp that is out of range during a Home Assistant restart is a normal,
+    temporary situation. Home Assistant retries the setup, and the
+    reauthentication flow stays a manual action for a lamp that is gone for good.
+    """
     with (
         patch.object(bluetooth, "async_ble_device_from_address", return_value=None),
         pytest.raises(ConfigEntryNotReady),
     ):
         await async_setup_entry(mock_hass, mock_entry)
 
-    assert mock_entry.reauth_started is True
+    assert getattr(mock_entry, "reauth_started", False) is False
 
 
 @pytest.mark.asyncio
