@@ -194,19 +194,6 @@ class BeurerLight(LightEntity):
             info["sw_version"] = self._instance.firmware_version
         return info
 
-    def _transform_color_brightness(self, color: tuple[int, int, int], set_brightness: int) -> tuple[int, ...]:
-        """Scale RGB colors according to desired brightness.
-
-        Args:
-            color: Original RGB color tuple.
-            set_brightness: Target brightness value (0-255).
-
-        Returns:
-            Brightness-scaled RGB color tuple.
-        """
-        rgb = match_max_scale((255,), color)
-        return tuple(c * set_brightness // 255 for c in rgb)
-
     @override
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn on the light or adjust properties.

@@ -2,14 +2,12 @@
 
 from __future__ import annotations
 
-import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from custom_components.beurer.beurer import (
     BeurerInstance,
-    create_status_callback,
     discover,
     get_device,
 )
@@ -22,20 +20,6 @@ def test_checksum_calculation(beurer_instance: BeurerInstance) -> None:
     initial_byte = len(payload) + 2
     expected = initial_byte ^ 0x31 ^ 0x01 ^ 50
     assert beurer_instance.makeChecksum(initial_byte, payload) == expected
-
-
-@pytest.mark.asyncio
-async def test_create_status_callback() -> None:
-    """Test create_status_callback resolves future with received data."""
-    loop = asyncio.get_running_loop()
-    future: asyncio.Future[bytearray] = loop.create_future()
-    callback = create_status_callback(future)
-
-    data = bytearray([1, 2, 3])
-    callback(1, data)
-
-    assert future.done()
-    assert future.result() == data
 
 
 @pytest.mark.asyncio

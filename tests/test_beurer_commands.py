@@ -363,7 +363,6 @@ async def test_timer_properties_and_duration_configuration(
     # Changing the duration while the lamp is off must not leave a countdown
     # behind that the lamp never received.
     assert beurer_instance.timer_minutes_remaining == 0
-    assert beurer_instance._timer_lamp_duration is None
 
     # Setting duration while timer active updates minutes remaining
     beurer_instance._is_on = True

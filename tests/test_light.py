@@ -411,13 +411,6 @@ def test_light_properties_rgb_mode(mock_instance: MagicMock) -> None:
     assert light.effect == "Off"
 
 
-def test_transform_color_brightness(mock_instance: MagicMock) -> None:
-    """Test _transform_color_brightness scales RGB color correctly."""
-    light = BeurerLight(mock_instance, "Lamp", "entry_1")
-    scaled = light._transform_color_brightness((255, 128, 0), 128)
-    assert scaled == (128, 64, 0)
-
-
 @pytest.mark.asyncio
 async def test_async_turn_on_with_white_attr_booleans(mock_instance: MagicMock) -> None:
     """Test async_turn_on with boolean values for ATTR_WHITE."""

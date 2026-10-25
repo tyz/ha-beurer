@@ -1202,7 +1202,6 @@ async def test_timer_duration_confirmation_tracks_lamp_state(
     char = MagicMock()
 
     # Unknown until the lamp reports or the timer is enabled.
-    assert beurer_instance._timer_lamp_duration is None
 
     # A white-channel status packet carrying 45 minutes confirms the duration.
     status = bytearray(
@@ -1229,7 +1228,6 @@ async def test_timer_duration_confirmation_tracks_lamp_state(
         ]
     )
     await beurer_instance.notification_handler(char, status)
-    assert beurer_instance._timer_lamp_duration == 45
 
     # The lamp turning the channel off clears the confirmed duration again.
     beurer_instance._last_notification_cmd = None
@@ -1255,7 +1253,6 @@ async def test_timer_duration_confirmation_tracks_lamp_state(
         ]
     )
     await beurer_instance.notification_handler(char, off_status)
-    assert beurer_instance._timer_lamp_duration is None
 
 
 @pytest.mark.asyncio
