@@ -1,7 +1,7 @@
 {
     "domain": "beurer",
     "name": "Beurer TL 100",
-    "codeowners": [],
+    "codeowners": ["@tyz"],
     "config_flow": true,
     "dependencies": [
         "bluetooth"

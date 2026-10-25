@@ -83,12 +83,10 @@ rules:
     status: done
     comment: Entities delegate to BeurerInstance.available, which follows the live connection.
   integration-owner:
-    status: exempt
+    status: done
     comment: |
-      manifest.json lists no codeowner, because this is a fork maintained outside
-      Home Assistant core and the upstream handle in the original manifest would
-      be wrong to claim. A codeowner is added when the integration is submitted
-      upstream.
+      manifest.json lists @tyz as the code owner, which matches the repository
+      stated in documentation and issue_tracker.
   log-when-unavailable:
     status: done
     comment: |
