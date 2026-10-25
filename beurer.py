@@ -125,7 +125,7 @@ class BeurerInstance:
         self._is_on: bool = False
         self._light_on: bool | None = None
         self._color_on: bool | None = None
-        self._rgb_color: tuple[int, int, int] = (0, 0, 0)
+        self._rgb_color: tuple[int, int, int] = (255, 255, 255)
         self._brightness: int | None = None
         self._color_brightness: int | None = None
         self._effect: str | None = None
@@ -407,6 +407,8 @@ class BeurerInstance:
         """
         LOGGER.debug("Setting white to intensity: %s", intensity)
         self._mode = ColorMode.WHITE
+        self._rgb_color = (255, 255, 255)
+        self._effect = "Off"
         if self._color_on:
             # Turn off color mode channel when switching to white daylight
             await self.sendPacket([CMD_DISABLE_CHANNEL, CHANNEL_COLOR])
@@ -471,6 +473,8 @@ class BeurerInstance:
         else:
             self._mode = ColorMode.WHITE
             self._light_on = True
+            self._rgb_color = (255, 255, 255)
+            self._effect = "Off"
             if self._brightness is None:
                 self._brightness = 255
             await self.sendPacket([CMD_ENABLE_CHANNEL, CHANNEL_WHITE])
@@ -486,6 +490,8 @@ class BeurerInstance:
         await self.sendPacket([CMD_DISABLE_CHANNEL, CHANNEL_WHITE])
         await self.sendPacket([CMD_DISABLE_CHANNEL, CHANNEL_COLOR])
         self._mode = ColorMode.WHITE
+        self._rgb_color = (255, 255, 255)
+        self._effect = "Off"
         self._is_on = False
         self._light_on = False
         self._color_on = False
@@ -589,6 +595,8 @@ class BeurerInstance:
                 self._light_on = True
                 self._color_on = False
                 self._mode = ColorMode.WHITE
+                self._rgb_color = (255, 255, 255)
+                self._effect = "Off"
                 if self._brightness is None:
                     self._brightness = 255
             await self.trigger_entity_update()
@@ -612,6 +620,10 @@ class BeurerInstance:
             self._last_notification_cmd = CMD_EVENT_MOONLIGHT_TIMER_END
             LOGGER.debug("Received moodlight timer end event 0xEC - turning off moodlight")
             self._color_on = False
+            if self._light_on:
+                self._mode = ColorMode.WHITE
+                self._rgb_color = (255, 255, 255)
+                self._effect = "Off"
             self._is_on = bool(self._light_on or self._color_on)
             await self.trigger_entity_update()
             return
@@ -650,6 +662,8 @@ class BeurerInstance:
                 )
                 self._mode = ColorMode.WHITE
                 self._color_on = False
+                self._rgb_color = (255, 255, 255)
+                self._effect = "Off"
             self._is_on = bool(self._light_on or self._color_on)
             LOGGER.debug(
                 "White status: is_on=%s, light_on=%s, brightness=%s",

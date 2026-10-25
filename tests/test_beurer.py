@@ -187,6 +187,14 @@ async def test_notification_handler_channel_color(beurer_instance: BeurerInstanc
     assert beurer_instance.color_brightness == int(80 * 255 / 100)
     assert callback_called is True
 
+    # Switching to white daylight channel resets rgb_color to (255, 255, 255) and effect to "Off"
+    payload_white = bytearray([0] * 8 + [CHANNEL_WHITE, 1, 90])
+    beurer_instance._last_notification_data = None
+    await beurer_instance.notification_handler(char, payload_white)
+    assert beurer_instance.color_mode == ColorMode.WHITE
+    assert beurer_instance.rgb_color == (255, 255, 255)
+    assert beurer_instance.effect == "Off"
+
 
 @pytest.mark.asyncio
 async def test_notification_handler_channel_off_preserves_state(
@@ -849,6 +857,8 @@ async def test_set_white_turns_off_active_color_channel(beurer_instance: BeurerI
     assert pkt1[7] == 0x35
     assert pkt1[8] == 0x02
     assert beurer_instance.color_mode == ColorMode.WHITE
+    assert beurer_instance.rgb_color == (255, 255, 255)
+    assert beurer_instance.effect == "Off"
 
 
 @pytest.mark.asyncio

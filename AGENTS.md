@@ -1,9 +1,6 @@
 # Project Context & Agent Guidelines
 
-This is a Home Assistant integration for the Beurer TL 100 lamp that is no
-longer receiving the attention it needs. I have now forked it and want to
-maintain it so that it remains usable in the future. The latest commit is mine;
-the rest comes from the original repository.
+This is a Home Assistant integration for the Beurer TL 100 lamp that is no longer receiving the attention it needs. I have now forked it and want to maintain it so that it remains usable in the future. The latest commit is mine; the rest comes from the original repository.
 
 ## Stack & Architecture
 
@@ -29,7 +26,7 @@ the rest comes from the original repository.
 * **Architecture Separation:** Keep the underlying device communication / API logic cleanly decoupled from Home Assistant entity classes (preferably wrapped in an external client library or dedicated coordinator).
 * **Error Handling:** Catch raw protocol/socket/BLE exceptions at the boundary and translate them into standard Home Assistant exceptions (such as `HomeAssistantError` or `ConfigEntryNotReady`).
 * **Naming Conventions:** Always use "Home Assistant" (two words, never hyphenated) in code, comments, and documentation.
-* **Quality Scale:** Although it's not a requirement for custom integration it would be nice to try to aim for the Platinum tier. (for details see https://www.home-assistant.io/docs/quality_scale/)
+* **Quality Scale:** Although it's not a requirement for custom integrations it would be nice to try to aim for the Platinum tier. (for details see https://www.home-assistant.io/docs/quality_scale/)
 
 ## Version Control
 
@@ -46,23 +43,18 @@ the rest comes from the original repository.
 
 ## Instructions in Other Files
 
-These optional files contain tasks that need to be done (not necessarily right
-away!). Once you have completed them and I have approved them, you may check
-them off (`[ ]` becomes `[x]`).
+These optional files contain tasks that need to be done (not necessarily right away!). Once you have completed them and I have approved them, you may check them off (`[ ]` becomes `[x]`).
 
 * `TODO.md`: Contains the 3 sections **New features**, **Improvements** and **Bugs**
 
 ## Documentation
 
 - `README.md` contains a list of instructions and features. Keep it up to date when adding new features.
-- See `README.bluetooth.md` for the BLE protocol specification used by this
-  lamp. Please update it you think there's some info incorrect or missing.
+- See `README.bluetooth.md` for the BLE protocol specification used by this lamp. Please update it you think there's some info incorrect or missing.
 
 ## External Resources
 
-* The Beurer LightUp app APK is located in the `com.beurer.connect.lightup-decoded-apk` directory
-  (in particular, `com.beurer.connect.lightup-decoded-apk/smali/com/beurer/connect/lightup/`
-  will be of interest).
+* The Beurer LightUp app APK is located in the `com.beurer.connect.lightup-decoded-apk` directory. In particular, `com.beurer.connect.lightup-decoded-apk/smali/com/beurer/connect/lightup/` will be of interest.
 
 ## Language
 

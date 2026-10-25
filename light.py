@@ -127,7 +127,9 @@ class BeurerLight(LightEntity):
 
     @property
     def rgb_color(self) -> tuple[int, int, int] | None:
-        """Return the current RGB color tuple scaled to maximum intensity."""
+        """Return the current RGB color tuple scaled to maximum intensity or white in white mode."""
+        if self._instance.color_mode == ColorMode.WHITE:
+            return (255, 255, 255)
         if self._instance.rgb_color:
             return match_max_scale((255,), self._instance.rgb_color)
         return None

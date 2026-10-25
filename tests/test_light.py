@@ -197,3 +197,19 @@ async def test_async_added_to_hass(mock_instance: MagicMock) -> None:
 
     mock_instance.set_update_callback.assert_called_once_with(light.update_callback)
     mock_instance.trigger_reconnect.assert_called_once()
+
+
+def test_rgb_color_returns_white_in_white_mode(mock_instance: MagicMock) -> None:
+    """Test that rgb_color always returns (255, 255, 255) when in ColorMode.WHITE."""
+    mock_instance.color_mode = ColorMode.WHITE
+    mock_instance.rgb_color = (255, 0, 0)
+    light = BeurerLight(mock_instance, "My Lamp", "entry_123")
+
+    # Even though underlying instance had (255, 0, 0), in white mode it must report white
+    assert light.color_mode == ColorMode.WHITE
+    assert light.rgb_color == (255, 255, 255)
+
+    # When in RGB mode, it reports the active RGB color
+    mock_instance.color_mode = ColorMode.RGB
+    assert light.color_mode == ColorMode.RGB
+    assert light.rgb_color == (255, 0, 0)
