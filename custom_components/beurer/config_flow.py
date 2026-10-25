@@ -269,5 +269,10 @@ class BeurerFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             return error
         finally:
             if self.beurer_instance:
+                # Closing marks the instance as permanently shutting down so a
+                # stray disconnect cannot schedule a reconnect after the flow
+                # ends. A closed instance also refuses to connect again, so a
+                # retry of this step must start from a fresh one.
                 await self.beurer_instance.disconnect(closing=True)
+                self.beurer_instance = None
         return None

@@ -350,6 +350,9 @@ async def test_flow_toggle_light_reuses_existing_instance() -> None:
         error = await flow.toggle_light()
         assert error is None
         mock_instance.set_device.assert_called_once_with(mock_device)
+        # The instance is closed afterwards, and a closed instance refuses to
+        # connect, so a retry has to build a new one.
+        assert flow.beurer_instance is None
 
 
 @pytest.mark.asyncio
