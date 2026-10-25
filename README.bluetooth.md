@@ -74,14 +74,16 @@ All payloads below are wrapped in the framing described in section 2.1.
 | `0x30` | `[0x30, channel]` | **Query Channel Status**: Requests status for Channel `0x01` (White) or `0x02` (RGB). |
 | `0x31` | `[0x31, channel, brightness]` | **Set Brightness**: Brightness percentage from `0x01` to `0x64` (1–100%). |
 | `0x32` | `[0x32, R, G, B]` | **Set RGB Color**: Red, Green, Blue bytes (`0x00` to `0xFF`). Automatically switches channel 2 on. |
-| `0x33` | `[0x33, channel, minutes]` | **Set Timer Duration**: Sets automatic off-timer duration in minutes (1–120 min). |
+| `0x33` | `[0x33, channel, minutes]` | **Set Timer Duration**: Sets automatic off-timer duration in minutes. Valid firmware presets are `15`, `30`, `45`, `90`, and `120` minutes (corresponding to the 5 physical timer LEDs on the lamp). Arbitrary values cause the firmware to default to 120 minutes. |
 | `0x34` | `[0x34, scene_index]` | **Set Scene / Effect**: Selects moodlight dynamic effect (`0x00` to `0x0A`). |
 | `0x35` | `[0x35, channel]` | **Disable Channel**: Turns off Channel `0x01` (White) or `0x02` (RGB). |
 | `0x36` | `[0x36, channel]` | **Disable Timer**: Cancels the active off-timer on specified channel. |
 | `0x37` | `[0x37, channel]` | **Enable Channel**: Turns on Channel `0x01` (White) or `0x02` (RGB). |
-| `0x38` | `[0x38, channel]` | **Enable Timer**: Activates countdown timer for specified channel. |
+| `0x38` | `[0x38, channel]` | **Enable Timer**: Activates countdown timer for specified channel. Must only be sent when the channel is ON. |
 
 > **Firmware Note on 100% Daylight Brightness**: Setting white brightness to 100% (`[0x31, 0x01, 0x64]`) on some firmware versions triggers an internal bug that flips the lamp to red RGB mode. Capping daylight brightness at 99% (`0x63`) reliably works around this issue.
+
+> **Firmware Note on Timer Commands while Off**: Sending `0x38` (Enable Timer) or `0x33` (Set Timer Duration) when the lamp is turned off causes the hardware microcontroller to hang and become unresponsive until power-cycled. Timer commands must only be dispatched while the target channel / lamp is active (turned on). Canceling or changing timer settings should avoid BLE packet transmission when the lamp is off.
 
 ---
 
