@@ -382,9 +382,9 @@ class BeurerInstance:
             raise RuntimeError("Cannot enable timer when the lamp is off")
         channel = CHANNEL_COLOR if self._mode == ColorMode.RGB or self._color_on else CHANNEL_WHITE
         LOGGER.debug("Enabling hardware countdown timer on channel %s for %d min", channel, self._timer_duration)
-        await self.sendPacket([CMD_SET_TIMER_DURATION, channel, self._timer_duration])
-        await asyncio.sleep(0.1)
         await self.sendPacket([CMD_ENABLE_TIMER, channel])
+        await asyncio.sleep(0.1)
+        await self.sendPacket([CMD_SET_TIMER_DURATION, channel, self._timer_duration])
         self._timer_active = True
         self._timer_minutes_remaining = self._timer_duration
         await self.trigger_entity_update()

@@ -1858,11 +1858,11 @@ async def test_enable_and_disable_timer(beurer_instance: BeurerInstance) -> None
     assert len(sent_packets) == 2
     pkt1 = list(sent_packets[0])
     pkt2 = list(sent_packets[1])
-    assert pkt1[7] == 0x33  # CMD_SET_TIMER_DURATION
-    assert pkt1[8] == 0x01  # CHANNEL_WHITE
-    assert pkt1[9] == 30
-    assert pkt2[7] == 0x38  # CMD_ENABLE_TIMER
-    assert pkt2[8] == 0x01
+    assert pkt1[7] == 0x38  # CMD_ENABLE_TIMER
+    assert pkt1[8] == 0x01
+    assert pkt2[7] == 0x33  # CMD_SET_TIMER_DURATION
+    assert pkt2[8] == 0x01  # CHANNEL_WHITE
+    assert pkt2[9] == 30
 
     # Test disable timer when lamp is on
     sent_packets.clear()

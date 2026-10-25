@@ -85,6 +85,8 @@ All payloads below are wrapped in the framing described in section 2.1.
 
 > **Firmware Note on Timer Commands while Off**: Sending `0x38` (Enable Timer) or `0x33` (Set Timer Duration) when the lamp is turned off causes the hardware microcontroller to hang and become unresponsive until power-cycled. Timer commands must only be dispatched while the target channel / lamp is active (turned on). Canceling or changing timer settings should avoid BLE packet transmission when the lamp is off.
 
+> **Firmware Note on Timer Enable vs Duration Sequencing**: Sending `0x38` (Enable Timer) initializes the hardware countdown timer to its default duration of 120 minutes. When enabling the countdown timer with a specific preset (e.g., 15, 30, 45, or 90 minutes), `0x38` must always be transmitted before `0x33`. Transmitting `0x33` before `0x38` causes the microcontroller to immediately overwrite the chosen preset back to 120 minutes.
+
 ---
 
 ## 5. Status & Asynchronous Notifications (Lamp -> Client)
