@@ -57,7 +57,7 @@ This repository is an actively maintained fork of [Deadolus/ha-beurer](https://g
 
 1. In Home Assistant, go to **Settings** > **Devices & services**.
 2. Click **Add integration** and search for **Beurer**.
-3. The setup flow will automatically scan for nearby Beurer lamps advertising over BLE. Select your lamp from the list, or select **Configure manually** to enter the Bluetooth MAC address directly.
+3. The setup flow lists every Beurer TL 100 that Home Assistant has heard advertising, including lamps reached through an ESPHome Bluetooth proxy, so no separate scan is needed. Select your lamp from the list, or select **Configure manually** to enter the Bluetooth MAC address directly.
 4. During setup, the integration will briefly toggle the lamp to confirm communication.
 5. If you have multiple Beurer lamps, repeat the setup process for each device.
 
