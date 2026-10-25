@@ -276,3 +276,51 @@ async def test_async_turn_off_timeout_error_raises_home_assistant_error(mock_ins
 
     assert exc_info.value.translation_domain == DOMAIN
     assert exc_info.value.translation_key == "communication_error"
+
+
+def test_available_when_is_on_is_none(mock_instance: MagicMock) -> None:
+    """Test available returns False when device is_on state is unknown."""
+    mock_instance.is_on = None
+    light = BeurerLight(mock_instance, "My Lamp", "entry_123")
+    assert light.available is False
+
+
+def test_available_when_connected(mock_instance: MagicMock) -> None:
+    """Test available returns True when active BLE connection exists."""
+    mock_instance.is_on = True
+    mock_instance.is_connected = True
+    light = BeurerLight(mock_instance, "My Lamp", "entry_123")
+    assert light.available is True
+
+
+def test_available_when_disconnected_but_advertising(mock_instance: MagicMock) -> None:
+    """Test available returns True when disconnected but BLE advertisements are seen."""
+    mock_instance.is_on = True
+    mock_instance.is_connected = False
+    mock_hass = MagicMock()
+    light = BeurerLight(mock_instance, "My Lamp", "entry_123")
+    light.hass = mock_hass
+
+    with patch("custom_components.beurer.light.bluetooth.async_ble_device_from_address", return_value=MagicMock()):
+        assert light.available is True
+
+
+def test_available_when_disconnected_and_not_advertising(mock_instance: MagicMock) -> None:
+    """Test available returns False when disconnected and no BLE advertisements are present."""
+    mock_instance.is_on = True
+    mock_instance.is_connected = False
+    mock_hass = MagicMock()
+    light = BeurerLight(mock_instance, "My Lamp", "entry_123")
+    light.hass = mock_hass
+
+    with patch("custom_components.beurer.light.bluetooth.async_ble_device_from_address", return_value=None):
+        assert light.available is False
+
+
+def test_available_fallback_when_hass_is_none(mock_instance: MagicMock) -> None:
+    """Test available returns True as fallback when hass is not attached and state is known."""
+    mock_instance.is_on = True
+    mock_instance.is_connected = False
+    light = BeurerLight(mock_instance, "My Lamp", "entry_123")
+    assert light.hass is None
+    assert light.available is True

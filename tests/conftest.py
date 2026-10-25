@@ -209,6 +209,7 @@ def _setup_mock_modules() -> None:
             EFFECT = 4
 
         class LightEntity:
+            hass: Any = None
             _attr_name: str | None = None
             _attr_unique_id: str | None = None
             _attr_supported_color_modes: set[ColorMode] | None = None

@@ -134,3 +134,30 @@ async def test_async_setup_entry_registers_stop_listener(mock_hass: MagicMock, m
         with patch.object(instance, "disconnect", new_callable=AsyncMock) as mock_disconnect:
             await stop_callback(MagicMock())
             mock_disconnect.assert_awaited_once_with(closing=True)
+
+
+@pytest.mark.asyncio
+async def test_async_setup_entry_registers_unavailable_tracking(mock_hass: MagicMock, mock_entry: ConfigEntry) -> None:
+    """Test that setup registers an unavailable callback which triggers entity update on timeout."""
+    fake_ble_device = BLEDevice("57:4C:42:80:71:BA", "TL100_71BA")
+    unavailable_callback = None
+
+    def mock_track_unavailable(hass: Any, cb: Any, address: str, connectable: bool) -> MagicMock:
+        nonlocal unavailable_callback
+        unavailable_callback = cb
+        return MagicMock()
+
+    with (
+        patch.object(bluetooth, "async_ble_device_from_address", return_value=fake_ble_device),
+        patch.object(bluetooth, "async_track_unavailable", side_effect=mock_track_unavailable),
+    ):
+        result = await async_setup_entry(mock_hass, mock_entry)
+        assert result is True
+        assert unavailable_callback is not None
+
+        # Simulate device unavailable timeout
+        mock_service_info = MagicMock()
+        mock_hass.async_create_task = MagicMock()
+
+        unavailable_callback(mock_service_info)
+        mock_hass.async_create_task.assert_called_once()

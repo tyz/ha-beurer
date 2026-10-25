@@ -68,6 +68,21 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         )
     )
 
+    @callback
+    def _async_unavailable(service_info: bluetooth.BluetoothServiceInfoBleak) -> None:
+        """Handle device becoming unavailable due to lost BLE advertisements."""
+        LOGGER.debug("BLE advertisements timed out for %s", address)
+        hass.async_create_task(instance.trigger_entity_update())
+
+    entry.async_on_unload(
+        bluetooth.async_track_unavailable(
+            hass,
+            _async_unavailable,
+            address,
+            connectable=True,
+        )
+    )
+
     async def _async_stop(event: Event) -> None:
         """Close connection on Home Assistant stop."""
         await instance.disconnect(closing=True)
