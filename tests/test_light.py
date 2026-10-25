@@ -8,7 +8,7 @@ import pytest
 from bleak import BleakError
 from custom_components.beurer.beurer import BeurerInstance
 from custom_components.beurer.const import DOMAIN
-from custom_components.beurer.light import SCAN_INTERVAL, BeurerLight
+from custom_components.beurer.light import SCAN_INTERVAL, BeurerLight, async_setup_entry
 from homeassistant.components.light import (
     ATTR_BRIGHTNESS,
     ATTR_COLOR_MODE,
@@ -16,7 +16,9 @@ from homeassistant.components.light import (
     ATTR_RGB_COLOR,
     ATTR_WHITE,
     ColorMode,
+    LightEntityFeature,
 )
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.exceptions import HomeAssistantError
 
 
@@ -324,3 +326,106 @@ def test_available_fallback_when_hass_is_none(mock_instance: MagicMock) -> None:
     light = BeurerLight(mock_instance, "My Lamp", "entry_123")
     assert light.hass is None
     assert light.available is True
+
+
+@pytest.mark.asyncio
+async def test_async_setup_entry_light(mock_instance: MagicMock) -> None:
+    """Test async_setup_entry creates and adds BeurerLight."""
+    mock_hass = MagicMock()
+    mock_entry = ConfigEntry(entry_id="test_entry_id", data={"name": "Bedroom Lamp"})
+    mock_hass.data = {DOMAIN: {"test_entry_id": mock_instance}}
+
+    added_devices: list[BeurerLight] = []
+
+    def mock_add_devices(devices: list[BeurerLight]) -> None:
+        added_devices.extend(devices)
+
+    await async_setup_entry(mock_hass, mock_entry, mock_add_devices)
+
+    assert len(added_devices) == 1
+    assert added_devices[0].name == "Bedroom Lamp"
+
+
+@pytest.mark.asyncio
+async def test_async_added_to_hass_when_connected(mock_instance: MagicMock) -> None:
+    """Test async_added_to_hass calls update when already connected."""
+    mock_instance.is_connected = True
+    mock_instance.firmware_version = "1.00"
+
+    mock_hass = MagicMock()
+    light = BeurerLight(mock_instance, "My Lamp", "entry_123")
+    light.hass = mock_hass
+
+    await light.async_added_to_hass()
+
+    mock_instance.set_update_callback.assert_called_once_with(light.update_callback)
+    mock_instance.update.assert_awaited_once()
+
+
+def test_async_update_device_info_creates_device_when_missing(mock_instance: MagicMock) -> None:
+    """Test _async_update_device_info registers new device if missing."""
+    from homeassistant.helpers import device_registry as dr
+
+    mock_hass = MagicMock()
+    mock_instance.firmware_version = "1.20"
+    mock_instance.mac = "11:22:33:44:55:66"
+
+    light = BeurerLight(mock_instance, "New Lamp", "entry_new")
+    light.hass = mock_hass
+
+    dev_reg = dr.async_get(mock_hass)
+    assert dev_reg.async_get_device(identifiers={(DOMAIN, "11:22:33:44:55:66")}) is None
+
+    light._async_update_device_info()
+
+    created_device = dev_reg.async_get_device(identifiers={(DOMAIN, "11:22:33:44:55:66")})
+    assert created_device is not None
+    assert created_device.sw_version == "1.20"
+
+
+def test_light_properties_rgb_mode(mock_instance: MagicMock) -> None:
+    """Test properties in RGB color mode."""
+    mock_instance.color_mode = ColorMode.RGB
+    mock_instance.color_brightness = 175
+    mock_instance.rgb_color = None
+    mock_instance.effect = "Rainbow"
+    mock_instance.supported_effects = ["Off", "Rainbow"]
+
+    light = BeurerLight(mock_instance, "RGB Lamp", "entry_rgb")
+
+    assert light.brightness == 175
+    assert light.rgb_color is None
+    assert light.effect == "Rainbow"
+    assert light.effect_list == ["Off", "Rainbow"]
+    assert light.supported_features == LightEntityFeature.EFFECT
+
+    mock_instance.color_mode = ColorMode.WHITE
+    assert light.effect == "Off"
+
+
+def test_transform_color_brightness(mock_instance: MagicMock) -> None:
+    """Test _transform_color_brightness scales RGB color correctly."""
+    light = BeurerLight(mock_instance, "Lamp", "entry_1")
+    scaled = light._transform_color_brightness((255, 128, 0), 128)
+    assert scaled == (128, 64, 0)
+
+
+@pytest.mark.asyncio
+async def test_async_turn_on_with_white_attr_booleans(mock_instance: MagicMock) -> None:
+    """Test async_turn_on with boolean values for ATTR_WHITE."""
+    mock_instance.white_brightness = 210
+    light = BeurerLight(mock_instance, "Lamp", "entry_1")
+
+    await light.async_turn_on(**{ATTR_WHITE: True})
+    mock_instance.set_white.assert_awaited_with(210)
+
+    await light.async_turn_on(**{ATTR_WHITE: False})
+    mock_instance.set_white.assert_awaited_with(0)
+
+
+@pytest.mark.asyncio
+async def test_async_update(mock_instance: MagicMock) -> None:
+    """Test async_update forwards call to BeurerInstance.update."""
+    light = BeurerLight(mock_instance, "Lamp", "entry_1")
+    await light.async_update()
+    mock_instance.update.assert_awaited_once()
