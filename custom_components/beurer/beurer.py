@@ -125,6 +125,12 @@ class BeurerInstance:
         self._device: BleakClient | None = None
         self._connect_lock = asyncio.Lock()
         self._write_lock = asyncio.Lock()
+        # Serialises whole logical commands (turn_on, enable_timer, ...), not
+        # just single frames. A command such as enable_timer writes two frames
+        # with a pause in between; without this lock another entity's command
+        # could slip in and leave the lamp in a state the firmware cannot
+        # handle (0x33 on a lamp that just went off hangs the MCU).
+        self._command_lock = asyncio.Lock()
         self._trigger_update: Callable[[], None] | None = None
         self._update_callbacks: list[Callable[[], None]] = []
         self._is_on: bool = False
@@ -155,6 +161,10 @@ class BeurerInstance:
         self._timer_active: bool = False
         self._timer_minutes_remaining: int = 0
         self._timer_lamp_duration: int | None = None
+        # Set while enable_timer() runs, so an incoming status notification
+        # cannot overwrite the duration the user picked with the firmware
+        # default (see the 0x38 handling in the notification parser).
+        self._timer_command_in_progress: bool = False
 
     def set_device(self, device: BLEDevice) -> None:
         """Update the underlying BLEDevice.
@@ -394,19 +404,20 @@ class BeurerInstance:
                 f"Timer duration must be between {MIN_TIMER_DURATION} and {MAX_TIMER_DURATION} minutes, got {minutes}"
             )
         LOGGER.debug("Setting timer duration to %d minutes", minutes)
-        self._timer_duration = minutes
-        if self._is_on:
-            channel = CHANNEL_COLOR if self._mode == ColorMode.RGB or self._color_on else CHANNEL_WHITE
-            await self.sendPacket([CMD_SET_TIMER_DURATION, channel, minutes])
-            self._timer_lamp_duration = minutes
-            if self._timer_active:
-                self._timer_minutes_remaining = minutes
-        else:
-            # The lamp stays untouched while it is off, so the previous countdown
-            # (if any) no longer describes the duration the user just selected.
-            # Forget it instead of reporting a value the lamp never received.
-            self._timer_minutes_remaining = 0
-            self._timer_lamp_duration = None
+        async with self._command_lock:
+            self._timer_duration = minutes
+            if self._is_on:
+                channel = CHANNEL_COLOR if self._mode == ColorMode.RGB or self._color_on else CHANNEL_WHITE
+                await self.sendPacket([CMD_SET_TIMER_DURATION, channel, minutes])
+                self._timer_lamp_duration = minutes
+                if self._timer_active:
+                    self._timer_minutes_remaining = minutes
+            else:
+                # The lamp stays untouched while it is off, so the previous countdown
+                # (if any) no longer describes the duration the user just selected.
+                # Forget it instead of reporting a value the lamp never received.
+                self._timer_minutes_remaining = 0
+                self._timer_lamp_duration = None
         await self.trigger_entity_update()
 
     async def enable_timer(self) -> None:
@@ -415,28 +426,47 @@ class BeurerInstance:
         Raises:
             RuntimeError: If called while the lamp is turned off.
         """
-        if not self._is_on:
-            raise RuntimeError("Cannot enable timer when the lamp is off")
-        channel = CHANNEL_COLOR if self._mode == ColorMode.RGB or self._color_on else CHANNEL_WHITE
-        LOGGER.debug("Enabling hardware countdown timer on channel %s for %d min", channel, self._timer_duration)
-        await self.sendPacket([CMD_ENABLE_TIMER, channel])
-        await asyncio.sleep(0.1)
-        await self.sendPacket([CMD_SET_TIMER_DURATION, channel, self._timer_duration])
-        self._timer_active = True
-        self._timer_minutes_remaining = self._timer_duration
-        self._timer_lamp_duration = self._timer_duration
-        await self.trigger_entity_update()
+        # Hold the command lock for the whole sequence: 0x38 starts the
+        # countdown and 0x33 corrects the duration, and nothing may be written
+        # in between.
+        async with self._command_lock:
+            if not self._is_on:
+                raise RuntimeError("Cannot enable timer when the lamp is off")
+            channel = CHANNEL_COLOR if self._mode == ColorMode.RGB or self._color_on else CHANNEL_WHITE
+            # Snapshot the duration before sending anything. The status reply to
+            # 0x38 reports the firmware default of 120 minutes; without this
+            # snapshot the notification handler would adopt that value and 0x33
+            # would program 120 instead of the duration the user picked.
+            duration = self._timer_duration
+            LOGGER.debug("Enabling hardware countdown timer on channel %s for %d min", channel, duration)
+            self._timer_command_in_progress = True
+            try:
+                await self.sendPacket([CMD_ENABLE_TIMER, channel])
+                await asyncio.sleep(0.1)
+                # The lamp can be switched off at the hardware while the first
+                # frame is in flight. Sending 0x33 to a lamp that is off hangs
+                # the firmware, so re-check before the second frame.
+                if not self._is_on:
+                    raise RuntimeError("Lamp was turned off while enabling the timer")
+                await self.sendPacket([CMD_SET_TIMER_DURATION, channel, duration])
+            finally:
+                self._timer_command_in_progress = False
+            self._timer_active = True
+            self._timer_minutes_remaining = duration
+            self._timer_lamp_duration = duration
+            await self.trigger_entity_update()
 
     async def disable_timer(self) -> None:
         """Cancel/disable hardware countdown timer on both channels."""
         LOGGER.debug("Disabling hardware countdown timer")
-        if self._is_on:
-            await self.sendPacket([CMD_DISABLE_TIMER, CHANNEL_WHITE])
-            await asyncio.sleep(0.1)
-            await self.sendPacket([CMD_DISABLE_TIMER, CHANNEL_COLOR])
-        self._timer_active = False
-        self._timer_minutes_remaining = 0
-        self._timer_lamp_duration = None
+        async with self._command_lock:
+            if self._is_on:
+                await self.sendPacket([CMD_DISABLE_TIMER, CHANNEL_WHITE])
+                await asyncio.sleep(0.1)
+                await self.sendPacket([CMD_DISABLE_TIMER, CHANNEL_COLOR])
+            self._timer_active = False
+            self._timer_minutes_remaining = 0
+            self._timer_lamp_duration = None
         await self.trigger_entity_update()
 
     def find_effect_position(self, effect: str) -> int:
@@ -497,20 +527,21 @@ class BeurerInstance:
         """
         r, g, b = rgb
         LOGGER.debug("Setting to color: %s, %s, %s", r, g, b)
-        self._mode = ColorMode.RGB
-        self._rgb_color = (r, g, b)
-        if self._light_on:
-            # Turn off white daylight channel when switching to color mode
-            await self.sendPacket([CMD_DISABLE_CHANNEL, CHANNEL_WHITE])
-            self._light_on = False
-            await asyncio.sleep(0.1)
-        if not self._color_on:
-            await self.sendPacket([CMD_ENABLE_CHANNEL, CHANNEL_COLOR])
+        async with self._command_lock:
+            self._mode = ColorMode.RGB
+            self._rgb_color = (r, g, b)
+            if self._light_on:
+                # Turn off white daylight channel when switching to color mode
+                await self.sendPacket([CMD_DISABLE_CHANNEL, CHANNEL_WHITE])
+                self._light_on = False
+                await asyncio.sleep(0.1)
+            if not self._color_on:
+                await self.sendPacket([CMD_ENABLE_CHANNEL, CHANNEL_COLOR])
+                self._color_on = True
+                await asyncio.sleep(0.1)
+            await self.sendPacket([CMD_SET_COLOR, r, g, b])
             self._color_on = True
-            await asyncio.sleep(0.1)
-        await self.sendPacket([CMD_SET_COLOR, r, g, b])
-        self._color_on = True
-        self._is_on = True
+            self._is_on = True
         await self.trigger_entity_update()
 
     async def set_color_brightness(self, brightness: int) -> None:
@@ -520,16 +551,17 @@ class BeurerInstance:
             brightness: Brightness scale from 0 to 255.
         """
         LOGGER.debug("Setting to brightness %s", brightness)
-        self._mode = ColorMode.RGB
-        if not self._color_on:
-            await self.sendPacket([CMD_ENABLE_CHANNEL, CHANNEL_COLOR])
+        async with self._command_lock:
+            self._mode = ColorMode.RGB
+            if not self._color_on:
+                await self.sendPacket([CMD_ENABLE_CHANNEL, CHANNEL_COLOR])
+                self._color_on = True
+                await asyncio.sleep(0.1)
+            brightness_percent = max(0, min(100, int(brightness / 255 * 100)))
+            await self.sendPacket([CMD_SET_BRIGHTNESS, CHANNEL_COLOR, brightness_percent])
+            self._color_brightness = brightness
             self._color_on = True
-            await asyncio.sleep(0.1)
-        brightness_percent = max(0, min(100, int(brightness / 255 * 100)))
-        await self.sendPacket([CMD_SET_BRIGHTNESS, CHANNEL_COLOR, brightness_percent])
-        self._color_brightness = brightness
-        self._color_on = True
-        self._is_on = True
+            self._is_on = True
         await self.trigger_entity_update()
 
     async def set_white(self, intensity: int = 255) -> None:
@@ -539,27 +571,28 @@ class BeurerInstance:
             intensity: Brightness scale from 0 to 255.
         """
         LOGGER.debug("Setting white to intensity: %s", intensity)
-        self._mode = ColorMode.WHITE
-        self._rgb_color = (255, 255, 255)
-        self._effect = "Off"
-        if self._color_on:
-            # Turn off color mode channel when switching to white daylight
-            await self.sendPacket([CMD_DISABLE_CHANNEL, CHANNEL_COLOR])
-            self._color_on = False
-            await asyncio.sleep(0.1)
-        if not self._light_on:
-            await self.sendPacket([CMD_ENABLE_CHANNEL, CHANNEL_WHITE])
+        async with self._command_lock:
+            self._mode = ColorMode.WHITE
+            self._rgb_color = (255, 255, 255)
+            self._effect = "Off"
+            if self._color_on:
+                # Turn off color mode channel when switching to white daylight
+                await self.sendPacket([CMD_DISABLE_CHANNEL, CHANNEL_COLOR])
+                self._color_on = False
+                await asyncio.sleep(0.1)
+            if not self._light_on:
+                await self.sendPacket([CMD_ENABLE_CHANNEL, CHANNEL_WHITE])
+                self._light_on = True
+                await asyncio.sleep(0.1)
+            intensity_percent = max(0, min(100, int(intensity / 255 * 100)))
+            # Cap at 99% to work around firmware bug where 100% in white mode
+            # causes the device to switch to red/RGB mode (Deadolus#11)
+            if intensity_percent == 100:
+                intensity_percent = 99
+            await self.sendPacket([CMD_SET_BRIGHTNESS, CHANNEL_WHITE, intensity_percent])
+            self._brightness = intensity
             self._light_on = True
-            await asyncio.sleep(0.1)
-        intensity_percent = max(0, min(100, int(intensity / 255 * 100)))
-        # Cap at 99% to work around firmware bug where 100% in white mode
-        # causes the device to switch to red/RGB mode (Deadolus#11)
-        if intensity_percent == 100:
-            intensity_percent = 99
-        await self.sendPacket([CMD_SET_BRIGHTNESS, CHANNEL_WHITE, intensity_percent])
-        self._brightness = intensity
-        self._light_on = True
-        self._is_on = True
+            self._is_on = True
         await self.trigger_entity_update()
 
     async def set_effect(self, effect: str) -> None:
@@ -569,68 +602,72 @@ class BeurerInstance:
             effect: Effect name string.
         """
         LOGGER.debug("Setting effect %s", effect)
-        self._mode = ColorMode.RGB
-        if self._light_on:
-            # Turn off white daylight channel when switching to color mode
-            await self.sendPacket([CMD_DISABLE_CHANNEL, CHANNEL_WHITE])
-            self._light_on = False
-            await asyncio.sleep(0.1)
-        if not self._color_on:
-            await self.sendPacket([CMD_ENABLE_CHANNEL, CHANNEL_COLOR])
+        async with self._command_lock:
+            self._mode = ColorMode.RGB
+            if self._light_on:
+                # Turn off white daylight channel when switching to color mode
+                await self.sendPacket([CMD_DISABLE_CHANNEL, CHANNEL_WHITE])
+                self._light_on = False
+                await asyncio.sleep(0.1)
+            if not self._color_on:
+                await self.sendPacket([CMD_ENABLE_CHANNEL, CHANNEL_COLOR])
+                self._color_on = True
+                await asyncio.sleep(0.1)
+            await self.sendPacket([CMD_SET_EFFECT, self.find_effect_position(effect)])
+            self._effect = effect
             self._color_on = True
-            await asyncio.sleep(0.1)
-        await self.sendPacket([CMD_SET_EFFECT, self.find_effect_position(effect)])
-        self._effect = effect
-        self._color_on = True
-        self._is_on = True
+            self._is_on = True
         await self.trigger_entity_update()
 
     async def turn_on(self) -> None:
         """Turn on the light in the current or saved mode."""
         LOGGER.debug("Turning on")
-        if self._device is None or not self._device.is_connected:
-            await self.connect()
-        if self._mode == ColorMode.RGB:
-            await self.sendPacket([CMD_ENABLE_CHANNEL, CHANNEL_COLOR])
-            self._color_on = True
-            if self._effect and self._effect != "Off":
+        async with self._command_lock:
+            if self._device is None or not self._device.is_connected:
+                await self.connect()
+            if self._mode == ColorMode.RGB:
+                await self.sendPacket([CMD_ENABLE_CHANNEL, CHANNEL_COLOR])
+                self._color_on = True
+                if self._effect and self._effect != "Off":
+                    await asyncio.sleep(0.1)
+                    await self.sendPacket([CMD_SET_EFFECT, self.find_effect_position(self._effect)])
+                elif self._rgb_color:
+                    await asyncio.sleep(0.1)
+                    await self.sendPacket([CMD_SET_COLOR, self._rgb_color[0], self._rgb_color[1], self._rgb_color[2]])
+                if self._color_brightness is not None:
+                    await asyncio.sleep(0.1)
+                    brightness_percent = max(0, min(100, int(self._color_brightness / 255 * 100)))
+                    await self.sendPacket([CMD_SET_BRIGHTNESS, CHANNEL_COLOR, brightness_percent])
+            else:
+                self._mode = ColorMode.WHITE
+                self._light_on = True
+                self._rgb_color = (255, 255, 255)
+                self._effect = "Off"
+                if self._brightness is None:
+                    self._brightness = 255
+                await self.sendPacket([CMD_ENABLE_CHANNEL, CHANNEL_WHITE])
                 await asyncio.sleep(0.1)
-                await self.sendPacket([CMD_SET_EFFECT, self.find_effect_position(self._effect)])
-            elif self._rgb_color:
-                await asyncio.sleep(0.1)
-                await self.sendPacket([CMD_SET_COLOR, self._rgb_color[0], self._rgb_color[1], self._rgb_color[2]])
-            if self._color_brightness is not None:
-                await asyncio.sleep(0.1)
-                brightness_percent = max(0, min(100, int(self._color_brightness / 255 * 100)))
-                await self.sendPacket([CMD_SET_BRIGHTNESS, CHANNEL_COLOR, brightness_percent])
-        else:
-            self._mode = ColorMode.WHITE
-            self._light_on = True
-            self._rgb_color = (255, 255, 255)
-            self._effect = "Off"
-            if self._brightness is None:
-                self._brightness = 255
-            await self.sendPacket([CMD_ENABLE_CHANNEL, CHANNEL_WHITE])
-            await asyncio.sleep(0.1)
-            intensity_percent = max(0, min(99, int(self._brightness / 255 * 100)))
-            await self.sendPacket([CMD_SET_BRIGHTNESS, CHANNEL_WHITE, intensity_percent])
-        self._is_on = True
+                intensity_percent = max(0, min(99, int(self._brightness / 255 * 100)))
+                await self.sendPacket([CMD_SET_BRIGHTNESS, CHANNEL_WHITE, intensity_percent])
+            self._is_on = True
         await self.trigger_entity_update()
 
     async def turn_off(self) -> None:
         """Turn off both white and color channels."""
         LOGGER.debug("Turning off")
-        await self.sendPacket([CMD_DISABLE_CHANNEL, CHANNEL_WHITE])
-        await self.sendPacket([CMD_DISABLE_CHANNEL, CHANNEL_COLOR])
-        self._mode = ColorMode.WHITE
-        self._rgb_color = (255, 255, 255)
-        self._effect = "Off"
-        self._is_on = False
-        self._light_on = False
-        self._color_on = False
-        self._timer_active = False
-        self._timer_minutes_remaining = 0
-        self._timer_lamp_duration = None
+        async with self._command_lock:
+            await self.sendPacket([CMD_DISABLE_CHANNEL, CHANNEL_WHITE])
+            await asyncio.sleep(0.1)
+            await self.sendPacket([CMD_DISABLE_CHANNEL, CHANNEL_COLOR])
+            self._mode = ColorMode.WHITE
+            self._rgb_color = (255, 255, 255)
+            self._effect = "Off"
+            self._is_on = False
+            self._light_on = False
+            self._color_on = False
+            self._timer_active = False
+            self._timer_minutes_remaining = 0
+            self._timer_lamp_duration = None
         await self.trigger_entity_update()
 
     async def triggerStatus(self, force: bool = False) -> None:
@@ -639,7 +676,9 @@ class BeurerInstance:
         Args:
             force: If True, bypass the debouncing cooldown.
         """
-        async with self._status_lock:
+        # Serialise status queries against command sequences: both write
+        # multi-frame packets with pauses in between.
+        async with self._command_lock, self._status_lock:
             now = time.monotonic()
             if not force and now - self._last_status_trigger < 2.0:
                 LOGGER.debug("Skipping triggerStatus, called too recently")
@@ -823,7 +862,8 @@ class BeurerInstance:
                     self._timer_minutes_remaining = data[IDX_TIMER_MINUTES]
                     self._timer_lamp_duration = data[IDX_TIMER_MINUTES]
                     if (
-                        not prev_timer_active
+                        not self._timer_command_in_progress
+                        and not prev_timer_active
                         and self._timer_active
                         and MIN_TIMER_DURATION <= data[IDX_TIMER_MINUTES] <= MAX_TIMER_DURATION
                     ):
@@ -863,7 +903,8 @@ class BeurerInstance:
                     self._timer_minutes_remaining = data[IDX_TIMER_MINUTES]
                     self._timer_lamp_duration = data[IDX_TIMER_MINUTES]
                     if (
-                        not prev_timer_active
+                        not self._timer_command_in_progress
+                        and not prev_timer_active
                         and self._timer_active
                         and MIN_TIMER_DURATION <= data[IDX_TIMER_MINUTES] <= MAX_TIMER_DURATION
                     ):
