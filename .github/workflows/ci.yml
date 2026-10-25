@@ -1,0 +1,146 @@
+---
+name: CI
+
+# Runs on every pull request and on every push to main. The push trigger is not
+# redundant: it keeps the check results on main itself, so a branch cannot gain a
+# green result on one commit and carry a stale one over to the next.
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+# A newer push to the same branch makes the running build irrelevant.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  pre-commit:
+    name: pre-commit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      # The hook versions live in .pre-commit-config.yaml, so the ruff revision
+      # that formats here is the same one a contributor runs locally.
+      - uses: pre-commit/action@v3.0.1
+
+  mypy:
+    name: mypy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: requirements_test.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements_test.txt mypy==2.4.0
+
+      - name: Run mypy
+        run: python -m mypy custom_components/
+
+  pytest:
+    name: pytest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: requirements_test.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements_test.txt
+
+      - name: Run tests
+        run: python -m pytest -v tests/
+
+  manifest:
+    name: manifest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      # Catches the mistakes that otherwise only surface when Home Assistant or
+      # HACS loads the integration: a domain that does not match the directory,
+      # a translation file that drifted away from strings.json, or a missing
+      # version or codeowner.
+      - name: Validate manifest and translations
+        run: |
+          python - <<'PY'
+          import json
+          import pathlib
+          import sys
+
+          root = pathlib.Path("custom_components/beurer")
+          manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
+          errors: list[str] = []
+
+          if manifest.get("domain") != root.name:
+              errors.append(f"domain {manifest.get('domain')!r} does not match directory {root.name!r}")
+          if not manifest.get("version"):
+              errors.append("manifest.json has no version, which HACS requires")
+          if not manifest.get("codeowners"):
+              errors.append("manifest.json has no codeowners")
+
+          def flatten(node: object, prefix: str = "") -> set[str]:
+              keys: set[str] = set()
+              if isinstance(node, dict):
+                  for key, value in node.items():
+                      path = f"{prefix}.{key}" if prefix else key
+                      keys.add(path)
+                      keys |= flatten(value, path)
+              return keys
+
+          reference = flatten(json.loads((root / "strings.json").read_text(encoding="utf-8")))
+          for path in sorted((root / "translations").glob("*.json")):
+              keys = flatten(json.loads(path.read_text(encoding="utf-8")))
+              if missing := reference - keys:
+                  errors.append(f"{path.name} is missing {sorted(missing)}")
+              if extra := keys - reference:
+                  errors.append(f"{path.name} has keys absent from strings.json: {sorted(extra)}")
+
+          for error in errors:
+              print(f"::error::{error}")
+          if not errors:
+              print("manifest and 63 translation files are consistent")
+          sys.exit(1 if errors else 0)
+          PY
+
+      # A release tag only means something if it matches what HACS will install.
+      - name: Check the version matches the tag
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import pathlib
+          import sys
+
+          version = json.loads(pathlib.Path("custom_components/beurer/manifest.json").read_text())["version"]
+          tag = os.environ["GITHUB_REF_NAME"].removeprefix("v")
+          print(f"manifest version {version}, tag {tag}")
+          sys.exit(0 if version == tag else 1)
+          PY

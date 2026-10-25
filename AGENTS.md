@@ -9,8 +9,9 @@ This is a Home Assistant integration for the Beurer TL 100 lamp that is no longe
 ## Workflow & Commands
 
 * Run tests: `pytest -v tests/`
-* Linting: `pre-commit run --all-files`
-* Type checking: `mypy .`
+* Linting: `pre-commit run --all-files` (run it twice: the first pass may reformat)
+* Type checking: `mypy custom_components/`
+* CI (`.github/workflows/ci.yml`) runs the same four checks on every pull request: `pre-commit`, `mypy`, `pytest` and a `manifest` job that validates the manifest, the tag/version match and that all 63 translation files stay key-synced with `strings.json`.
 
 ## Coding Conventions
 
@@ -30,15 +31,19 @@ This is a Home Assistant integration for the Beurer TL 100 lamp that is no longe
 
 ## Version Control
 
-* You may commit your changes in `git` to the `main` branch with a clear commit message. Preferably a multi-line commit messages with a summary line followed by an explanatory body describing the context and key changes.
-* Use the Conventional Commits standard for commit messages.
-* One commit per type of change; try to avoid grouping multiple tasks/changes into a single commit.
-* Other than a `commit`, do not perform any actions in `git` without my permission.
+* `main` is protected: it requires a pull request, passing status checks and a linear history. Never commit or push to `main` directly.
+* Every change starts on its own branch, created from an up-to-date `main`. Name it after the Conventional Commit prefix and a short slug, for example `feat/moodlight-scenes`, `fix/timer-race`, `docs/reconfigure`, optionally with an issue number (`fix/timer-race-42`).
+* Every change lands through a pull request. The description states the problem and the approach, not just a title; link the issue when there is one.
+* Keep the branch up to date with `main` by rebasing, not by merging `main` into it, so the history stays linear.
+* Use the Conventional Commits standard for commit messages. One commit per type of change; a single pull request may therefore contain several commits. Commit messages are multi-line: a summary line followed by an explanatory body describing the context and key changes.
+* A pull request is only ready to merge when it is green: pre-commit, mypy and the tests pass locally, and the four CI checks pass on the pull request head.
+* Merge with squash (one pull request becomes one logical commit), then delete the branch.
+* Other than a `commit`, do not perform any actions in `git` — push, tag, force-push, or deleting a remote branch — without my permission.
 
 ## Restrictions & Constraints
 
 * Never modify dependencies in `pyproject.toml` without explicit permission.
-* After each code change, run the linter and unit tests before completing the task.
+* After each code change, run the linter and unit tests before completing the task. CI enforces the same checks plus the manifest and translation-sync validation, so a pull request that fails them is not finished.
 * Use `.gitignore` for the same purposes as an `.opencodeignore` file.
 
 ## Instructions in Other Files
