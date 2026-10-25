@@ -10,12 +10,10 @@ LOGGER: logging.Logger = logging.getLogger("custom_components.beurer")
 DOMAIN: Final = "beurer"
 
 # Bluetooth GATT UUIDs
-SERVICE_UUID: Final = "14839ac4-7d7e-415c-9a42-167340cf2339"
 WRITE_CHARACTERISTIC_UUID: Final = "8b00ace7-eb0b-49b0-bbe9-9aee0a26e1a3"
 NOTIFY_CHARACTERISTIC_UUID: Final = "0734594a-a8e7-4b1a-a6b1-cd5243059a57"
 
-# Standard Bluetooth Device Information Service UUIDs
-VERSION_SERVICE_UUID: Final = "0000180a-0000-1000-8000-00805f9b34fb"
+# Standard Bluetooth Device Information Service revision characteristics
 VERSION_CHARACTERISTIC_UUID_SOFTWARE: Final = "00002a28-0000-1000-8000-00805f9b34fb"
 VERSION_CHARACTERISTIC_UUID_FIRMWARE: Final = "00002a26-0000-1000-8000-00805f9b34fb"
 
@@ -37,9 +35,7 @@ FIRMWARE_REVISION_UUIDS: Final[set[str]] = {
 # Packet Framing Markers
 PACKET_HEADER: Final[list[int]] = [0xFE, 0xEF]
 PACKET_TYPE_COMMAND: Final = 0x0A
-PACKET_TYPE_NOTIFICATION: Final = 0x0C
 PACKET_SYNC_COMMAND: Final[list[int]] = [0xAB, 0xAA]
-PACKET_SYNC_NOTIFICATION: Final[list[int]] = [0xAB, 0xBB]
 PACKET_FOOTER: Final[list[int]] = [0x55, 0x0D, 0x0A]
 
 
@@ -67,10 +63,6 @@ class PacketIndex(IntEnum):
 
 IDX_HEADER_0: Final = PacketIndex.HEADER_0
 IDX_HEADER_1: Final = PacketIndex.HEADER_1
-IDX_PACKET_TYPE: Final = PacketIndex.PACKET_TYPE
-IDX_TOTAL_LEN: Final = PacketIndex.TOTAL_LEN
-IDX_SYNC_0: Final = PacketIndex.SYNC_0
-IDX_SYNC_1: Final = PacketIndex.SYNC_1
 IDX_PAYLOAD_LEN: Final = PacketIndex.PAYLOAD_LEN
 IDX_OPCODE: Final = PacketIndex.OPCODE
 IDX_CHANNEL: Final = PacketIndex.CHANNEL
@@ -99,7 +91,6 @@ CHANNEL_COLOR: Final = Channel.COLOR
 CHANNEL_OFF: Final = Channel.OFF
 
 # Protocol Request Opcodes (Client -> Device)
-CMD_REQUEST_PERMISSION: Final = 0x00
 CMD_QUERY_STATUS: Final = 0x30
 CMD_SET_BRIGHTNESS: Final = 0x31
 CMD_SET_COLOR: Final = 0x32
