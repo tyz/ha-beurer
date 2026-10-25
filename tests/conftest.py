@@ -324,6 +324,7 @@ def _setup_mock_modules() -> None:
         # components.bluetooth
         ha_bt = ModuleType("homeassistant.components.bluetooth")
         ha_bt.async_ble_device_from_address = MagicMock(return_value=None)  # type: ignore[attr-defined]
+        ha_bt.async_discovered_service_info = MagicMock(return_value=[])  # type: ignore[attr-defined]
         ha_bt.async_register_callback = MagicMock(return_value=MagicMock())  # type: ignore[attr-defined]
         ha_bt.async_track_unavailable = MagicMock(return_value=MagicMock())  # type: ignore[attr-defined]
         ha_bt.BluetoothCallbackMatcher = MagicMock()  # type: ignore[attr-defined]

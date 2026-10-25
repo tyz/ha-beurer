@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import probatio as vol
 import pytest
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_MAC
@@ -56,6 +57,65 @@ async def test_flow_toggle_light_fails_when_device_not_found() -> None:
         error = await flow.toggle_light()
         assert error is not None
         assert "Was not able to find device" in str(error)
+
+
+@pytest.mark.asyncio
+async def test_flow_user_step_lists_home_assistant_bluetooth_devices() -> None:
+    """Test the picker uses Home Assistant's advertisement cache, proxies included.
+
+    A direct BleakScanner scan only sees adapters attached to this host, so a
+    lamp reachable through a Bluetooth proxy never showed up in the list and
+    discovery spent seconds scanning even though Home Assistant already had the
+    advertisement.
+    """
+    proxy_lamp = MagicMock()
+    proxy_lamp.address = "AA:BB:CC:DD:EE:01"
+    proxy_lamp.name = "TL100_EE01"
+    unrelated = MagicMock()
+    unrelated.address = "11:22:33:44:55:66"
+    unrelated.name = "NotALamp"
+
+    flow = BeurerFlowHandler()
+    flow.hass = MagicMock()
+
+    with (
+        patch(
+            "homeassistant.components.bluetooth.async_discovered_service_info",
+            return_value=[proxy_lamp, unrelated],
+        ),
+        patch("custom_components.beurer.config_flow.discover", AsyncMock()) as direct_scan,
+    ):
+        result = await flow.async_step_user(None)
+
+    direct_scan.assert_not_called()
+    schema = result["data_schema"]
+    selected = schema({"mac": "AA:BB:CC:DD:EE:01", "name": "Bedroom"})
+    assert selected["mac"] == "AA:BB:CC:DD:EE:01"
+    with pytest.raises(vol.MultipleInvalid):
+        schema({"mac": "11:22:33:44:55:66", "name": "Bedroom"})
+
+
+@pytest.mark.asyncio
+async def test_flow_user_step_falls_back_to_scan_without_bluetooth_component() -> None:
+    """Test a direct scan is used only when Home Assistant's stack is missing."""
+    lamp = MagicMock()
+    lamp.address = "AA:BB:CC:DD:EE:01"
+    lamp.name = "TL100_EE01"
+
+    flow = BeurerFlowHandler()
+    flow.hass = MagicMock()
+
+    with (
+        patch(
+            "homeassistant.components.bluetooth.async_discovered_service_info",
+            side_effect=AttributeError("no attribute"),
+        ),
+        patch("custom_components.beurer.config_flow.discover", AsyncMock(return_value=[lamp])) as direct_scan,
+    ):
+        result = await flow.async_step_user(None)
+
+    direct_scan.assert_awaited_once()
+    assert result["data_schema"]({"mac": "AA:BB:CC:DD:EE:01", "name": "Bedroom"})["mac"] == "AA:BB:CC:DD:EE:01"
 
 
 @pytest.mark.asyncio

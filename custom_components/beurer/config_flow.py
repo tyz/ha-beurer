@@ -81,27 +81,51 @@ class BeurerFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             return await self.async_step_validate()
 
         already_configured = self._async_current_ids(False)
-        devices = await discover()
-        devices = [device for device in devices if format_mac(device.address) not in already_configured]
+        candidates = await self._async_discover_candidates()
+        candidates = {address: name for address, name in candidates.items() if format_mac(address) not in already_configured}
 
-        if not devices:
+        if not candidates:
             return await self.async_step_manual()
 
         return self.async_show_form(
             step_id="user",
             data_schema=vol.Schema(
                 {
-                    vol.Required("mac"): vol.In(
-                        {
-                            **{device.address: device.name for device in devices},
-                            MANUAL_MAC: "Manually add a MAC address",
-                        }
-                    ),
+                    vol.Required("mac"): vol.In({**candidates, MANUAL_MAC: "Manually add a MAC address"}),
                     vol.Required("name"): str,
                 }
             ),
             errors={},
         )
+
+    async def _async_discover_candidates(self) -> dict[str, str]:
+        """Return advertised TL 100 lamps as an address to name mapping.
+
+        Home Assistant's Bluetooth stack is used when available: it already
+        holds every advertisement seen by the local adapter and by any
+        Bluetooth proxy, so no fresh scan is needed. Only when the component is
+        missing entirely does this fall back to a direct scan, which cannot see
+        devices that are reachable through a proxy.
+
+        Returns:
+            Mapping of address to advertised name.
+        """
+        if hasattr(self, "hass") and self.hass:
+            try:
+                from homeassistant.components import bluetooth
+
+                infos = bluetooth.async_discovered_service_info(self.hass, connectable=True)
+            except (ImportError, AttributeError) as err:
+                LOGGER.debug("Bluetooth component unavailable, falling back to a direct scan: %s", err)
+            else:
+                return {
+                    info.address: info.name or "Beurer TL 100"
+                    for info in infos
+                    if info.name and info.name.lower().startswith("tl100")
+                }
+
+        devices = await discover()
+        return {device.address: device.name or "Beurer TL 100" for device in devices}
 
     @override
     async def async_step_bluetooth(self, discovery_info: BluetoothServiceInfoBleak) -> ConfigFlowResult:
@@ -233,15 +257,21 @@ class BeurerFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             return Exception("No MAC address specified")
 
         device = None
+        used_ha_bluetooth = False
         if hasattr(self, "hass") and self.hass:
             try:
                 from homeassistant.components import bluetooth
 
                 device = bluetooth.async_ble_device_from_address(self.hass, self.mac, connectable=True)
+                used_ha_bluetooth = True
             except (ImportError, AttributeError) as err:
                 LOGGER.debug("Bluetooth component unavailable: %s", err)
 
-        if device is None:
+        if device is None and not used_ha_bluetooth:
+            # A direct scan only reaches adapters attached to this host. When
+            # Home Assistant's stack is present it is authoritative: a lamp it
+            # cannot resolve is not reachable, including through a proxy, so
+            # scanning again would just add a slow round trip.
             device = await get_device(self.mac)
         if device is None:
             LOGGER.error("Was not able to find device with mac %s", self.mac)
