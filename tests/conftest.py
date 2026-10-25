@@ -157,9 +157,19 @@ def _setup_mock_modules() -> None:
         ha_ce = ModuleType("homeassistant.config_entries")
 
         class ConfigEntry:
-            def __init__(self, entry_id: str = "test_entry", data: dict[str, Any] | None = None) -> None:
+            def __init__(
+                self,
+                entry_id: str = "test_entry",
+                data: dict[str, Any] | None = None,
+                version: int = 1,
+                domain: str = "beurer",
+                title: str = "Beurer",
+            ) -> None:
                 self.entry_id = entry_id
                 self.data = data or {}
+                self.version = version
+                self.domain = domain
+                self.title = title
 
             def async_on_unload(self, func: Any) -> None:
                 pass
@@ -216,6 +226,23 @@ def _setup_mock_modules() -> None:
         # components
         ha_comp = ModuleType("homeassistant.components")
         sys.modules["homeassistant.components"] = ha_comp
+
+        # components.diagnostics
+        ha_diag = ModuleType("homeassistant.components.diagnostics")
+
+        def async_redact_data(data: dict[str, Any], to_redact: Any) -> dict[str, Any]:
+            redacted: dict[str, Any] = {}
+            for key, val in data.items():
+                if key in to_redact:
+                    redacted[key] = "**REDACTED**"
+                elif isinstance(val, dict):
+                    redacted[key] = async_redact_data(val, to_redact)
+                else:
+                    redacted[key] = val
+            return redacted
+
+        ha_diag.async_redact_data = async_redact_data  # type: ignore[attr-defined]
+        sys.modules["homeassistant.components.diagnostics"] = ha_diag
 
         # components.bluetooth
         ha_bt = ModuleType("homeassistant.components.bluetooth")
