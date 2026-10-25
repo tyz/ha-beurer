@@ -1,0 +1,72 @@
+{
+  "title": "Beurer",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Kies 'n Beurer-lig. Maak seker die lig is in sig vir validering.",
+        "data": {
+          "mac": "Bluetooth MAC-adres",
+          "name": "Naam"
+        }
+      },
+      "validate": {
+        "title": "Valideer Beurer-verbinding",
+        "data": {
+          "retry": "Probeer verbinding weer valideer?",
+          "flicker": "Het die lig geflikker?"
+        }
+      },
+      "manual": {
+        "title": "Voer Bluetooth MAC-adres in",
+        "data": {
+          "mac": "Bluetooth MAC-adres",
+          "name": "Naam"
+        }
+      },
+      "bluetooth_confirm": {
+        "title": "Beurer TL 100 ontdek",
+        "description": "Wil jy {name} opstel?"
+      }
+    },
+    "error": {
+      "connect": "Kon nie aan Beurer koppel nie"
+    },
+    "abort": {
+      "already_configured": "Toestel is reeds gekonfigureer",
+      "cannot_connect": "Kon nie aan Beurer koppel nie",
+      "cannot_validate": "Kon nie Beurer-lig valideer nie"
+    }
+  },
+  "exceptions": {
+    "communication_error": {
+      "message": "Kon nie met Beurer-lamp {name} kommunikeer nie: {error}"
+    },
+    "lamp_must_be_on": {
+      "message": "Kan nie tydhouer aktiveer nie omdat die lamp afgeskakel is"
+    }
+  },
+  "entity": {
+    "select": {
+      "timer_duration": {
+        "name": "Tydhouerduur",
+        "state": {
+          "15": "15 minute",
+          "30": "30 minute",
+          "45": "45 minute",
+          "90": "90 minute (1,5 uur)",
+          "120": "120 minute (2 uur)"
+        }
+      }
+    },
+    "switch": {
+      "timer": {
+        "name": "Tydhouer"
+      }
+    },
+    "sensor": {
+      "timer_remaining": {
+        "name": "Oorblywende tydhouertyd"
+      }
+    }
+  }
+}

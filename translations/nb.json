@@ -1,0 +1,72 @@
+{
+  "title": "Beurer",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Velg en Beurer-lampe. Sørg for at lampen er innen synsvidde for validering.",
+        "data": {
+          "mac": "Bluetooth MAC-adresse",
+          "name": "Navn"
+        }
+      },
+      "validate": {
+        "title": "Valider Beurer-tilkobling",
+        "data": {
+          "retry": "Prøv validering av tilkobling på nytt?",
+          "flicker": "Blinket lampen?"
+        }
+      },
+      "manual": {
+        "title": "Skriv inn Bluetooth MAC-adresse",
+        "data": {
+          "mac": "Bluetooth MAC-adresse",
+          "name": "Navn"
+        }
+      },
+      "bluetooth_confirm": {
+        "title": "Oppdaget Beurer TL 100",
+        "description": "Vil du konfigurere {name}?"
+      }
+    },
+    "error": {
+      "connect": "Kan ikke koble til Beurer"
+    },
+    "abort": {
+      "already_configured": "Enheten er allerede konfigurert",
+      "cannot_connect": "Kan ikke koble til Beurer",
+      "cannot_validate": "Kan ikke validere Beurer-lampe"
+    }
+  },
+  "exceptions": {
+    "communication_error": {
+      "message": "Kunne ikke kommunisere med Beurer-lampe {name}: {error}"
+    },
+    "lamp_must_be_on": {
+      "message": "Kan ikke aktivere timer fordi lampen er slått av"
+    }
+  },
+  "entity": {
+    "select": {
+      "timer_duration": {
+        "name": "Timer-varighet",
+        "state": {
+          "15": "15 minutter",
+          "30": "30 minutter",
+          "45": "45 minutter",
+          "90": "90 minutter (1,5 timer)",
+          "120": "120 minutter (2 timer)"
+        }
+      }
+    },
+    "switch": {
+      "timer": {
+        "name": "Timer"
+      }
+    },
+    "sensor": {
+      "timer_remaining": {
+        "name": "Gjenværende timertid"
+      }
+    }
+  }
+}

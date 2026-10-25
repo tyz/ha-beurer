@@ -1,0 +1,72 @@
+{
+  "title": "Beurer",
+  "config": {
+    "step": {
+      "user": {
+        "title": "یک چراغ Beurer انتخاب کنید. مطمئن شوید چراغ برای تأیید در دید قرار دارد.",
+        "data": {
+          "mac": "آدرس بلوتوث MAC",
+          "name": "نام"
+        }
+      },
+      "validate": {
+        "title": "تأیید اتصال Beurer",
+        "data": {
+          "retry": "تلاش مجدد برای تأیید اتصال؟",
+          "flicker": "آیا چراغ چشمک زد؟"
+        }
+      },
+      "manual": {
+        "title": "آدرس بلوتوث MAC را وارد کنید",
+        "data": {
+          "mac": "آدرس بلوتوث MAC",
+          "name": "نام"
+        }
+      },
+      "bluetooth_confirm": {
+        "title": "Beurer TL 100 شناسایی شد",
+        "description": "آیا می‌خواهید {name} را راه‌اندازی کنید؟"
+      }
+    },
+    "error": {
+      "connect": "امکان اتصال به Beurer وجود ندارد"
+    },
+    "abort": {
+      "already_configured": "دستگاه قبلاً پیکربندی شده است",
+      "cannot_connect": "امکان اتصال به Beurer وجود ندارد",
+      "cannot_validate": "امکان تأیید چراغ Beurer وجود ندارد"
+    }
+  },
+  "exceptions": {
+    "communication_error": {
+      "message": "خطا در برقراری ارتباط با چراغ Beurer {name}: {error}"
+    },
+    "lamp_must_be_on": {
+      "message": "امکان فعال‌سازی تایمر وجود ندارد زیرا چراغ خاموش است"
+    }
+  },
+  "entity": {
+    "select": {
+      "timer_duration": {
+        "name": "مدت زمان تایمر",
+        "state": {
+          "15": "۱۵ دقیقه",
+          "30": "۳۰ دقیقه",
+          "45": "۴۵ دقیقه",
+          "90": "۹۰ دقیقه (۱.۵ ساعت)",
+          "120": "۱۲۰ دقیقه (۲ ساعت)"
+        }
+      }
+    },
+    "switch": {
+      "timer": {
+        "name": "تایمر"
+      }
+    },
+    "sensor": {
+      "timer_remaining": {
+        "name": "زمان باقی‌مانده تایمر"
+      }
+    }
+  }
+}

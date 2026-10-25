@@ -1,0 +1,72 @@
+{
+  "title": "Beurer",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Scegli una lampada Beurer. Assicurati che la lampada sia visibile per la convalida.",
+        "data": {
+          "mac": "Indirizzo MAC Bluetooth",
+          "name": "Nome"
+        }
+      },
+      "validate": {
+        "title": "Convalida connessione Beurer",
+        "data": {
+          "retry": "Riprovare a convalidare la connessione?",
+          "flicker": "La lampada ha lampeggiato?"
+        }
+      },
+      "manual": {
+        "title": "Inserisci indirizzo MAC Bluetooth",
+        "data": {
+          "mac": "Indirizzo MAC Bluetooth",
+          "name": "Nome"
+        }
+      },
+      "bluetooth_confirm": {
+        "title": "Rilevata Beurer TL 100",
+        "description": "Vuoi configurare {name}?"
+      }
+    },
+    "error": {
+      "connect": "Impossibile connettersi a Beurer"
+    },
+    "abort": {
+      "already_configured": "Il dispositivo è già configurato",
+      "cannot_connect": "Impossibile connettersi a Beurer",
+      "cannot_validate": "Impossibile convalidare la lampada Beurer"
+    }
+  },
+  "exceptions": {
+    "communication_error": {
+      "message": "Comunicazione non riuscita con la lampada Beurer {name}: {error}"
+    },
+    "lamp_must_be_on": {
+      "message": "Impossibile attivare il timer perché la lampada è spenta"
+    }
+  },
+  "entity": {
+    "select": {
+      "timer_duration": {
+        "name": "Durata del timer",
+        "state": {
+          "15": "15 minuti",
+          "30": "30 minuti",
+          "45": "45 minuti",
+          "90": "90 minuti (1,5 ore)",
+          "120": "120 minuti (2 ore)"
+        }
+      }
+    },
+    "switch": {
+      "timer": {
+        "name": "Timer"
+      }
+    },
+    "sensor": {
+      "timer_remaining": {
+        "name": "Tempo rimanente timer"
+      }
+    }
+  }
+}

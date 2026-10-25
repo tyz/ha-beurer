@@ -1,0 +1,72 @@
+{
+  "title": "Beurer",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Vel ei Beurer-lampe. Pass på at lampa er synleg for validering.",
+        "data": {
+          "mac": "Bluetooth MAC-adresse",
+          "name": "Namn"
+        }
+      },
+      "validate": {
+        "title": "Valider Beurer-tilkopling",
+        "data": {
+          "retry": "Prøv å validere tilkoplinga på nytt?",
+          "flicker": "Blinka lampa?"
+        }
+      },
+      "manual": {
+        "title": "Skriv inn Bluetooth MAC-adresse",
+        "data": {
+          "mac": "Bluetooth MAC-adresse",
+          "name": "Namn"
+        }
+      },
+      "bluetooth_confirm": {
+        "title": "Oppdaga Beurer TL 100",
+        "description": "Vil du setje opp {name}?"
+      }
+    },
+    "error": {
+      "connect": "Klarte ikkje å kople til Beurer"
+    },
+    "abort": {
+      "already_configured": "Einheita er allereie konfigurert",
+      "cannot_connect": "Klarte ikkje å kople til Beurer",
+      "cannot_validate": "Klarte ikkje å validere Beurer-lampe"
+    }
+  },
+  "exceptions": {
+    "communication_error": {
+      "message": "Klarte ikkje å kommunisere med Beurer-lampe {name}: {error}"
+    },
+    "lamp_must_be_on": {
+      "message": "Kan ikkje slå på tidtakaren fordi lampa er slått av"
+    }
+  },
+  "entity": {
+    "select": {
+      "timer_duration": {
+        "name": "Varigheit for tidtakar",
+        "state": {
+          "15": "15 minutt",
+          "30": "30 minutt",
+          "45": "45 minutt",
+          "90": "90 minutt (1,5 timar)",
+          "120": "120 minutt (2 timar)"
+        }
+      }
+    },
+    "switch": {
+      "timer": {
+        "name": "Tidtakar"
+      }
+    },
+    "sensor": {
+      "timer_remaining": {
+        "name": "Attverande tid"
+      }
+    }
+  }
+}

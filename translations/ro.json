@@ -1,0 +1,72 @@
+{
+  "title": "Beurer",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Alege o lampă Beurer. Asigură-te că lampa este la vedere pentru validare.",
+        "data": {
+          "mac": "Adresă MAC Bluetooth",
+          "name": "Nume"
+        }
+      },
+      "validate": {
+        "title": "Validare conexiune Beurer",
+        "data": {
+          "retry": "Reîncerci validarea conexiunii?",
+          "flicker": "Lampa a clipit?"
+        }
+      },
+      "manual": {
+        "title": "Introdu adresa MAC Bluetooth",
+        "data": {
+          "mac": "Adresă MAC Bluetooth",
+          "name": "Nume"
+        }
+      },
+      "bluetooth_confirm": {
+        "title": "S-a descoperit Beurer TL 100",
+        "description": "Dorești să configurezi {name}?"
+      }
+    },
+    "error": {
+      "connect": "Nu se poate conecta la Beurer"
+    },
+    "abort": {
+      "already_configured": "Dispozitivul este deja configurat",
+      "cannot_connect": "Nu se poate conecta la Beurer",
+      "cannot_validate": "Nu se poate valida lampa Beurer"
+    }
+  },
+  "exceptions": {
+    "communication_error": {
+      "message": "Comunicarea cu lampa Beurer {name} a eșuat: {error}"
+    },
+    "lamp_must_be_on": {
+      "message": "Temporizatorul nu poate fi activat deoarece lampa este oprită"
+    }
+  },
+  "entity": {
+    "select": {
+      "timer_duration": {
+        "name": "Durată temporizator",
+        "state": {
+          "15": "15 minute",
+          "30": "30 minute",
+          "45": "45 minute",
+          "90": "90 minute (1,5 ore)",
+          "120": "120 minute (2 ore)"
+        }
+      }
+    },
+    "switch": {
+      "timer": {
+        "name": "Temporizator"
+      }
+    },
+    "sensor": {
+      "timer_remaining": {
+        "name": "Timp rămas temporizator"
+      }
+    }
+  }
+}

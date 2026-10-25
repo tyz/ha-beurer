@@ -1,0 +1,72 @@
+{
+  "title": "Beurer",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Beurer 조명을 선택하세요. 확인을 위해 조명이 보이는지 확인하세요.",
+        "data": {
+          "mac": "블루투스 MAC 주소",
+          "name": "이름"
+        }
+      },
+      "validate": {
+        "title": "Beurer 연결 확인",
+        "data": {
+          "retry": "연결 확인을 다시 시도하시겠습니까?",
+          "flicker": "조명이 깜빡였습니까?"
+        }
+      },
+      "manual": {
+        "title": "블루투스 MAC 주소 입력",
+        "data": {
+          "mac": "블루투스 MAC 주소",
+          "name": "이름"
+        }
+      },
+      "bluetooth_confirm": {
+        "title": "Beurer TL 100 발견됨",
+        "description": "{name}을(를) 설정하시겠습니까?"
+      }
+    },
+    "error": {
+      "connect": "Beurer에 연결할 수 없습니다"
+    },
+    "abort": {
+      "already_configured": "기기가 이미 구성되어 있습니다",
+      "cannot_connect": "Beurer에 연결할 수 없습니다",
+      "cannot_validate": "Beurer 조명을 확인할 수 없습니다"
+    }
+  },
+  "exceptions": {
+    "communication_error": {
+      "message": "Beurer 램프 {name}와의 통신에 실패했습니다: {error}"
+    },
+    "lamp_must_be_on": {
+      "message": "램프가 꺼져 있어 타이머를 활성화할 수 없습니다"
+    }
+  },
+  "entity": {
+    "select": {
+      "timer_duration": {
+        "name": "타이머 지속 시간",
+        "state": {
+          "15": "15분",
+          "30": "30분",
+          "45": "45분",
+          "90": "90분(1.5시간)",
+          "120": "120분(2시간)"
+        }
+      }
+    },
+    "switch": {
+      "timer": {
+        "name": "타이머"
+      }
+    },
+    "sensor": {
+      "timer_remaining": {
+        "name": "타이머 남은 시간"
+      }
+    }
+  }
+}

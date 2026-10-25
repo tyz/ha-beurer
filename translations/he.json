@@ -1,0 +1,72 @@
+{
+  "title": "Beurer",
+  "config": {
+    "step": {
+      "user": {
+        "title": "בחר מנורת Beurer. ודא שהמנורה בטווח ראייה לצורך אימות.",
+        "data": {
+          "mac": "כתובת Bluetooth MAC",
+          "name": "שם"
+        }
+      },
+      "validate": {
+        "title": "אימות חיבור Beurer",
+        "data": {
+          "retry": "לנסות שוב לאמת את החיבור?",
+          "flicker": "האם המנורה הבהבה?"
+        }
+      },
+      "manual": {
+        "title": "הזן כתובת Bluetooth MAC",
+        "data": {
+          "mac": "כתובת Bluetooth MAC",
+          "name": "שם"
+        }
+      },
+      "bluetooth_confirm": {
+        "title": "התגלה Beurer TL 100",
+        "description": "האם ברצונך להגדיר את {name}?"
+      }
+    },
+    "error": {
+      "connect": "לא ניתן להתחבר ל-Beurer"
+    },
+    "abort": {
+      "already_configured": "ההתקן כבר מוגדר",
+      "cannot_connect": "לא ניתן להתחבר ל-Beurer",
+      "cannot_validate": "לא ניתן לאמת את מנורת Beurer"
+    }
+  },
+  "exceptions": {
+    "communication_error": {
+      "message": "נכשל ניסיון התקשורת עם מנורת Beurer {name}: {error}"
+    },
+    "lamp_must_be_on": {
+      "message": "לא ניתן להפעיל את הטיימר מכיוון שהמנורה כבויה"
+    }
+  },
+  "entity": {
+    "select": {
+      "timer_duration": {
+        "name": "משך הטיימר",
+        "state": {
+          "15": "15 דקות",
+          "30": "30 דקות",
+          "45": "45 דקות",
+          "90": "90 דקות (שעה וחצי)",
+          "120": "120 דקות (שעתיים)"
+        }
+      }
+    },
+    "switch": {
+      "timer": {
+        "name": "טיימר"
+      }
+    },
+    "sensor": {
+      "timer_remaining": {
+        "name": "הזמן שנותר בטיימר"
+      }
+    }
+  }
+}

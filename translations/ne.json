@@ -1,0 +1,72 @@
+{
+  "title": "Beurer",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Beurer बत्ती चयन गर्नुहोस्। प्रमाणीकरणका लागि बत्ती देखिने ठाउँमा छ भनी सुनिश्चित गर्नुहोस्।",
+        "data": {
+          "mac": "ब्लुटुथ MAC ठेगाना",
+          "name": "नाम"
+        }
+      },
+      "validate": {
+        "title": "Beurer जडान प्रमाणीकरण गर्नुहोस्",
+        "data": {
+          "retry": "जडान प्रमाणीकरण पुन: प्रयास गर्ने?",
+          "flicker": "के बत्ती झिम्कियो?"
+        }
+      },
+      "manual": {
+        "title": "ब्लुटुथ MAC ठेगाना प्रविष्ट गर्नुहोस्",
+        "data": {
+          "mac": "ब्लुटुथ MAC ठेगाना",
+          "name": "नाम"
+        }
+      },
+      "bluetooth_confirm": {
+        "title": "Beurer TL 100 फेला पर्यो",
+        "description": "के तपाईं {name} सेटअप गर्न चाहनुहुन्छ?"
+      }
+    },
+    "error": {
+      "connect": "Beurer मा जडान गर्न असमर्थ"
+    },
+    "abort": {
+      "already_configured": "यन्त्र पहिले नै कन्फिगर गरिएको छ",
+      "cannot_connect": "Beurer मा जडान गर्न असमर्थ",
+      "cannot_validate": "Beurer बत्ती प्रमाणीकरण गर्न असमर्थ"
+    }
+  },
+  "exceptions": {
+    "communication_error": {
+      "message": "Beurer बत्ती {name} सँग सञ्चार गर्न असफल भयो: {error}"
+    },
+    "lamp_must_be_on": {
+      "message": "बत्ती बन्द भएकाले टाइमर सक्षम गर्न सकिँदैन"
+    }
+  },
+  "entity": {
+    "select": {
+      "timer_duration": {
+        "name": "टाइमर अवधि",
+        "state": {
+          "15": "१५ मिनेट",
+          "30": "३० मिनेट",
+          "45": "४५ मिनेट",
+          "90": "९० मिनेट (१.५ घण्टा)",
+          "120": "१२० मिनेट (२ घण्टा)"
+        }
+      }
+    },
+    "switch": {
+      "timer": {
+        "name": "टाइमर"
+      }
+    },
+    "sensor": {
+      "timer_remaining": {
+        "name": "बाँकी टाइमर समय"
+      }
+    }
+  }
+}

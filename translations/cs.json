@@ -1,0 +1,72 @@
+{
+  "title": "Beurer",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Vyberte světlo Beurer. Ujistěte se, že je světlo na dohled pro ověření.",
+        "data": {
+          "mac": "Bluetooth MAC adresa",
+          "name": "Název"
+        }
+      },
+      "validate": {
+        "title": "Ověřit připojení k Beurer",
+        "data": {
+          "retry": "Zkusit znovu ověřit připojení?",
+          "flicker": "Bliklo světlo?"
+        }
+      },
+      "manual": {
+        "title": "Zadejte Bluetooth MAC adresu",
+        "data": {
+          "mac": "Bluetooth MAC adresa",
+          "name": "Název"
+        }
+      },
+      "bluetooth_confirm": {
+        "title": "Objeveno Beurer TL 100",
+        "description": "Chcete nastavit {name}?"
+      }
+    },
+    "error": {
+      "connect": "Nelze se připojit k Beurer"
+    },
+    "abort": {
+      "already_configured": "Zařízení je již nakonfigurováno",
+      "cannot_connect": "Nelze se připojit k Beurer",
+      "cannot_validate": "Nelze ověřit světlo Beurer"
+    }
+  },
+  "exceptions": {
+    "communication_error": {
+      "message": "Nepodařilo se komunikovat s lampou Beurer {name}: {error}"
+    },
+    "lamp_must_be_on": {
+      "message": "Časovač nelze zapnout, protože lampa je vypnutá"
+    }
+  },
+  "entity": {
+    "select": {
+      "timer_duration": {
+        "name": "Doba časovače",
+        "state": {
+          "15": "15 minut",
+          "30": "30 minut",
+          "45": "45 minut",
+          "90": "90 minut (1,5 hodiny)",
+          "120": "120 minut (2 hodiny)"
+        }
+      }
+    },
+    "switch": {
+      "timer": {
+        "name": "Časovač"
+      }
+    },
+    "sensor": {
+      "timer_remaining": {
+        "name": "Zbývající čas časovače"
+      }
+    }
+  }
+}

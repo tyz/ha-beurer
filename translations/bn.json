@@ -1,0 +1,72 @@
+{
+  "title": "Beurer",
+  "config": {
+    "step": {
+      "user": {
+        "title": "একটি Beurer লাইট নির্বাচন করুন। যাচাইকরণের জন্য লাইটটি দেখা যাচ্ছে কিনা তা নিশ্চিত করুন।",
+        "data": {
+          "mac": "ব্লুটুথ MAC ঠিকানা",
+          "name": "নাম"
+        }
+      },
+      "validate": {
+        "title": "Beurer সংযোগ যাচাই করুন",
+        "data": {
+          "retry": "সংযোগ যাচাইকরণ পুনরায় চেষ্টা করবেন?",
+          "flicker": "লাইটটি কি জ্বলে-নিভে উঠেছিল?"
+        }
+      },
+      "manual": {
+        "title": "ব্লুটুথ MAC ঠিকানা লিখুন",
+        "data": {
+          "mac": "ব্লুটুথ MAC ঠিকানা",
+          "name": "নাম"
+        }
+      },
+      "bluetooth_confirm": {
+        "title": "Beurer TL 100 পাওয়া গেছে",
+        "description": "আপনি কি {name} সেট আপ করতে চান?"
+      }
+    },
+    "error": {
+      "connect": "Beurer-এ সংযোগ করতে ব্যর্থ"
+    },
+    "abort": {
+      "already_configured": "ডিভাইসটি ইতিমধ্যে কনফিগার করা আছে",
+      "cannot_connect": "Beurer-এ সংযোগ করতে ব্যর্থ",
+      "cannot_validate": "Beurer লাইট যাচাই করতে অক্ষম"
+    }
+  },
+  "exceptions": {
+    "communication_error": {
+      "message": "Beurer ল্যাম্প {name}-এর সাথে যোগাযোগ করতে ব্যর্থ হয়েছে: {error}"
+    },
+    "lamp_must_be_on": {
+      "message": "টাইমার চালু করা যাচ্ছে না কারণ ল্যাম্পটি বন্ধ রয়েছে"
+    }
+  },
+  "entity": {
+    "select": {
+      "timer_duration": {
+        "name": "টাইমারের সময়কাল",
+        "state": {
+          "15": "১৫ মিনিট",
+          "30": "৩০ মিনিট",
+          "45": "৪৫ মিনিট",
+          "90": "৯০ মিনিট (১.৫ ঘণ্টা)",
+          "120": "১২০ মিনিট (২ ঘণ্টা)"
+        }
+      }
+    },
+    "switch": {
+      "timer": {
+        "name": "টাইমার"
+      }
+    },
+    "sensor": {
+      "timer_remaining": {
+        "name": "টাইমারের অবশিষ্ট সময়"
+      }
+    }
+  }
+}

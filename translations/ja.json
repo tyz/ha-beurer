@@ -1,0 +1,72 @@
+{
+  "title": "Beurer",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Beurerライトを選択してください。検証のためにライトが見える状態であることを確認してください。",
+        "data": {
+          "mac": "Bluetooth MACアドレス",
+          "name": "名前"
+        }
+      },
+      "validate": {
+        "title": "Beurer接続の検証",
+        "data": {
+          "retry": "接続の検証を再試行しますか？",
+          "flicker": "ライトは点滅しましたか？"
+        }
+      },
+      "manual": {
+        "title": "Bluetooth MACアドレスを入力",
+        "data": {
+          "mac": "Bluetooth MACアドレス",
+          "name": "名前"
+        }
+      },
+      "bluetooth_confirm": {
+        "title": "Beurer TL 100が見つかりました",
+        "description": "{name}を設定しますか？"
+      }
+    },
+    "error": {
+      "connect": "Beurerに接続できません"
+    },
+    "abort": {
+      "already_configured": "デバイスはすでに設定されています",
+      "cannot_connect": "Beurerに接続できません",
+      "cannot_validate": "Beurerライトを検証できません"
+    }
+  },
+  "exceptions": {
+    "communication_error": {
+      "message": "Beurerランプ {name} との通信に失敗しました: {error}"
+    },
+    "lamp_must_be_on": {
+      "message": "ランプがオフになっているためタイマーを有効にできません"
+    }
+  },
+  "entity": {
+    "select": {
+      "timer_duration": {
+        "name": "タイマー時間",
+        "state": {
+          "15": "15分",
+          "30": "30分",
+          "45": "45分",
+          "90": "90分（1.5時間）",
+          "120": "120分（2時間）"
+        }
+      }
+    },
+    "switch": {
+      "timer": {
+        "name": "タイマー"
+      }
+    },
+    "sensor": {
+      "timer_remaining": {
+        "name": "タイマー残り時間"
+      }
+    }
+  }
+}

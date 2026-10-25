@@ -1,0 +1,72 @@
+{
+  "title": "Beurer",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Odaberite Beurer svjetlo. Uvjerite se da je svjetlo na vidiku radi provjere.",
+        "data": {
+          "mac": "Bluetooth MAC adresa",
+          "name": "Naziv"
+        }
+      },
+      "validate": {
+        "title": "Potvrdite Beurer vezu",
+        "data": {
+          "retry": "Pokušati ponovo potvrditi vezu?",
+          "flicker": "Da li je svjetlo zatreperilo?"
+        }
+      },
+      "manual": {
+        "title": "Unesite Bluetooth MAC adresu",
+        "data": {
+          "mac": "Bluetooth MAC adresa",
+          "name": "Naziv"
+        }
+      },
+      "bluetooth_confirm": {
+        "title": "Otkriven Beurer TL 100",
+        "description": "Želite li postaviti {name}?"
+      }
+    },
+    "error": {
+      "connect": "Nije se moguće povezati s Beurerom"
+    },
+    "abort": {
+      "already_configured": "Uređaj je već konfigurisan",
+      "cannot_connect": "Nije se moguće povezati s Beurerom",
+      "cannot_validate": "Nije moguće potvrditi Beurer svjetlo"
+    }
+  },
+  "exceptions": {
+    "communication_error": {
+      "message": "Komunikacija s Beurer lampom {name} nije uspjela: {error}"
+    },
+    "lamp_must_be_on": {
+      "message": "Nije moguće uključiti tajmer jer je lampa isključena"
+    }
+  },
+  "entity": {
+    "select": {
+      "timer_duration": {
+        "name": "Trajanje tajmera",
+        "state": {
+          "15": "15 minuta",
+          "30": "30 minuta",
+          "45": "45 minuta",
+          "90": "90 minuta (1,5 sati)",
+          "120": "120 minuta (2 sata)"
+        }
+      }
+    },
+    "switch": {
+      "timer": {
+        "name": "Tajmer"
+      }
+    },
+    "sensor": {
+      "timer_remaining": {
+        "name": "Preostalo vrijeme tajmera"
+      }
+    }
+  }
+}

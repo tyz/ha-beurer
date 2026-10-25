@@ -1,0 +1,72 @@
+{
+  "title": "Beurer",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Izberite luč Beurer. Prepričajte se, da je luč na vidnem mestu za preverjanje.",
+        "data": {
+          "mac": "Bluetooth naslov MAC",
+          "name": "Ime"
+        }
+      },
+      "validate": {
+        "title": "Preveri povezavo Beurer",
+        "data": {
+          "retry": "Ponovno poskusi preveriti povezavo?",
+          "flicker": "Ali je luč utripnila?"
+        }
+      },
+      "manual": {
+        "title": "Vnesite Bluetooth naslov MAC",
+        "data": {
+          "mac": "Bluetooth naslov MAC",
+          "name": "Ime"
+        }
+      },
+      "bluetooth_confirm": {
+        "title": "Odkrita Beurer TL 100",
+        "description": "Ali želite nastaviti {name}?"
+      }
+    },
+    "error": {
+      "connect": "Povezave z Beurer ni mogoče vzpostaviti"
+    },
+    "abort": {
+      "already_configured": "Naprava je že konfigurirana",
+      "cannot_connect": "Povezave z Beurer ni mogoče vzpostaviti",
+      "cannot_validate": "Luči Beurer ni mogoče preveriti"
+    }
+  },
+  "exceptions": {
+    "communication_error": {
+      "message": "Komunikacija s svetilko Beurer {name} ni uspela: {error}"
+    },
+    "lamp_must_be_on": {
+      "message": "Časovnika ni mogoče omogočiti, ker je svetilka izklopljena"
+    }
+  },
+  "entity": {
+    "select": {
+      "timer_duration": {
+        "name": "Trajanje časovnika",
+        "state": {
+          "15": "15 minut",
+          "30": "30 minut",
+          "45": "45 minut",
+          "90": "90 minut (1,5 ure)",
+          "120": "120 minut (2 uri)"
+        }
+      }
+    },
+    "switch": {
+      "timer": {
+        "name": "Časovnik"
+      }
+    },
+    "sensor": {
+      "timer_remaining": {
+        "name": "Preostali čas časovnika"
+      }
+    }
+  }
+}

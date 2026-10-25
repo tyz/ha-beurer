@@ -1,0 +1,72 @@
+{
+  "title": "Beurer",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Ընտրեք Beurer լույս: Համոզվեք, որ լույսը տեսանելի է ստուգման համար:",
+        "data": {
+          "mac": "Bluetooth MAC հասցե",
+          "name": "Անուն"
+        }
+      },
+      "validate": {
+        "title": "Ստուգել Beurer միացումը",
+        "data": {
+          "retry": "Կրկի՞ն փորձել ստուգել միացումը:",
+          "flicker": "Լույսը թարթե՞ց:"
+        }
+      },
+      "manual": {
+        "title": "Մուտքագրեք Bluetooth MAC հասցեն",
+        "data": {
+          "mac": "Bluetooth MAC հասցե",
+          "name": "Անուն"
+        }
+      },
+      "bluetooth_confirm": {
+        "title": "Հայտնաբերվել է Beurer TL 100",
+        "description": "Ցանկանո՞ւմ եք կարգավորել {name}-ը:"
+      }
+    },
+    "error": {
+      "connect": "Չհաջողվեց միանալ Beurer-ին"
+    },
+    "abort": {
+      "already_configured": "Սարքն արդեն կարգավորված է",
+      "cannot_connect": "Չհաջողվեց միանալ Beurer-ին",
+      "cannot_validate": "Չհաջողվեց ստուգել Beurer լույսը"
+    }
+  },
+  "exceptions": {
+    "communication_error": {
+      "message": "Չհաջողվեց կապ հաստատել Beurer լամպի հետ {name}՝ {error}"
+    },
+    "lamp_must_be_on": {
+      "message": "Հնարավոր չէ միացնել ժամաչափը, քանի որ լամպն անջատված է"
+    }
+  },
+  "entity": {
+    "select": {
+      "timer_duration": {
+        "name": "Ժամաչափի տևողություն",
+        "state": {
+          "15": "15 րոպե",
+          "30": "30 րոպե",
+          "45": "45 րոպե",
+          "90": "90 րոպե (1.5 ժամ)",
+          "120": "120 րոպե (2 ժամ)"
+        }
+      }
+    },
+    "switch": {
+      "timer": {
+        "name": "Ժամաչափ"
+      }
+    },
+    "sensor": {
+      "timer_remaining": {
+        "name": "Ժամաչափի մնացած ժամանակը"
+      }
+    }
+  }
+}

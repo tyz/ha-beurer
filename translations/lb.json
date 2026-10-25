@@ -1,0 +1,72 @@
+{
+  "title": "Beurer",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Wielt eng Beurer Luucht. Vergewëssert Iech datt d'Luucht fir d'Validatioun ze gesinn ass.",
+        "data": {
+          "mac": "Bluetooth MAC-Adress",
+          "name": "Numm"
+        }
+      },
+      "validate": {
+        "title": "Beurer-Verbindung validéieren",
+        "data": {
+          "retry": "Verbindung nach eng Kéier validéieren?",
+          "flicker": "Huet d'Luucht geblinkt?"
+        }
+      },
+      "manual": {
+        "title": "Bluetooth MAC-Adress aginn",
+        "data": {
+          "mac": "Bluetooth MAC-Adress",
+          "name": "Numm"
+        }
+      },
+      "bluetooth_confirm": {
+        "title": "Beurer TL 100 entdeckt",
+        "description": "Wëllt Dir {name} ariichten?"
+      }
+    },
+    "error": {
+      "connect": "Konnt net mat Beurer verbannen"
+    },
+    "abort": {
+      "already_configured": "Apparat ass scho konfiguréiert",
+      "cannot_connect": "Konnt net mat Beurer verbannen",
+      "cannot_validate": "Beurer Luucht konnt net validéiert ginn"
+    }
+  },
+  "exceptions": {
+    "communication_error": {
+      "message": "Feeler beim Kommunizéiere mat der Beurer Luucht {name}: {error}"
+    },
+    "lamp_must_be_on": {
+      "message": "Kann den Timer net aktivéieren well d'Luucht ausgeschalt ass"
+    }
+  },
+  "entity": {
+    "select": {
+      "timer_duration": {
+        "name": "Timer-Dauer",
+        "state": {
+          "15": "15 Minutten",
+          "30": "30 Minutten",
+          "45": "45 Minutten",
+          "90": "90 Minutten (1,5 Stonnen)",
+          "120": "120 Minutten (2 Stonnen)"
+        }
+      }
+    },
+    "switch": {
+      "timer": {
+        "name": "Timer"
+      }
+    },
+    "sensor": {
+      "timer_remaining": {
+        "name": "Verbleiwend Timerzäit"
+      }
+    }
+  }
+}

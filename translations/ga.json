@@ -1,0 +1,72 @@
+{
+  "title": "Beurer",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Roghnaigh solas Beurer. Cinntigh go bhfuil an solas le feiceáil le haghaidh bailíochtaithe.",
+        "data": {
+          "mac": "Seoladh MAC Bluetooth",
+          "name": "Ainm"
+        }
+      },
+      "validate": {
+        "title": "Bailíochtaigh ceangal Beurer",
+        "data": {
+          "retry": "Bain triail as an gceangal a bhailíochtú arís?",
+          "flicker": "Ar phreab an solas?"
+        }
+      },
+      "manual": {
+        "title": "Iontráil seoladh MAC Bluetooth",
+        "data": {
+          "mac": "Seoladh MAC Bluetooth",
+          "name": "Ainm"
+        }
+      },
+      "bluetooth_confirm": {
+        "title": "Aimsíodh Beurer TL 100",
+        "description": "Ar mhaith leat {name} a chumrú?"
+      }
+    },
+    "error": {
+      "connect": "Níorbh fhéidir ceangal le Beurer"
+    },
+    "abort": {
+      "already_configured": "Tá an gléas cumraithe cheana féin",
+      "cannot_connect": "Níorbh fhéidir ceangal le Beurer",
+      "cannot_validate": "Níorbh fhéidir solas Beurer a bhailíochtú"
+    }
+  },
+  "exceptions": {
+    "communication_error": {
+      "message": "Theip ar chumarsáid le lampa Beurer {name}: {error}"
+    },
+    "lamp_must_be_on": {
+      "message": "Ní féidir an t-amadóir a chumasú toisc go bhfuil an lampa múchta"
+    }
+  },
+  "entity": {
+    "select": {
+      "timer_duration": {
+        "name": "Fad an amadóra",
+        "state": {
+          "15": "15 nóiméad",
+          "30": "30 nóiméad",
+          "45": "45 nóiméad",
+          "90": "90 nóiméad (1.5 uair)",
+          "120": "120 nóiméad (2 uair)"
+        }
+      }
+    },
+    "switch": {
+      "timer": {
+        "name": "Amadóir"
+      }
+    },
+    "sensor": {
+      "timer_remaining": {
+        "name": "Am fágtha ar an amadóir"
+      }
+    }
+  }
+}

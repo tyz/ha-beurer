@@ -1,0 +1,72 @@
+{
+  "title": "Beurer",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Valige Beurer valgusti. Veenduge, et valgusti oleks kontrollimiseks nähtaval.",
+        "data": {
+          "mac": "Bluetoothi MAC-aadress",
+          "name": "Nimi"
+        }
+      },
+      "validate": {
+        "title": "Kinnita Beureri ühendus",
+        "data": {
+          "retry": "Proovida ühendust uuesti kontrollida?",
+          "flicker": "Kas valgusti vilkus?"
+        }
+      },
+      "manual": {
+        "title": "Sisestage Bluetoothi MAC-aadress",
+        "data": {
+          "mac": "Bluetoothi MAC-aadress",
+          "name": "Nimi"
+        }
+      },
+      "bluetooth_confirm": {
+        "title": "Tuvastati Beurer TL 100",
+        "description": "Kas soovite seadistada {name}?"
+      }
+    },
+    "error": {
+      "connect": "Beureriga ühenduse loomine ebaõnnestus"
+    },
+    "abort": {
+      "already_configured": "Seade on juba konfigureeritud",
+      "cannot_connect": "Beureriga ei saa ühendust",
+      "cannot_validate": "Beureri valgustit ei õnnestunud kontrollida"
+    }
+  },
+  "exceptions": {
+    "communication_error": {
+      "message": "Side Beureri lambiga {name} ebaõnnestus: {error}"
+    },
+    "lamp_must_be_on": {
+      "message": "Taimerit ei saa sisse lülitada, kuna lamp on välja lülitatud"
+    }
+  },
+  "entity": {
+    "select": {
+      "timer_duration": {
+        "name": "Taimeri kestus",
+        "state": {
+          "15": "15 minutit",
+          "30": "30 minutit",
+          "45": "45 minutit",
+          "90": "90 minutit (1,5 tundi)",
+          "120": "120 minutit (2 tundi)"
+        }
+      }
+    },
+    "switch": {
+      "timer": {
+        "name": "Taimer"
+      }
+    },
+    "sensor": {
+      "timer_remaining": {
+        "name": "Taimeri järelejäänud aeg"
+      }
+    }
+  }
+}
