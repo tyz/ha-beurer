@@ -23,6 +23,7 @@ def test_checksum_calculation(beurer_instance: BeurerInstance) -> None:
     expected = initial_byte ^ 0x31 ^ 0x01 ^ 50
     assert beurer_instance.makeChecksum(initial_byte, payload) == expected
 
+
 @pytest.mark.asyncio
 async def test_create_status_callback() -> None:
     """Test create_status_callback resolves future with received data."""
@@ -35,6 +36,7 @@ async def test_create_status_callback() -> None:
 
     assert future.done()
     assert future.result() == data
+
 
 @pytest.mark.asyncio
 async def test_discover_function() -> None:
@@ -52,11 +54,13 @@ async def test_discover_function() -> None:
         assert len(found) == 1
         assert found[0].name == "TL100 Lamp"
 
+
 def test_find_effect_position(beurer_instance: BeurerInstance) -> None:
     """Test effect name to index mapping."""
     assert beurer_instance.find_effect_position("Off") == 0
     assert beurer_instance.find_effect_position("Rainbow") == 2
     assert beurer_instance.find_effect_position("NonExistentEffect") == 0
+
 
 @pytest.mark.asyncio
 async def test_get_device_function() -> None:
@@ -70,4 +74,3 @@ async def test_get_device_function() -> None:
 
         result_none = await get_device("00:11:22:33:44:55")
         assert result_none is None
-

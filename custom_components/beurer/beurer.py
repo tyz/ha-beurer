@@ -157,6 +157,7 @@ class BeurerInstance:
         self._timer_duration: int = DEFAULT_TIMER_DURATION
         self._timer_active: bool = False
         self._timer_minutes_remaining: int = 0
+        self._timer_lamp_duration: int | None = None
 
     def set_device(self, device: BLEDevice) -> None:
         """Update the underlying BLEDevice.
@@ -371,8 +372,15 @@ class BeurerInstance:
         if self._is_on:
             channel = CHANNEL_COLOR if self._mode == ColorMode.RGB or self._color_on else CHANNEL_WHITE
             await self.sendPacket([CMD_SET_TIMER_DURATION, channel, minutes])
+            self._timer_lamp_duration = minutes
             if self._timer_active:
                 self._timer_minutes_remaining = minutes
+        else:
+            # The lamp stays untouched while it is off, so the previous countdown
+            # (if any) no longer describes the duration the user just selected.
+            # Forget it instead of reporting a value the lamp never received.
+            self._timer_minutes_remaining = 0
+            self._timer_lamp_duration = None
         await self.trigger_entity_update()
 
     async def enable_timer(self) -> None:
@@ -390,6 +398,7 @@ class BeurerInstance:
         await self.sendPacket([CMD_SET_TIMER_DURATION, channel, self._timer_duration])
         self._timer_active = True
         self._timer_minutes_remaining = self._timer_duration
+        self._timer_lamp_duration = self._timer_duration
         await self.trigger_entity_update()
 
     async def disable_timer(self) -> None:
@@ -401,6 +410,7 @@ class BeurerInstance:
             await self.sendPacket([CMD_DISABLE_TIMER, CHANNEL_COLOR])
         self._timer_active = False
         self._timer_minutes_remaining = 0
+        self._timer_lamp_duration = None
         await self.trigger_entity_update()
 
     def find_effect_position(self, effect: str) -> int:
@@ -594,6 +604,7 @@ class BeurerInstance:
         self._color_on = False
         self._timer_active = False
         self._timer_minutes_remaining = 0
+        self._timer_lamp_duration = None
         await self.trigger_entity_update()
 
     async def triggerStatus(self, force: bool = False) -> None:
@@ -698,6 +709,7 @@ class BeurerInstance:
                 self._color_on = False
                 self._timer_active = False
                 self._timer_minutes_remaining = 0
+                self._timer_lamp_duration = None
             else:
                 self._light_on = True
                 self._color_on = False
@@ -720,6 +732,7 @@ class BeurerInstance:
             if not self._color_on:
                 self._timer_active = False
                 self._timer_minutes_remaining = 0
+                self._timer_lamp_duration = None
             await self.trigger_entity_update()
             return
 
@@ -738,6 +751,7 @@ class BeurerInstance:
             if not self._light_on:
                 self._timer_active = False
                 self._timer_minutes_remaining = 0
+                self._timer_lamp_duration = None
             await self.trigger_entity_update()
             return
 
@@ -781,6 +795,7 @@ class BeurerInstance:
                     prev_timer_active = self._timer_active
                     self._timer_active = data[IDX_TIMER_ACTIVE] == 1
                     self._timer_minutes_remaining = data[IDX_TIMER_MINUTES]
+                    self._timer_lamp_duration = data[IDX_TIMER_MINUTES]
                     if (
                         not prev_timer_active
                         and self._timer_active
@@ -790,6 +805,7 @@ class BeurerInstance:
             elif not self._color_on:
                 self._timer_active = False
                 self._timer_minutes_remaining = 0
+                self._timer_lamp_duration = None
             self._is_on = bool(self._light_on or self._color_on)
             LOGGER.debug(
                 "White status: is_on=%s, light_on=%s, brightness=%s, timer_active=%s, timer_rem=%s",
@@ -819,6 +835,7 @@ class BeurerInstance:
                     prev_timer_active = self._timer_active
                     self._timer_active = data[IDX_TIMER_ACTIVE] == 1
                     self._timer_minutes_remaining = data[IDX_TIMER_MINUTES]
+                    self._timer_lamp_duration = data[IDX_TIMER_MINUTES]
                     if (
                         not prev_timer_active
                         and self._timer_active
@@ -828,6 +845,7 @@ class BeurerInstance:
             elif not self._light_on:
                 self._timer_active = False
                 self._timer_minutes_remaining = 0
+                self._timer_lamp_duration = None
             self._is_on = bool(self._light_on or self._color_on)
             LOGGER.debug(
                 "RGB status: is_on=%s, color_on=%s, brightness=%s, rgb color=%s, effect=%s, timer_active=%s, timer_rem=%s",
@@ -1005,6 +1023,7 @@ class BeurerInstance:
         self._color_on = False
         self._timer_active = False
         self._timer_minutes_remaining = 0
+        self._timer_lamp_duration = None
         if client is not None:
             try:
                 if read_uuid is not None and client.is_connected:

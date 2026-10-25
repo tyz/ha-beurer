@@ -28,7 +28,25 @@ async def test_button_turn_off_followed_by_reconnect_does_not_turn_on(
     beurer_instance._color_on = False
 
     # 1. Physical button pressed while lamp is on: emits 0xE8
-    e8_payload = bytearray([0xFE, 0xEF, 0x0C, 0x0B, 0xAB, 0xBB, 0x06, 0xE8, 0x00, 0x00, 0x00, 0xEE, 0x55, 0x0D, 0x0A])
+    e8_payload = bytearray(
+        [
+            0xFE,
+            0xEF,
+            0x0C,
+            0x0B,
+            0xAB,
+            0xBB,
+            0x06,
+            0xE8,
+            0x00,
+            0x00,
+            0x00,
+            0xEE,
+            0x55,
+            0x0D,
+            0x0A,
+        ]
+    )
     char = MagicMock()
     await beurer_instance.notification_handler(char, e8_payload)
 
@@ -58,7 +76,10 @@ async def test_button_turn_off_followed_by_reconnect_does_not_turn_on(
     beurer_instance._device = mock_client
 
     with (
-        patch("custom_components.beurer.beurer.establish_connection", AsyncMock(return_value=mock_client)),
+        patch(
+            "custom_components.beurer.beurer.establish_connection",
+            AsyncMock(return_value=mock_client),
+        ),
         patch("asyncio.sleep", AsyncMock()),
     ):
         beurer_instance.disconnected_callback(mock_client)
@@ -72,6 +93,7 @@ async def test_button_turn_off_followed_by_reconnect_does_not_turn_on(
     assert beurer_instance._light_on is False
     assert beurer_instance._color_on is False
 
+
 @pytest.mark.asyncio
 async def test_button_turn_on_followed_by_reconnect_and_status_query_preserves_on_state(
     beurer_instance: BeurerInstance,
@@ -82,7 +104,25 @@ async def test_button_turn_on_followed_by_reconnect_and_status_query_preserves_o
     beurer_instance._color_on = False
 
     # 1. Physical button pressed: emits 0xE8
-    e8_payload = bytearray([0xFE, 0xEF, 0x0C, 0x0B, 0xAB, 0xBB, 0x06, 0xE8, 0x00, 0x00, 0x00, 0xEE, 0x55, 0x0D, 0x0A])
+    e8_payload = bytearray(
+        [
+            0xFE,
+            0xEF,
+            0x0C,
+            0x0B,
+            0xAB,
+            0xBB,
+            0x06,
+            0xE8,
+            0x00,
+            0x00,
+            0x00,
+            0xEE,
+            0x55,
+            0x0D,
+            0x0A,
+        ]
+    )
     char = MagicMock()
     await beurer_instance.notification_handler(char, e8_payload)
 
@@ -109,15 +149,36 @@ async def test_button_turn_on_followed_by_reconnect_and_status_query_preserves_o
 
     # When active status arrives, state is updated
     ch1_payload = bytearray(
-        [0xFE, 0xEF, 0x0C, 0x0D, 0xAB, 0xBB, 0x08, 0xD0, 0x01, 0x01, 0x64, 0x00, 0x00, 0x2B, 0x55, 0x0D, 0x0A]
+        [
+            0xFE,
+            0xEF,
+            0x0C,
+            0x0D,
+            0xAB,
+            0xBB,
+            0x08,
+            0xD0,
+            0x01,
+            0x01,
+            0x64,
+            0x00,
+            0x00,
+            0x2B,
+            0x55,
+            0x0D,
+            0x0A,
+        ]
     )
     beurer_instance._last_notification_data = None
     await beurer_instance.notification_handler(char, ch1_payload)
     assert beurer_instance.is_on is True
     assert beurer_instance._light_on is True
 
+
 @pytest.mark.asyncio
-async def test_notification_burst_deduplication(beurer_instance: BeurerInstance) -> None:
+async def test_notification_burst_deduplication(
+    beurer_instance: BeurerInstance,
+) -> None:
     """Test that identical notifications received within 0.3s are ignored to eliminate burst log storms."""
     char = MagicMock()
     update_count = 0
@@ -129,7 +190,25 @@ async def test_notification_burst_deduplication(beurer_instance: BeurerInstance)
     beurer_instance.set_update_callback(on_update)
     beurer_instance._is_on = False
 
-    payload = bytearray([0xFE, 0xEF, 0x0C, 0x0B, 0xAB, 0xBB, 0x06, 0xE8, 0x00, 0x00, 0x00, 0xEE, 0x55, 0x0D, 0x0A])
+    payload = bytearray(
+        [
+            0xFE,
+            0xEF,
+            0x0C,
+            0x0B,
+            0xAB,
+            0xBB,
+            0x06,
+            0xE8,
+            0x00,
+            0x00,
+            0x00,
+            0xEE,
+            0x55,
+            0x0D,
+            0x0A,
+        ]
+    )
 
     # First packet is handled
     await beurer_instance.notification_handler(char, payload)
@@ -141,8 +220,11 @@ async def test_notification_burst_deduplication(beurer_instance: BeurerInstance)
 
     assert update_count == 1
 
+
 @pytest.mark.asyncio
-async def test_notification_handler_boundary_conditions(beurer_instance: BeurerInstance) -> None:
+async def test_notification_handler_boundary_conditions(
+    beurer_instance: BeurerInstance,
+) -> None:
     """Test notification_handler handles edge case payloads safely."""
     char = MagicMock()
 
@@ -158,9 +240,11 @@ async def test_notification_handler_boundary_conditions(beurer_instance: BeurerI
     # Unknown channel
     with patch("custom_components.beurer.beurer.LOGGER") as mock_logger:
         await beurer_instance.notification_handler(
-            char, bytearray([0xFE, 0xEF, 0x0C, 0x08, 0xAB, 0xBB, 0x03, 0xD0, 0x99, 0x01])
+            char,
+            bytearray([0xFE, 0xEF, 0x0C, 0x08, 0xAB, 0xBB, 0x03, 0xD0, 0x99, 0x01]),
         )
         assert any("unknown notification channel" in str(call).lower() for call in mock_logger.debug.call_args_list)
+
 
 @pytest.mark.asyncio
 async def test_notification_handler_channel_1_off_status_packet(
@@ -172,13 +256,34 @@ async def test_notification_handler_channel_1_off_status_packet(
     beurer_instance._color_on = False
 
     # Status packet: cmd 0xD0, channel 1 (daylight), state 0 (off), brightness 40
-    payload = bytearray([0xFE, 0xEF, 0x0C, 0x0D, 0xAB, 0xBB, 0x08, 0xD0, 0x01, 0x00, 0x28, 0x00, 0x78, 0x2B, 0x55, 0x0D, 0x0A])
+    payload = bytearray(
+        [
+            0xFE,
+            0xEF,
+            0x0C,
+            0x0D,
+            0xAB,
+            0xBB,
+            0x08,
+            0xD0,
+            0x01,
+            0x00,
+            0x28,
+            0x00,
+            0x78,
+            0x2B,
+            0x55,
+            0x0D,
+            0x0A,
+        ]
+    )
     char = MagicMock()
     await beurer_instance.notification_handler(char, payload)
 
     assert beurer_instance.is_on is False
     assert beurer_instance._light_on is False
     assert beurer_instance._color_on is False
+
 
 @pytest.mark.asyncio
 async def test_notification_handler_channel_2_off_status_packet(
@@ -222,8 +327,11 @@ async def test_notification_handler_channel_2_off_status_packet(
     assert beurer_instance._light_on is False
     assert beurer_instance._color_on is False
 
+
 @pytest.mark.asyncio
-async def test_notification_handler_channel_color(beurer_instance: BeurerInstance) -> None:
+async def test_notification_handler_channel_color(
+    beurer_instance: BeurerInstance,
+) -> None:
     """Test handling status channel 2 (RGB color state)."""
     callback_called = False
 
@@ -253,8 +361,11 @@ async def test_notification_handler_channel_color(beurer_instance: BeurerInstanc
     assert beurer_instance.rgb_color == (255, 255, 255)
     assert beurer_instance.effect == "Off"
 
+
 @pytest.mark.asyncio
-async def test_notification_handler_channel_color_timer_status(beurer_instance: BeurerInstance) -> None:
+async def test_notification_handler_channel_color_timer_status(
+    beurer_instance: BeurerInstance,
+) -> None:
     """Test notification_handler parses timer active and remaining fields on color channel."""
     char = MagicMock()
 
@@ -316,6 +427,7 @@ async def test_notification_handler_channel_color_timer_status(beurer_instance: 
     assert beurer_instance.timer_active is False
     assert beurer_instance.timer_minutes_remaining == 0
 
+
 @pytest.mark.asyncio
 async def test_notification_handler_channel_off_preserves_other_active_channel(
     beurer_instance: BeurerInstance,
@@ -347,6 +459,7 @@ async def test_notification_handler_channel_off_preserves_other_active_channel(
     assert beurer_instance._light_on is False
     assert beurer_instance._color_on is True
 
+
 @pytest.mark.asyncio
 async def test_notification_handler_channel_off_preserves_state(
     beurer_instance: BeurerInstance,
@@ -364,8 +477,11 @@ async def test_notification_handler_channel_off_preserves_state(
     assert beurer_instance._light_on is True
     assert beurer_instance._color_on is False
 
+
 @pytest.mark.asyncio
-async def test_notification_handler_channel_shutdown(beurer_instance: BeurerInstance) -> None:
+async def test_notification_handler_channel_shutdown(
+    beurer_instance: BeurerInstance,
+) -> None:
     """Test handling status channel 0 (device shutdown notification)."""
     beurer_instance._is_on = True
     beurer_instance._light_on = True
@@ -379,8 +495,11 @@ async def test_notification_handler_channel_shutdown(beurer_instance: BeurerInst
     assert beurer_instance._light_on is False
     assert beurer_instance._color_on is False
 
+
 @pytest.mark.asyncio
-async def test_notification_handler_channel_white(beurer_instance: BeurerInstance) -> None:
+async def test_notification_handler_channel_white(
+    beurer_instance: BeurerInstance,
+) -> None:
     """Test handling status channel 1 (white daylight state)."""
     callback_called = False
 
@@ -401,8 +520,11 @@ async def test_notification_handler_channel_white(beurer_instance: BeurerInstanc
     assert beurer_instance.white_brightness == int(50 * 255 / 100)
     assert callback_called is True
 
+
 @pytest.mark.asyncio
-async def test_notification_handler_channel_white_timer_status(beurer_instance: BeurerInstance) -> None:
+async def test_notification_handler_channel_white_timer_status(
+    beurer_instance: BeurerInstance,
+) -> None:
     """Test notification_handler parses timer active and remaining fields on white channel."""
     char = MagicMock()
 
@@ -494,6 +616,7 @@ async def test_notification_handler_channel_white_timer_status(beurer_instance: 
     assert beurer_instance.timer_active is False
     assert beurer_instance.timer_minutes_remaining == 0
 
+
 @pytest.mark.asyncio
 async def test_notification_handler_event_e8_ignores_duplicate_burst(
     beurer_instance: BeurerInstance,
@@ -508,7 +631,25 @@ async def test_notification_handler_event_e8_ignores_duplicate_burst(
 
     beurer_instance.set_update_callback(update_callback)
 
-    payload = bytearray([0xFE, 0xEF, 0x0C, 0x0B, 0xAB, 0xBB, 0x06, 0xE8, 0x00, 0x00, 0x00, 0xEE, 0x55, 0x0D, 0x0A])
+    payload = bytearray(
+        [
+            0xFE,
+            0xEF,
+            0x0C,
+            0x0B,
+            0xAB,
+            0xBB,
+            0x06,
+            0xE8,
+            0x00,
+            0x00,
+            0x00,
+            0xEE,
+            0x55,
+            0x0D,
+            0x0A,
+        ]
+    )
     char = MagicMock()
 
     # First 0xE8 packet turns on
@@ -521,7 +662,25 @@ async def test_notification_handler_event_e8_ignores_duplicate_burst(
         await beurer_instance.notification_handler(char, payload)
 
     # Different payload bytes with same 0xE8 opcode hits duplicate command check
-    payload_diff_e8 = bytearray([0xFE, 0xEF, 0x0C, 0x0B, 0xAB, 0xBB, 0x06, 0xE8, 0x00, 0x00, 0x01, 0xEF, 0x55, 0x0D, 0x0A])
+    payload_diff_e8 = bytearray(
+        [
+            0xFE,
+            0xEF,
+            0x0C,
+            0x0B,
+            0xAB,
+            0xBB,
+            0x06,
+            0xE8,
+            0x00,
+            0x00,
+            0x01,
+            0xEF,
+            0x55,
+            0x0D,
+            0x0A,
+        ]
+    )
     await beurer_instance.notification_handler(char, payload_diff_e8)
 
     assert beurer_instance.is_on is True
@@ -536,6 +695,7 @@ async def test_notification_handler_event_e8_ignores_duplicate_burst(
     assert beurer_instance.is_on is False
     assert update_count == 2
 
+
 @pytest.mark.asyncio
 async def test_notification_handler_event_e8_toggles_off(
     beurer_instance: BeurerInstance,
@@ -545,13 +705,32 @@ async def test_notification_handler_event_e8_toggles_off(
     beurer_instance._light_on = True
     beurer_instance._color_on = False
 
-    payload = bytearray([0xFE, 0xEF, 0x0C, 0x0B, 0xAB, 0xBB, 0x06, 0xE8, 0x00, 0x00, 0x00, 0xEE, 0x55, 0x0D, 0x0A])
+    payload = bytearray(
+        [
+            0xFE,
+            0xEF,
+            0x0C,
+            0x0B,
+            0xAB,
+            0xBB,
+            0x06,
+            0xE8,
+            0x00,
+            0x00,
+            0x00,
+            0xEE,
+            0x55,
+            0x0D,
+            0x0A,
+        ]
+    )
     char = MagicMock()
     await beurer_instance.notification_handler(char, payload)
 
     assert beurer_instance.is_on is False
     assert beurer_instance._light_on is False
     assert beurer_instance._color_on is False
+
 
 @pytest.mark.asyncio
 async def test_notification_handler_event_e8_turns_on_sets_brightness(
@@ -561,7 +740,25 @@ async def test_notification_handler_event_e8_turns_on_sets_brightness(
     beurer_instance._is_on = False
     beurer_instance._brightness = None
 
-    payload = bytearray([0xFE, 0xEF, 0x0C, 0x0B, 0xAB, 0xBB, 0x06, 0xE8, 0x00, 0x00, 0x00, 0xEE, 0x55, 0x0D, 0x0A])
+    payload = bytearray(
+        [
+            0xFE,
+            0xEF,
+            0x0C,
+            0x0B,
+            0xAB,
+            0xBB,
+            0x06,
+            0xE8,
+            0x00,
+            0x00,
+            0x00,
+            0xEE,
+            0x55,
+            0x0D,
+            0x0A,
+        ]
+    )
     char = MagicMock()
     await beurer_instance.notification_handler(char, payload)
 
@@ -569,6 +766,7 @@ async def test_notification_handler_event_e8_turns_on_sets_brightness(
     assert beurer_instance._light_on is True
     assert beurer_instance._mode == ColorMode.WHITE
     assert beurer_instance._brightness == 255
+
 
 @pytest.mark.asyncio
 async def test_notification_handler_event_eb_ignores_duplicate_burst(
@@ -586,7 +784,23 @@ async def test_notification_handler_event_eb_ignores_duplicate_burst(
 
     beurer_instance.set_update_callback(update_callback)
 
-    payload = bytearray([0xFE, 0xEF, 0x0C, 0x09, 0xAB, 0xBB, 0x04, CMD_EVENT_LIGHT_TIMER_END, 0x00, 0xEE, 0x55, 0x0D, 0x0A])
+    payload = bytearray(
+        [
+            0xFE,
+            0xEF,
+            0x0C,
+            0x09,
+            0xAB,
+            0xBB,
+            0x04,
+            CMD_EVENT_LIGHT_TIMER_END,
+            0x00,
+            0xEE,
+            0x55,
+            0x0D,
+            0x0A,
+        ]
+    )
     char = MagicMock()
 
     await beurer_instance.notification_handler(char, payload)
@@ -599,12 +813,27 @@ async def test_notification_handler_event_eb_ignores_duplicate_burst(
 
     # Different payload bytes with same 0xEB opcode hits duplicate command check
     payload_diff_eb = bytearray(
-        [0xFE, 0xEF, 0x0C, 0x09, 0xAB, 0xBB, 0x04, CMD_EVENT_LIGHT_TIMER_END, 0x01, 0xEF, 0x55, 0x0D, 0x0A]
+        [
+            0xFE,
+            0xEF,
+            0x0C,
+            0x09,
+            0xAB,
+            0xBB,
+            0x04,
+            CMD_EVENT_LIGHT_TIMER_END,
+            0x01,
+            0xEF,
+            0x55,
+            0x0D,
+            0x0A,
+        ]
     )
     await beurer_instance.notification_handler(char, payload_diff_eb)
 
     assert beurer_instance.is_on is False
     assert update_count == 1
+
 
 @pytest.mark.asyncio
 async def test_notification_handler_event_eb_preserves_moodlight_when_on(
@@ -622,7 +851,23 @@ async def test_notification_handler_event_eb_preserves_moodlight_when_on(
 
     beurer_instance.set_update_callback(update_callback)
 
-    payload = bytearray([0xFE, 0xEF, 0x0C, 0x09, 0xAB, 0xBB, 0x04, CMD_EVENT_LIGHT_TIMER_END, 0x00, 0xEE, 0x55, 0x0D, 0x0A])
+    payload = bytearray(
+        [
+            0xFE,
+            0xEF,
+            0x0C,
+            0x09,
+            0xAB,
+            0xBB,
+            0x04,
+            CMD_EVENT_LIGHT_TIMER_END,
+            0x00,
+            0xEE,
+            0x55,
+            0x0D,
+            0x0A,
+        ]
+    )
     char = MagicMock()
     await beurer_instance.notification_handler(char, payload)
 
@@ -630,6 +875,7 @@ async def test_notification_handler_event_eb_preserves_moodlight_when_on(
     assert beurer_instance._light_on is False
     assert beurer_instance._color_on is True
     assert callback_called is True
+
 
 @pytest.mark.asyncio
 async def test_notification_handler_event_eb_turns_off_daylight(
@@ -648,7 +894,23 @@ async def test_notification_handler_event_eb_turns_off_daylight(
     beurer_instance.set_update_callback(update_callback)
 
     # Packet for 0xEB (RESPONSE_LIGHT_TIMER_END)
-    payload = bytearray([0xFE, 0xEF, 0x0C, 0x09, 0xAB, 0xBB, 0x04, CMD_EVENT_LIGHT_TIMER_END, 0x00, 0xEE, 0x55, 0x0D, 0x0A])
+    payload = bytearray(
+        [
+            0xFE,
+            0xEF,
+            0x0C,
+            0x09,
+            0xAB,
+            0xBB,
+            0x04,
+            CMD_EVENT_LIGHT_TIMER_END,
+            0x00,
+            0xEE,
+            0x55,
+            0x0D,
+            0x0A,
+        ]
+    )
     char = MagicMock()
     await beurer_instance.notification_handler(char, payload)
 
@@ -656,6 +918,7 @@ async def test_notification_handler_event_eb_turns_off_daylight(
     assert beurer_instance._light_on is False
     assert beurer_instance._color_on is False
     assert callback_called is True
+
 
 @pytest.mark.asyncio
 async def test_notification_handler_event_ec_ignores_duplicate_burst(
@@ -673,7 +936,23 @@ async def test_notification_handler_event_ec_ignores_duplicate_burst(
 
     beurer_instance.set_update_callback(update_callback)
 
-    payload = bytearray([0xFE, 0xEF, 0x0C, 0x09, 0xAB, 0xBB, 0x04, CMD_EVENT_MOONLIGHT_TIMER_END, 0x00, 0xEE, 0x55, 0x0D, 0x0A])
+    payload = bytearray(
+        [
+            0xFE,
+            0xEF,
+            0x0C,
+            0x09,
+            0xAB,
+            0xBB,
+            0x04,
+            CMD_EVENT_MOONLIGHT_TIMER_END,
+            0x00,
+            0xEE,
+            0x55,
+            0x0D,
+            0x0A,
+        ]
+    )
     char = MagicMock()
 
     await beurer_instance.notification_handler(char, payload)
@@ -686,12 +965,27 @@ async def test_notification_handler_event_ec_ignores_duplicate_burst(
 
     # Different payload bytes with same 0xEC opcode hits duplicate command check
     payload_diff_ec = bytearray(
-        [0xFE, 0xEF, 0x0C, 0x09, 0xAB, 0xBB, 0x04, CMD_EVENT_MOONLIGHT_TIMER_END, 0x01, 0xEF, 0x55, 0x0D, 0x0A]
+        [
+            0xFE,
+            0xEF,
+            0x0C,
+            0x09,
+            0xAB,
+            0xBB,
+            0x04,
+            CMD_EVENT_MOONLIGHT_TIMER_END,
+            0x01,
+            0xEF,
+            0x55,
+            0x0D,
+            0x0A,
+        ]
     )
     await beurer_instance.notification_handler(char, payload_diff_ec)
 
     assert beurer_instance.is_on is False
     assert update_count == 1
+
 
 @pytest.mark.asyncio
 async def test_notification_handler_event_ec_preserves_daylight_when_on(
@@ -709,7 +1003,23 @@ async def test_notification_handler_event_ec_preserves_daylight_when_on(
 
     beurer_instance.set_update_callback(update_callback)
 
-    payload = bytearray([0xFE, 0xEF, 0x0C, 0x09, 0xAB, 0xBB, 0x04, CMD_EVENT_MOONLIGHT_TIMER_END, 0x00, 0xEE, 0x55, 0x0D, 0x0A])
+    payload = bytearray(
+        [
+            0xFE,
+            0xEF,
+            0x0C,
+            0x09,
+            0xAB,
+            0xBB,
+            0x04,
+            CMD_EVENT_MOONLIGHT_TIMER_END,
+            0x00,
+            0xEE,
+            0x55,
+            0x0D,
+            0x0A,
+        ]
+    )
     char = MagicMock()
     await beurer_instance.notification_handler(char, payload)
 
@@ -717,6 +1027,7 @@ async def test_notification_handler_event_ec_preserves_daylight_when_on(
     assert beurer_instance._light_on is True
     assert beurer_instance._color_on is False
     assert callback_called is True
+
 
 @pytest.mark.asyncio
 async def test_notification_handler_event_ec_turns_off_moodlight(
@@ -735,7 +1046,23 @@ async def test_notification_handler_event_ec_turns_off_moodlight(
     beurer_instance.set_update_callback(update_callback)
 
     # Packet for 0xEC (RESPONSE_MOONLIGHT_TIMER_END)
-    payload = bytearray([0xFE, 0xEF, 0x0C, 0x09, 0xAB, 0xBB, 0x04, CMD_EVENT_MOONLIGHT_TIMER_END, 0x00, 0xEE, 0x55, 0x0D, 0x0A])
+    payload = bytearray(
+        [
+            0xFE,
+            0xEF,
+            0x0C,
+            0x09,
+            0xAB,
+            0xBB,
+            0x04,
+            CMD_EVENT_MOONLIGHT_TIMER_END,
+            0x00,
+            0xEE,
+            0x55,
+            0x0D,
+            0x0A,
+        ]
+    )
     char = MagicMock()
     await beurer_instance.notification_handler(char, payload)
 
@@ -744,8 +1071,11 @@ async def test_notification_handler_event_ec_turns_off_moodlight(
     assert beurer_instance._color_on is False
     assert callback_called is True
 
+
 @pytest.mark.asyncio
-async def test_notification_handler_permission_response(beurer_instance: BeurerInstance) -> None:
+async def test_notification_handler_permission_response(
+    beurer_instance: BeurerInstance,
+) -> None:
     """Test that permission responses (0xF0) are handled safely without corrupting state."""
     beurer_instance._is_on = False
     payload = bytearray([0xFE, 0xEF, 0x0C, 0x09, 0xAB, 0xBB, 0x04, 0xF0, 0x02, 0x2B, 0x55, 0x0D, 0x0A])
@@ -753,6 +1083,7 @@ async def test_notification_handler_permission_response(beurer_instance: BeurerI
     await beurer_instance.notification_handler(char, payload)
 
     assert beurer_instance.is_on is False
+
 
 @pytest.mark.asyncio
 async def test_notification_handler_short_ack_packet_preserves_state(
@@ -772,12 +1103,16 @@ async def test_notification_handler_short_ack_packet_preserves_state(
     assert beurer_instance._light_on is True
     assert beurer_instance._color_on is False
 
+
 @pytest.mark.asyncio
-async def test_notification_handler_short_packet(beurer_instance: BeurerInstance) -> None:
+async def test_notification_handler_short_packet(
+    beurer_instance: BeurerInstance,
+) -> None:
     """Test handling malformed short packets without raising exceptions."""
     char = MagicMock()
     await beurer_instance.notification_handler(char, bytearray([0, 1, 2]))
     # Should safely return without crash
+
 
 @pytest.mark.asyncio
 async def test_notification_handler_short_status_packet_updates_state(
@@ -788,7 +1123,25 @@ async def test_notification_handler_short_status_packet_updates_state(
     beurer_instance._light_on = False
 
     # payload_len = 6 (cmd 0xD0, channel 1, state 1, brightness 50)
-    payload = bytearray([0xFE, 0xEF, 0x0C, 0x0B, 0xAB, 0xBB, 0x06, 0xD0, 0x01, 0x01, 0x32, 0x00, 0x55, 0x0D, 0x0A])
+    payload = bytearray(
+        [
+            0xFE,
+            0xEF,
+            0x0C,
+            0x0B,
+            0xAB,
+            0xBB,
+            0x06,
+            0xD0,
+            0x01,
+            0x01,
+            0x32,
+            0x00,
+            0x55,
+            0x0D,
+            0x0A,
+        ]
+    )
     char = MagicMock()
     await beurer_instance.notification_handler(char, payload)
 
@@ -797,8 +1150,11 @@ async def test_notification_handler_short_status_packet_updates_state(
     assert beurer_instance.color_mode == ColorMode.WHITE
     assert beurer_instance.white_brightness == int(50 * 255 / 100)
 
+
 @pytest.mark.asyncio
-async def test_timer_reset_on_e8_shutdown_and_events(beurer_instance: BeurerInstance) -> None:
+async def test_timer_reset_on_e8_shutdown_and_events(
+    beurer_instance: BeurerInstance,
+) -> None:
     """Test timer resets on button shutdown (0xE8) and timer-end notifications (0xEB, 0xEC)."""
     char = MagicMock()
     beurer_instance._is_on = True
@@ -837,3 +1193,66 @@ async def test_timer_reset_on_e8_shutdown_and_events(beurer_instance: BeurerInst
     assert beurer_instance.timer_active is False
     assert beurer_instance.timer_minutes_remaining == 0
 
+
+@pytest.mark.asyncio
+async def test_timer_duration_confirmation_tracks_lamp_state(
+    beurer_instance: BeurerInstance,
+) -> None:
+    """Test the confirmed timer duration follows what the lamp acknowledged."""
+    char = MagicMock()
+
+    # Unknown until the lamp reports or the timer is enabled.
+    assert beurer_instance._timer_lamp_duration is None
+
+    # A white-channel status packet carrying 45 minutes confirms the duration.
+    status = bytearray(
+        [
+            0xFE,
+            0xEF,
+            0x0C,
+            0x0E,
+            0xAB,
+            0xBB,
+            0x09,
+            0xD0,  # CMD_STATUS_RESPONSE
+            0x01,  # CHANNEL_WHITE
+            0x01,  # State ON
+            0x50,  # Brightness
+            0x01,  # Timer active
+            0x2D,  # 45 minutes remaining
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+        ]
+    )
+    await beurer_instance.notification_handler(char, status)
+    assert beurer_instance._timer_lamp_duration == 45
+
+    # The lamp turning the channel off clears the confirmed duration again.
+    beurer_instance._last_notification_cmd = None
+    off_status = bytearray(
+        [
+            0xFE,
+            0xEF,
+            0x0C,
+            0x0E,
+            0xAB,
+            0xBB,
+            0x09,
+            0xD0,  # CMD_STATUS_RESPONSE
+            0x01,  # CHANNEL_WHITE
+            0x00,  # State OFF
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+            0x00,
+        ]
+    )
+    await beurer_instance.notification_handler(char, off_status)
+    assert beurer_instance._timer_lamp_duration is None

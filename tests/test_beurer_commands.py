@@ -68,6 +68,7 @@ async def test_enable_and_disable_timer(beurer_instance: BeurerInstance) -> None
     assert beurer_instance.timer_minutes_remaining == 0
     assert len(sent_packets) == 0
 
+
 @pytest.mark.asyncio
 async def test_set_color(beurer_instance: BeurerInstance) -> None:
     """Test setting RGB color sends packet with correct RGB bytes."""
@@ -90,6 +91,7 @@ async def test_set_color(beurer_instance: BeurerInstance) -> None:
     assert beurer_instance.color_mode == ColorMode.RGB
     assert beurer_instance.rgb_color == (12, 34, 56)
 
+
 @pytest.mark.asyncio
 async def test_set_color_brightness(beurer_instance: BeurerInstance) -> None:
     """Test setting color brightness sends packet with mode 0x02."""
@@ -110,6 +112,7 @@ async def test_set_color_brightness(beurer_instance: BeurerInstance) -> None:
     assert packet[9] == 100
     assert beurer_instance.color_mode == ColorMode.RGB
 
+
 @pytest.mark.asyncio
 async def test_set_color_brightness_enables_color_channel_when_off(beurer_instance: BeurerInstance) -> None:
     """Test set_color_brightness enables color channel if not previously on."""
@@ -129,6 +132,7 @@ async def test_set_color_brightness_enables_color_channel_when_off(beurer_instan
     assert pkt1[7] == 0x37
     assert pkt1[8] == 0x02
     assert beurer_instance._color_brightness == 200
+
 
 @pytest.mark.asyncio
 async def test_set_color_enables_color_channel_when_off(beurer_instance: BeurerInstance) -> None:
@@ -151,6 +155,7 @@ async def test_set_color_enables_color_channel_when_off(beurer_instance: BeurerI
     assert pkt1[7] == 0x37
     assert pkt1[8] == 0x02
     assert beurer_instance.is_on is True
+
 
 @pytest.mark.asyncio
 async def test_set_color_turns_off_active_white_channel(beurer_instance: BeurerInstance) -> None:
@@ -175,6 +180,7 @@ async def test_set_color_turns_off_active_white_channel(beurer_instance: BeurerI
     assert pkt1[8] == 0x01
     assert beurer_instance.color_mode == ColorMode.RGB
 
+
 @pytest.mark.asyncio
 async def test_set_effect(beurer_instance: BeurerInstance) -> None:
     """Test set_effect switches to RGB mode, turns off white, and sets effect."""
@@ -197,6 +203,7 @@ async def test_set_effect(beurer_instance: BeurerInstance) -> None:
     assert beurer_instance.color_mode == ColorMode.RGB
     assert beurer_instance.effect == "Rainbow"
     assert beurer_instance.is_on is True
+
 
 @pytest.mark.asyncio
 async def test_set_white_caps_at_99_percent(beurer_instance: BeurerInstance) -> None:
@@ -224,6 +231,7 @@ async def test_set_white_caps_at_99_percent(beurer_instance: BeurerInstance) -> 
     assert intensity_byte == 99  # NOT 100!
     assert beurer_instance.color_mode == ColorMode.WHITE
 
+
 @pytest.mark.asyncio
 async def test_set_white_enables_white_channel_when_off(beurer_instance: BeurerInstance) -> None:
     """Test set_white enables white channel if not previously on."""
@@ -245,6 +253,7 @@ async def test_set_white_enables_white_channel_when_off(beurer_instance: BeurerI
     assert pkt1[8] == 0x01
     assert beurer_instance.white_brightness == 180
 
+
 @pytest.mark.asyncio
 async def test_set_white_lower_percentages(beurer_instance: BeurerInstance) -> None:
     """Test that white brightness below 100% scales linearly."""
@@ -261,6 +270,7 @@ async def test_set_white_lower_percentages(beurer_instance: BeurerInstance) -> N
     await beurer_instance.set_white(128)
     packet = list(sent_packets[0])
     assert packet[9] == 50
+
 
 @pytest.mark.asyncio
 async def test_set_white_turns_off_active_color_channel(beurer_instance: BeurerInstance) -> None:
@@ -286,6 +296,7 @@ async def test_set_white_turns_off_active_color_channel(beurer_instance: BeurerI
     assert beurer_instance.color_mode == ColorMode.WHITE
     assert beurer_instance.rgb_color == (255, 255, 255)
     assert beurer_instance.effect == "Off"
+
 
 @pytest.mark.asyncio
 async def test_timer_properties_and_duration_configuration(beurer_instance: BeurerInstance) -> None:
@@ -337,6 +348,11 @@ async def test_timer_properties_and_duration_configuration(beurer_instance: Beur
     assert beurer_instance.timer_duration == 30
     assert len(sent_packets) == 0
 
+    # Changing the duration while the lamp is off must not leave a countdown
+    # behind that the lamp never received.
+    assert beurer_instance.timer_minutes_remaining == 0
+    assert beurer_instance._timer_lamp_duration is None
+
     # Setting duration while timer active updates minutes remaining
     beurer_instance._is_on = True
     beurer_instance._timer_active = True
@@ -351,6 +367,7 @@ async def test_timer_properties_and_duration_configuration(beurer_instance: Beur
     pkt_rgb = list(sent_packets[0])
     assert pkt_rgb[8] == 0x02  # CHANNEL_COLOR
     assert pkt_rgb[9] == 120
+
 
 @pytest.mark.asyncio
 async def test_turn_off(beurer_instance: BeurerInstance) -> None:
@@ -379,6 +396,7 @@ async def test_turn_off(beurer_instance: BeurerInstance) -> None:
     assert beurer_instance._color_on is False
     assert beurer_instance.color_mode == ColorMode.WHITE
 
+
 @pytest.mark.asyncio
 async def test_turn_on_defaults_to_white_mode(beurer_instance: BeurerInstance) -> None:
     """Test that turn_on defaults to white daylight channel and initializes brightness."""
@@ -401,6 +419,7 @@ async def test_turn_on_defaults_to_white_mode(beurer_instance: BeurerInstance) -
     assert pkt2[8] == 0x01
     assert beurer_instance.color_mode == ColorMode.WHITE
     assert beurer_instance.white_brightness == 255
+
 
 @pytest.mark.asyncio
 async def test_turn_on_in_rgb_mode(beurer_instance: BeurerInstance) -> None:
@@ -442,4 +461,3 @@ async def test_turn_on_in_rgb_mode(beurer_instance: BeurerInstance) -> None:
     assert len(sent_packets) == 3
     pkt_color = list(sent_packets[1])
     assert pkt_color[7] == 0x32  # CMD_SET_COLOR
-
