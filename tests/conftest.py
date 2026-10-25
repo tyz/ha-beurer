@@ -636,6 +636,27 @@ cc_mod = ModuleType("custom_components")
 cc_mod.__path__ = [str(ROOT / "custom_components")]  # type: ignore[attr-defined]
 sys.modules["custom_components"] = cc_mod
 
+import pytest
+from bleak import BLEDevice
+
+from custom_components.beurer.beurer import BeurerInstance
+
+
+@pytest.fixture
+def mock_device() -> BLEDevice:
+    """Return a mock BLEDevice."""
+    return BLEDevice("57:4C:42:80:71:BA", "TL100_71BA")
+
+
+@pytest.fixture
+def beurer_instance(mock_device: BLEDevice) -> BeurerInstance:
+    """Return an initialized BeurerInstance with mocked _write."""
+    instance = BeurerInstance(mock_device)
+    instance._write = AsyncMock()
+    instance._device = MagicMock()
+    instance._device.is_connected = True
+    return instance
+
 
 def pytest_configure(config: Any) -> None:
     """Register custom marks."""
