@@ -17,7 +17,8 @@ This repository is an actively maintained fork of [Deadolus/ha-beurer](https://g
 * **Full Moodlight Scenes / Effects**: Support for all 11 built-in moodlight effect presets (Rainbow, Rainbow Slow, Pulse, Wave, Forest, Summer, etc.).
 * **Hardware Countdown Timer Support**: Configurable countdown off-timer (1–120 minutes) exposed via dedicated Home Assistant `number`, `switch`, and `sensor` entities, with built-in safety preventing timer activation when the lamp is off.
 * **Duplicate-Packet Suppression**: The lamp repeats button and timer events up to five times; identical notifications inside a 0.3 s window are collapsed so a single physical press is a single state change.
-* **Reauthentication & Reconfiguration**: If the lamp becomes unreachable, Home Assistant offers a repair flow to re-validate it, and **Reconfigure** changes the MAC address or name in place, keeping entity IDs and automations intact.
+* **Reauthentication & Reconfiguration**: **Reconfigure** changes the MAC address or name in place, keeping entity IDs and automations intact, and the reauthentication flow re-validates a lamp whose address changed. A lamp that is only temporarily out of reach is retried automatically and shown as unavailable instead.
+* **Honest Availability**: Entities are marked unavailable whenever no BLE connection exists, so a lamp that cannot be controlled never looks as if it can.
 * **Hardware Timer-End Events**: Intercepts `0xEB` and `0xEC` BLE notifications to immediately update entity states when the lamp shuts off on timer completion.
 * **Reliable Connection Management & Serialization**: BLE writes are serialized using asynchronous locks and status queries are debounced to prevent packet collision and connection drops.
 * **Graceful Shutdown & Unload**: Properly cancels background reconnection tasks and disconnects cleanly when Home Assistant stops or the integration is reloaded.
@@ -66,7 +67,9 @@ If the lamp was factory reset, replaced, or renamed, open the integration entry,
 
 ### Reconnecting after the lamp becomes unreachable
 
-When the lamp cannot be found at its configured address, a **Repair** notification appears. Clicking it opens a form to re-check the connection, with the stored address prefilled, so you can correct it and re-validate without deleting the integration.
+While the lamp is unreachable its entities are reported as **unavailable**: it cannot be controlled, so Home Assistant does not pretend otherwise. The integration retries in the background and reconnects as soon as the lamp is reachable again — for example after you move it, after a Bluetooth proxy reboots, or after a power cut. The log shows a single line when the connection is lost and another when it returns, instead of one error per attempt.
+
+If the lamp is gone for good (sold, broken, or reset to a different address), use **Reconfigure** to point the entry at its new address, or delete the integration entry.
 
 ---
 

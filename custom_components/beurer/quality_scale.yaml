@@ -80,11 +80,15 @@ rules:
     comment: README documents the MAC address and name parameters.
   entity-unavailable:
     status: done
+    comment: Entities delegate to BeurerInstance.available, which follows the live connection.
   integration-owner:
     status: done
   log-when-unavailable:
     status: done
-    comment: Lost advertisements and failed connections are logged at debug and error level.
+    comment: |
+      The first failed reconnection is logged at INFO with a note that retrying
+      continues, further attempts stay at DEBUG, and a successful reconnect
+      logs one INFO line.
   parallel-updates:
     status: exempt
     comment: |
@@ -147,7 +151,10 @@ rules:
     status: done
   repair-issues:
     status: todo
-    comment: Unreachable lamps trigger reauth; a dedicated repair issue would be clearer.
+    comment: |
+      A lamp that is out of range is handled by retrying plus unavailable
+      entities, not by a repair. A dedicated repair issue for a lamp whose
+      address no longer matches would still be an improvement.
   stale-devices:
     status: exempt
     comment: The integration only ever registers the single device of its config entry.
