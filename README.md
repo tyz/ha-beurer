@@ -16,6 +16,8 @@ This repository is an actively maintained fork of [Deadolus/ha-beurer](https://g
 * **Independent Brightness & State Retention**: White daylight and RGB moodlight brightness levels are tracked and scaled independently (0–255 in Home Assistant, 1–100% on hardware).
 * **Full Moodlight Scenes / Effects**: Support for all 11 built-in moodlight effect presets (Rainbow, Rainbow Slow, Pulse, Wave, Forest, Summer, etc.).
 * **Hardware Countdown Timer Support**: Configurable countdown off-timer (1–120 minutes) exposed via dedicated Home Assistant `number`, `switch`, and `sensor` entities, with built-in safety preventing timer activation when the lamp is off.
+* **Duplicate-Packet Suppression**: The lamp repeats button and timer events up to five times; identical notifications inside a 0.3 s window are collapsed so a single physical press is a single state change.
+* **Reauthentication & Reconfiguration**: If the lamp becomes unreachable, Home Assistant offers a repair flow to re-validate it, and **Reconfigure** changes the MAC address or name in place, keeping entity IDs and automations intact.
 * **Hardware Timer-End Events**: Intercepts `0xEB` and `0xEC` BLE notifications to immediately update entity states when the lamp shuts off on timer completion.
 * **Reliable Connection Management & Serialization**: BLE writes are serialized using asynchronous locks and status queries are debounced to prevent packet collision and connection drops.
 * **Graceful Shutdown & Unload**: Properly cancels background reconnection tasks and disconnects cleanly when Home Assistant stops or the integration is reloaded.
@@ -57,6 +59,14 @@ This repository is an actively maintained fork of [Deadolus/ha-beurer](https://g
 3. The setup flow will automatically scan for nearby Beurer lamps advertising over BLE. Select your lamp from the list, or select **Configure manually** to enter the Bluetooth MAC address directly.
 4. During setup, the integration will briefly toggle the lamp to confirm communication.
 5. If you have multiple Beurer lamps, repeat the setup process for each device.
+
+### Changing the address or name
+
+If the lamp was factory reset, replaced, or renamed, open the integration entry, click **⋮** and choose **Reconfigure**. You can adjust the MAC address and the name; the entry and its entity IDs are preserved. The integration verifies the new address by blinking the lamp before saving it, and refuses an address that belongs to a different lamp.
+
+### Reconnecting after the lamp becomes unreachable
+
+When the lamp cannot be found at its configured address, a **Repair** notification appears. Clicking it opens a form to re-check the connection, with the stored address prefilled, so you can correct it and re-validate without deleting the integration.
 
 ---
 

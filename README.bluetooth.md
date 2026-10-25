@@ -123,6 +123,10 @@ Returned in response to `0x30` query or after parameter adjustments:
 | `0xEC` | `RESPONSE_MOONLIGHT_TIMER_END` | Moodlight hardware timer set via BLE has elapsed; moodlight channel turned off automatically. Clients should turn off moodlight mode in state. |
 | `0xF0` | `RESPONSE_DEVICE_PERMISSION` | Permission response (`res[8] == 0x02` indicates control permission granted). |
 
+> **Duplicate Packet Suppression**: The lamp repeats `0xE8`, `0xEB` and `0xEC` events several times within a few milliseconds (bursts of up to five identical packets are observed). A client that acts on every copy would toggle the light on and off repeatedly. Implementations should therefore drop a notification whose bytes are identical to the previous one when it arrives within a short window; this integration uses 0.3 s (`NOTIFICATION_DUPLICATE_WINDOW`).
+>
+> The window compares the whole packet, so it applies to every notification, `0xD0` status responses included. That is safe in practice because the lamp only repeats a status packet when the state it reports has not changed, and because the next *different* notification resets the comparison.
+
 ---
 
 ## 6. Moodlight Scenes / Effects
