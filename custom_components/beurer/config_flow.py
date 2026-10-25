@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Mapping
 from typing import Any
 
 import voluptuous as vol
@@ -17,6 +18,13 @@ from .const import DOMAIN, LOGGER
 
 MANUAL_MAC: str = "manual"
 
+# Contexts in which the shared validate step runs. The step needs to know
+# whether a successful blink test has to create a new entry, refresh the data
+# of the existing entry (reauth) or apply the new settings (reconfigure).
+MODE_INITIAL: str = "initial"
+MODE_REAUTH: str = "reauth"
+MODE_RECONFIGURE: str = "reconfigure"
+
 
 class BeurerFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore[call-arg]
     """Handle a config flow for Beurer BLE integration."""
@@ -29,6 +37,34 @@ class BeurerFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):  # type: igno
         self.mac: str | None = None
         self.beurer_instance: BeurerInstance | None = None
         self.name: str | None = None
+        self._mode: str = MODE_INITIAL
+
+    def _current_title(self) -> str:
+        """Return the title to give the config entry.
+
+        Returns:
+            The existing title during reauth, otherwise the configured name.
+        """
+        if self._mode == MODE_REAUTH:
+            return self._get_reauth_entry().title
+        return self.name or "Beurer TL 100"
+
+    def _finish(self) -> FlowResult:
+        """Finish the flow according to the current mode.
+
+        Returns:
+            FlowResult creating a new entry, or updating the existing one.
+        """
+        data = {CONF_MAC: self.mac, "name": self.name}
+        if self._mode == MODE_REAUTH:
+            return self.async_update_reload_and_abort(self._get_reauth_entry(), data=data)
+        if self._mode == MODE_RECONFIGURE:
+            return self.async_update_reload_and_abort(
+                self._get_reconfigure_entry(),
+                title=self.name or "Beurer TL 100",
+                data=data,
+            )
+        return self.async_create_entry(title=self._current_title(), data=data)
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         """Handle the initial user setup step.
@@ -109,16 +145,20 @@ class BeurerFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):  # type: igno
     async def async_step_validate(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         """Validate connection by blinking the light.
 
+        This step is shared by the initial setup, the reauthentication and the
+        reconfiguration flows; ``_mode`` decides what a successful blink test
+        results in.
+
         Args:
             user_input: User validation feedback.
 
         Returns:
-            FlowResult creating entry, aborting, or prompting retry.
+            FlowResult creating or updating the entry, aborting, or prompting retry.
         """
         if user_input is not None:
             if "flicker" in user_input:
                 if user_input["flicker"]:
-                    return self.async_create_entry(title=self.name or "Beurer", data={CONF_MAC: self.mac, "name": self.name})
+                    return self._finish()
                 return self.async_abort(reason="cannot_validate")
 
             if "retry" in user_input and not user_input["retry"]:
@@ -151,6 +191,82 @@ class BeurerFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):  # type: igno
 
         return self.async_show_form(
             step_id="manual", data_schema=vol.Schema({vol.Required("mac"): str, vol.Required("name"): str}), errors={}
+        )
+
+    async def async_step_reauth(self, entry_data: Mapping[str, Any]) -> FlowResult:
+        """Start reauthentication for an existing entry.
+
+        ``async_setup_entry`` calls ``entry.async_start_reauth`` when the lamp
+        is no longer reachable at its stored address, which lands the user here.
+
+        Args:
+            entry_data: Current data of the config entry.
+
+        Returns:
+            FlowResult showing the reauth confirmation form.
+        """
+        self._mode = MODE_REAUTH
+        self.mac = entry_data.get(CONF_MAC)
+        self.name = entry_data.get("name")
+        self.context["title_placeholders"] = {"name": self.name or "Beurer TL 100"}
+        return await self.async_step_reauth_confirm()
+
+    async def async_step_reauth_confirm(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+        """Let the user fix the address of the lamp before validating again.
+
+        Args:
+            user_input: Submitted MAC address and name.
+
+        Returns:
+            FlowResult showing the form, advancing to validation, or updating the entry.
+        """
+        if user_input is not None:
+            self.mac = user_input["mac"]
+            self.name = user_input["name"]
+            return await self.async_step_validate()
+
+        return self.async_show_form(
+            step_id="reauth_confirm",
+            data_schema=vol.Schema(
+                {
+                    vol.Required("mac", default=self.mac or ""): str,
+                    vol.Required("name", default=self.name or "Beurer TL 100"): str,
+                }
+            ),
+            description_placeholders={"name": self.name or "Beurer TL 100"},
+            errors={},
+        )
+
+    async def async_step_reconfigure(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+        """Let the user change the address or name of an existing entry.
+
+        Args:
+            user_input: Submitted MAC address and name.
+
+        Returns:
+            FlowResult showing the form, advancing to validation, or updating the entry.
+        """
+        self._mode = MODE_RECONFIGURE
+        entry = self._get_reconfigure_entry()
+        if user_input is not None:
+            self.mac = user_input["mac"]
+            self.name = user_input["name"]
+            await self.async_set_unique_id(format_mac(self.mac))
+            self._abort_if_unique_id_mismatch(reason="wrong_device")
+            return await self.async_step_validate()
+
+        self.mac = entry.data.get(CONF_MAC)
+        self.name = entry.data.get("name")
+        return self.async_show_form(
+            step_id="reconfigure",
+            data_schema=vol.Schema(
+                {
+                    vol.Required("mac", default=self.mac or ""): str,
+                    vol.Required("name", default=self.name or "Beurer TL 100"): str,
+                }
+            ),
+            description_placeholders={"name": self.name or "Beurer TL 100"},
+            errors={},
         )
 
     async def toggle_light(self) -> Exception | None:

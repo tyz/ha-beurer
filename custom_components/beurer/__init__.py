@@ -36,6 +36,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     address: str = entry.data[CONF_MAC]
     device = bluetooth.async_ble_device_from_address(hass, address, connectable=True)
     if device is None:
+        LOGGER.debug("Lamp %s not in range, starting reauthentication flow", address)
+        entry.async_start_reauth(hass)
         raise ConfigEntryNotReady(f"Was not able to find device with mac {address}")
 
     instance = BeurerInstance(device)

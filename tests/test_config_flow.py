@@ -5,8 +5,11 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from custom_components.beurer.config_flow import BeurerFlowHandler
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import CONF_MAC
 from homeassistant.data_entry_flow import AbortFlow
+
+from custom_components.beurer.config_flow import BeurerFlowHandler
 
 
 @pytest.mark.asyncio
@@ -107,7 +110,10 @@ async def test_flow_user_step_with_discovered_devices() -> None:
     mock_dev.name = "TL100 Lamp"
 
     flow = BeurerFlowHandler()
-    with patch("custom_components.beurer.config_flow.discover", AsyncMock(return_value=[mock_dev])):
+    with patch(
+        "custom_components.beurer.config_flow.discover",
+        AsyncMock(return_value=[mock_dev]),
+    ):
         result = await flow.async_step_user(None)
         assert result["type"] == "form"
         assert result["step_id"] == "user"
@@ -210,8 +216,14 @@ async def test_flow_toggle_light_uses_hass_bluetooth() -> None:
     flow.mac = "AA:BB:CC:DD:EE:FF"
 
     with (
-        patch("homeassistant.components.bluetooth.async_ble_device_from_address", return_value=mock_device),
-        patch("custom_components.beurer.config_flow.BeurerInstance", return_value=mock_instance),
+        patch(
+            "homeassistant.components.bluetooth.async_ble_device_from_address",
+            return_value=mock_device,
+        ),
+        patch(
+            "custom_components.beurer.config_flow.BeurerInstance",
+            return_value=mock_instance,
+        ),
         patch("asyncio.sleep", AsyncMock()),
     ):
         error = await flow.toggle_light()
@@ -236,8 +248,14 @@ async def test_flow_toggle_light_when_light_initially_off() -> None:
     flow.mac = "AA:BB:CC:DD:EE:FF"
 
     with (
-        patch("custom_components.beurer.config_flow.get_device", AsyncMock(return_value=mock_device)),
-        patch("custom_components.beurer.config_flow.BeurerInstance", return_value=mock_instance),
+        patch(
+            "custom_components.beurer.config_flow.get_device",
+            AsyncMock(return_value=mock_device),
+        ),
+        patch(
+            "custom_components.beurer.config_flow.BeurerInstance",
+            return_value=mock_instance,
+        ),
         patch("asyncio.sleep", AsyncMock()),
     ):
         error = await flow.toggle_light()
@@ -259,8 +277,14 @@ async def test_flow_toggle_light_catches_exception() -> None:
     flow.mac = "AA:BB:CC:DD:EE:FF"
 
     with (
-        patch("custom_components.beurer.config_flow.get_device", AsyncMock(return_value=mock_device)),
-        patch("custom_components.beurer.config_flow.BeurerInstance", return_value=mock_instance),
+        patch(
+            "custom_components.beurer.config_flow.get_device",
+            AsyncMock(return_value=mock_device),
+        ),
+        patch(
+            "custom_components.beurer.config_flow.BeurerInstance",
+            return_value=mock_instance,
+        ),
     ):
         error = await flow.toggle_light()
         assert isinstance(error, RuntimeError)
@@ -287,8 +311,14 @@ async def test_flow_toggle_light_bluetooth_attribute_error_falls_back() -> None:
             "homeassistant.components.bluetooth.async_ble_device_from_address",
             side_effect=AttributeError("no attribute"),
         ),
-        patch("custom_components.beurer.config_flow.get_device", AsyncMock(return_value=mock_device)),
-        patch("custom_components.beurer.config_flow.BeurerInstance", return_value=mock_instance),
+        patch(
+            "custom_components.beurer.config_flow.get_device",
+            AsyncMock(return_value=mock_device),
+        ),
+        patch(
+            "custom_components.beurer.config_flow.BeurerInstance",
+            return_value=mock_instance,
+        ),
         patch("asyncio.sleep", AsyncMock()),
     ):
         error = await flow.toggle_light()
@@ -311,9 +341,172 @@ async def test_flow_toggle_light_reuses_existing_instance() -> None:
     flow.beurer_instance = mock_instance
 
     with (
-        patch("custom_components.beurer.config_flow.get_device", AsyncMock(return_value=mock_device)),
+        patch(
+            "custom_components.beurer.config_flow.get_device",
+            AsyncMock(return_value=mock_device),
+        ),
         patch("asyncio.sleep", AsyncMock()),
     ):
         error = await flow.toggle_light()
         assert error is None
         mock_instance.set_device.assert_called_once_with(mock_device)
+
+
+def _make_reauth_flow(flow: BeurerFlowHandler) -> BeurerFlowHandler:
+    """Attach a reauth entry to the flow, mirroring what Home Assistant does."""
+    flow._set_reauth_entry(
+        ConfigEntry(
+            entry_id="reauth_entry",
+            data={CONF_MAC: "AA:BB:CC:DD:EE:FF", "name": "Old Lamp"},
+        )
+    )
+    return flow
+
+
+@pytest.mark.asyncio
+async def test_flow_reauth_starts_with_confirm_form_prefilled() -> None:
+    """Test reauth shows a prefilled form with the currently stored address."""
+    flow = _make_reauth_flow(BeurerFlowHandler())
+
+    result = await flow.async_step_reauth({CONF_MAC: "AA:BB:CC:DD:EE:FF", "name": "Old Lamp"})
+
+    assert result["type"] == "form"
+    assert result["step_id"] == "reauth_confirm"
+    assert flow.mac == "AA:BB:CC:DD:EE:FF"
+    assert flow.name == "Old Lamp"
+    assert flow.context["title_placeholders"] == {"name": "Old Lamp"}
+
+
+@pytest.mark.asyncio
+async def test_flow_reauth_confirm_moves_to_validate() -> None:
+    """Test submitting corrected credentials advances to the blink validation."""
+    flow = _make_reauth_flow(BeurerFlowHandler())
+    await flow.async_step_reauth({CONF_MAC: "AA:BB:CC:DD:EE:FF", "name": "Old Lamp"})
+
+    with patch.object(flow, "toggle_light", AsyncMock(return_value=None)):
+        result = await flow.async_step_reauth_confirm({CONF_MAC: "11:22:33:44:55:66", "name": "New Lamp"})
+
+    assert flow.mac == "11:22:33:44:55:66"
+    assert flow.name == "New Lamp"
+    assert result["type"] == "form"
+    assert result["step_id"] == "validate"
+
+
+@pytest.mark.asyncio
+async def test_flow_reauth_success_updates_existing_entry() -> None:
+    """Test a confirmed blink during reauth updates the entry instead of creating one."""
+    flow = _make_reauth_flow(BeurerFlowHandler())
+    await flow.async_step_reauth({CONF_MAC: "AA:BB:CC:DD:EE:FF", "name": "Old Lamp"})
+    await flow.async_step_reauth_confirm({CONF_MAC: "11:22:33:44:55:66", "name": "New Lamp"})
+
+    result = await flow.async_step_validate({"flicker": True})
+
+    assert result["type"] == "abort"
+    assert result["reason"] == "reauth_successful"
+    assert result["data_updates"] == {CONF_MAC: "11:22:33:44:55:66", "name": "New Lamp"}
+
+
+@pytest.mark.asyncio
+async def test_flow_reauth_keeps_existing_title() -> None:
+    """Test reauth does not rename the entry, even though the name is editable."""
+    flow = _make_reauth_flow(BeurerFlowHandler())
+    await flow.async_step_reauth({CONF_MAC: "AA:BB:CC:DD:EE:FF", "name": "Old Lamp"})
+    await flow.async_step_reauth_confirm({CONF_MAC: "AA:BB:CC:DD:EE:FF", "name": "Renamed By Accident"})
+
+    assert flow._current_title() == flow._get_reauth_entry().title
+
+
+@pytest.mark.asyncio
+async def test_flow_reconfigure_shows_prefilled_form() -> None:
+    """Test reconfigure shows the current address and name."""
+    flow = BeurerFlowHandler()
+    flow._set_reconfigure_entry(
+        ConfigEntry(
+            entry_id="existing",
+            data={CONF_MAC: "AA:BB:CC:DD:EE:FF", "name": "Desk Lamp"},
+            unique_id="aabbccddeeff",
+        )
+    )
+
+    result = await flow.async_step_reconfigure(None)
+
+    assert result["type"] == "form"
+    assert result["step_id"] == "reconfigure"
+    assert flow.mac == "AA:BB:CC:DD:EE:FF"
+    assert flow.name == "Desk Lamp"
+
+
+@pytest.mark.asyncio
+async def test_flow_reconfigure_success_updates_entry_and_title() -> None:
+    """Test a confirmed reconfigure updates the stored data and the entry title."""
+    entry = ConfigEntry(
+        entry_id="existing",
+        data={CONF_MAC: "AA:BB:CC:DD:EE:FF", "name": "Desk Lamp"},
+        unique_id="aabbccddeeff",
+    )
+    flow = BeurerFlowHandler()
+    flow._set_reconfigure_entry(entry)
+    await flow.async_step_reconfigure(None)
+
+    with patch.object(flow, "toggle_light", AsyncMock(return_value=None)):
+        result = await flow.async_step_reconfigure({CONF_MAC: "AA:BB:CC:DD:EE:FF", "name": "Bedroom Lamp"})
+
+    assert result["step_id"] == "validate"
+
+    result = await flow.async_step_validate({"flicker": True})
+    assert result["type"] == "abort"
+    assert result["reason"] == "reauth_successful"
+    assert result["title"] == "Bedroom Lamp"
+    assert result["data_updates"] == {
+        CONF_MAC: "AA:BB:CC:DD:EE:FF",
+        "name": "Bedroom Lamp",
+    }
+
+
+@pytest.mark.asyncio
+async def test_flow_reconfigure_aborts_for_different_lamp() -> None:
+    """Test changing the MAC address to another lamp is rejected."""
+    entry = ConfigEntry(
+        entry_id="existing",
+        data={CONF_MAC: "AA:BB:CC:DD:EE:FF", "name": "Desk Lamp"},
+        unique_id="aabbccddeeff",
+    )
+    flow = BeurerFlowHandler()
+    flow._set_reconfigure_entry(entry)
+    await flow.async_step_reconfigure(None)
+
+    with pytest.raises(AbortFlow) as exc_info:
+        await flow.async_step_reconfigure({CONF_MAC: "11:22:33:44:55:66", "name": "Desk Lamp"})
+
+    assert exc_info.value.reason == "wrong_device"
+
+
+@pytest.mark.asyncio
+async def test_flow_reconfigure_validate_failure_aborts() -> None:
+    """Test declining the retry during reconfigure aborts without touching the entry."""
+    flow = BeurerFlowHandler()
+    flow._set_reconfigure_entry(
+        ConfigEntry(
+            entry_id="existing",
+            data={CONF_MAC: "AA:BB:CC:DD:EE:FF"},
+            unique_id="aabbccddeeff",
+        )
+    )
+    await flow.async_step_reconfigure(None)
+
+    result = await flow.async_step_validate({"retry": False})
+    assert result["type"] == "abort"
+    assert result["reason"] == "cannot_connect"
+
+
+@pytest.mark.asyncio
+async def test_flow_initial_validate_still_creates_entry() -> None:
+    """Test the shared validate step still creates a new entry during setup."""
+    flow = BeurerFlowHandler()
+    flow.mac = "AA:BB:CC:DD:EE:FF"
+    flow.name = None
+
+    result = await flow.async_step_validate({"flicker": True})
+
+    assert result["type"] == "create_entry"
+    assert result["title"] == "Beurer TL 100"

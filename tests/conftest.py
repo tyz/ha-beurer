@@ -143,6 +143,9 @@ def _setup_mock_modules() -> None:
         class ConfigEntryNotReady(Exception):
             pass
 
+        class ConfigEntryAuthFailed(Exception):
+            pass
+
         class HomeAssistantError(Exception):
             def __init__(
                 self,
@@ -157,6 +160,7 @@ def _setup_mock_modules() -> None:
                 self.translation_placeholders = translation_placeholders
 
         ha_exc.ConfigEntryNotReady = ConfigEntryNotReady  # type: ignore[attr-defined]
+        ha_exc.ConfigEntryAuthFailed = ConfigEntryAuthFailed  # type: ignore[attr-defined]
         ha_exc.HomeAssistantError = HomeAssistantError  # type: ignore[attr-defined]
         sys.modules["homeassistant.exceptions"] = ha_exc
 
@@ -183,15 +187,20 @@ def _setup_mock_modules() -> None:
                 version: int = 1,
                 domain: str = "beurer",
                 title: str = "Beurer",
+                unique_id: str | None = None,
             ) -> None:
                 self.entry_id = entry_id
                 self.data = data or {}
                 self.version = version
                 self.domain = domain
                 self.title = title
+                self.unique_id = unique_id
 
             def async_on_unload(self, func: Any) -> None:
                 pass
+
+            def async_start_reauth(self, hass: Any, data: Any = None) -> None:
+                self.reauth_started = True
 
         class ConfigFlow:
             _domain: str | None = None
@@ -210,6 +219,31 @@ def _setup_mock_modules() -> None:
             def _abort_if_unique_id_configured(self) -> None:
                 if self._unique_id and self._unique_id in self._async_current_ids():
                     raise AbortFlow("already_configured")
+
+            def _abort_if_unique_id_mismatch(self, reason: str = "unique_id_mismatch") -> None:
+                entry = getattr(self, "_reconfigure_entry", None)
+                if entry is not None and entry.unique_id != self._unique_id:
+                    raise AbortFlow(reason)
+
+            def _get_reauth_entry(self) -> ConfigEntry:
+                return self._reauth_entry
+
+            def _get_reconfigure_entry(self) -> ConfigEntry:
+                return self._reconfigure_entry
+
+            def _set_reauth_entry(self, entry: ConfigEntry) -> None:
+                self._reauth_entry = entry
+
+            def _set_reconfigure_entry(self, entry: ConfigEntry) -> None:
+                self._reconfigure_entry = entry
+
+            def async_update_reload_and_abort(self, entry: ConfigEntry, **kwargs: Any) -> dict[str, Any]:
+                return {
+                    "type": "abort",
+                    "reason": "reauth_successful",
+                    "data_updates": kwargs.get("data"),
+                    "title": kwargs.get("title"),
+                }
 
             def _set_confirm_only(self) -> None:
                 pass

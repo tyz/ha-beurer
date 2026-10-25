@@ -7,12 +7,13 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from bleak import BLEDevice
-from custom_components.beurer import PLATFORMS, async_setup_entry, async_unload_entry
-from custom_components.beurer.const import DOMAIN
 from homeassistant.components import bluetooth
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_MAC, Platform
 from homeassistant.exceptions import ConfigEntryNotReady
+
+from custom_components.beurer import PLATFORMS, async_setup_entry, async_unload_entry
+from custom_components.beurer.const import DOMAIN
 
 
 @pytest.fixture
@@ -44,6 +45,18 @@ async def test_async_setup_entry_device_not_found_raises_config_entry_not_ready(
         pytest.raises(ConfigEntryNotReady),
     ):
         await async_setup_entry(mock_hass, mock_entry)
+
+
+@pytest.mark.asyncio
+async def test_async_setup_entry_device_not_found_starts_reauth(mock_hass: MagicMock, mock_entry: ConfigEntry) -> None:
+    """Test that an unreachable lamp triggers the reauthentication flow."""
+    with (
+        patch.object(bluetooth, "async_ble_device_from_address", return_value=None),
+        pytest.raises(ConfigEntryNotReady),
+    ):
+        await async_setup_entry(mock_hass, mock_entry)
+
+    assert mock_entry.reauth_started is True
 
 
 @pytest.mark.asyncio

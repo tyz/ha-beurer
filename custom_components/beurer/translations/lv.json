@@ -26,6 +26,22 @@
       "bluetooth_confirm": {
         "title": "Atrasts Beurer TL 100",
         "description": "Vai vēlaties iestatīt {name}?"
+      },
+      "reauth_confirm": {
+        "title": "Reconnect Beurer TL 100",
+        "description": "The lamp at the configured address can no longer be reached. Check that it is powered on and in range, and correct the MAC address if it changed.",
+        "data": {
+          "mac": "Bluetooth MAC address",
+          "name": "Name"
+        }
+      },
+      "reconfigure": {
+        "title": "Reconfigure Beurer TL 100",
+        "description": "Update the address or name of {name}.",
+        "data": {
+          "mac": "Bluetooth MAC address",
+          "name": "Name"
+        }
       }
     },
     "error": {
@@ -34,7 +50,10 @@
     "abort": {
       "already_configured": "Ierīce jau ir konfigurēta",
       "cannot_connect": "Nevar izveidot savienojumu ar Beurer",
-      "cannot_validate": "Nevar pārbaudīt Beurer gaismekli"
+      "cannot_validate": "Nevar pārbaudīt Beurer gaismekli",
+      "reauth_successful": "Reauthentication was successful",
+      "reconfigure_successful": "Reconfiguration was successful",
+      "wrong_device": "The MAC address belongs to a different lamp"
     }
   },
   "exceptions": {
