@@ -141,6 +141,18 @@ def _setup_mock_modules() -> None:
         ha_exc.HomeAssistantError = HomeAssistantError  # type: ignore[attr-defined]
         sys.modules["homeassistant.exceptions"] = ha_exc
 
+        # data_entry_flow
+        ha_def = ModuleType("homeassistant.data_entry_flow")
+        ha_def.FlowResult = dict[str, Any]  # type: ignore[attr-defined]
+
+        class AbortFlow(Exception):
+            def __init__(self, reason: str, **kwargs: Any) -> None:
+                super().__init__(reason)
+                self.reason = reason
+
+        ha_def.AbortFlow = AbortFlow  # type: ignore[attr-defined]
+        sys.modules["homeassistant.data_entry_flow"] = ha_def
+
         # config_entries
         ha_ce = ModuleType("homeassistant.config_entries")
 
@@ -155,18 +167,41 @@ def _setup_mock_modules() -> None:
         class ConfigFlow:
             _domain: str | None = None
 
+            def __init__(self) -> None:
+                self.context: dict[str, Any] = {}
+                self._unique_id: str | None = None
+
             def __init_subclass__(cls, domain: str | None = None, **kwargs: Any) -> None:
                 super().__init_subclass__(**kwargs)
                 cls._domain = domain
 
             async def async_set_unique_id(self, unique_id: str) -> None:
+                self._unique_id = unique_id
+
+            def _abort_if_unique_id_configured(self) -> None:
+                if self._unique_id and self._unique_id in self._async_current_ids():
+                    raise AbortFlow("already_configured")
+
+            def _set_confirm_only(self) -> None:
                 pass
 
             def _async_current_ids(self, include_ignore: bool = False) -> set[str]:
                 return set()
 
-            def async_show_form(self, step_id: str, data_schema: Any, errors: dict[str, str]) -> dict[str, Any]:
-                return {"type": "form", "step_id": step_id, "data_schema": data_schema, "errors": errors}
+            def async_show_form(
+                self,
+                step_id: str,
+                data_schema: Any = None,
+                errors: dict[str, str] | None = None,
+                description_placeholders: dict[str, str] | None = None,
+            ) -> dict[str, Any]:
+                return {
+                    "type": "form",
+                    "step_id": step_id,
+                    "data_schema": data_schema,
+                    "errors": errors or {},
+                    "description_placeholders": description_placeholders or {},
+                }
 
             def async_create_entry(self, title: str, data: dict[str, Any]) -> dict[str, Any]:
                 return {"type": "create_entry", "title": title, "data": data}
@@ -177,11 +212,6 @@ def _setup_mock_modules() -> None:
         ha_ce.ConfigEntry = ConfigEntry  # type: ignore[attr-defined]
         ha_ce.ConfigFlow = ConfigFlow  # type: ignore[attr-defined]
         sys.modules["homeassistant.config_entries"] = ha_ce
-
-        # data_entry_flow
-        ha_def = ModuleType("homeassistant.data_entry_flow")
-        ha_def.FlowResult = dict[str, Any]  # type: ignore[attr-defined]
-        sys.modules["homeassistant.data_entry_flow"] = ha_def
 
         # components
         ha_comp = ModuleType("homeassistant.components")

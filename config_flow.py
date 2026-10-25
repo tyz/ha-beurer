@@ -7,6 +7,7 @@ from typing import Any
 
 import voluptuous as vol
 from homeassistant import config_entries
+from homeassistant.components.bluetooth import BluetoothServiceInfoBleak
 from homeassistant.const import CONF_MAC
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers.device_registry import format_mac
@@ -24,6 +25,7 @@ class BeurerFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):  # type: igno
 
     def __init__(self) -> None:
         """Initialize the config flow."""
+        super().__init__()
         self.mac: str | None = None
         self.beurer_instance: BeurerInstance | None = None
         self.name: str | None = None
@@ -44,6 +46,7 @@ class BeurerFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):  # type: igno
             self.mac = user_input["mac"]
             self.name = user_input["name"]
             await self.async_set_unique_id(format_mac(self.mac))
+            self._abort_if_unique_id_configured()
             return await self.async_step_validate()
 
         already_configured = self._async_current_ids(False)
@@ -67,6 +70,40 @@ class BeurerFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):  # type: igno
                 }
             ),
             errors={},
+        )
+
+    async def async_step_bluetooth(self, discovery_info: BluetoothServiceInfoBleak) -> FlowResult:
+        """Handle bluetooth discovery step.
+
+        Args:
+            discovery_info: Discovery information from Bluetooth advertisement.
+
+        Returns:
+            FlowResult moving to bluetooth confirmation form or aborting.
+        """
+        await self.async_set_unique_id(format_mac(discovery_info.address))
+        self._abort_if_unique_id_configured()
+        self.mac = discovery_info.address
+        self.name = discovery_info.name or "TL 100"
+        self.context["title_placeholders"] = {"name": self.name}
+        return await self.async_step_bluetooth_confirm()
+
+    async def async_step_bluetooth_confirm(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+        """Confirm discovery of a Beurer device.
+
+        Args:
+            user_input: User submission on confirmation.
+
+        Returns:
+            FlowResult proceeding to validation form or showing confirmation form.
+        """
+        if user_input is not None:
+            return await self.async_step_validate()
+
+        self._set_confirm_only()
+        return self.async_show_form(
+            step_id="bluetooth_confirm",
+            description_placeholders={"name": self.name or "Beurer TL 100"},
         )
 
     async def async_step_validate(self, user_input: dict[str, Any] | None = None) -> FlowResult:
@@ -109,6 +146,7 @@ class BeurerFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):  # type: igno
             self.mac = user_input["mac"]
             self.name = user_input["name"]
             await self.async_set_unique_id(format_mac(self.mac))
+            self._abort_if_unique_id_configured()
             return await self.async_step_validate()
 
         return self.async_show_form(
