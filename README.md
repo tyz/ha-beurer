@@ -20,7 +20,7 @@ This repository is an actively maintained fork of [Deadolus/ha-beurer](https://g
 * **Reconfiguration**: **Reconfigure** renames the entry in place, keeping entity IDs and automations intact, and re-validates that the lamp answers before saving. The Bluetooth address is deliberately not editable, because entity unique IDs derive from it. A lamp that is only temporarily out of reach is retried automatically and shown as unavailable instead.
 * **Honest Availability**: Entities are marked unavailable whenever no BLE connection exists, so a lamp that cannot be controlled never looks as if it can.
 * **Hardware Timer-End Events**: Intercepts `0xEB` and `0xEC` BLE notifications to immediately update entity states when the lamp shuts off on timer completion.
-* **Reliable Connection Management & Serialization**: BLE writes are serialized using asynchronous locks and status queries are debounced to prevent packet collision and connection drops.
+* **Reliable Connection Management & Serialization**: whole commands are serialized, not just single frames, so a two-frame sequence such as enabling the timer can never be interrupted by another entity; status queries are debounced to prevent packet collision and connection drops.
 * **Graceful Shutdown & Unload**: Properly cancels background reconnection tasks and disconnects cleanly when Home Assistant stops or the integration is reloaded.
 * **Protocol Documentation**: Added a comprehensive BLE protocol specification in [`README.bluetooth.md`](README.bluetooth.md).
 * **Automated Unit Tests**: Added a full test suite with mock fixtures covering BLE communication, state parsing, and Home Assistant entity lifecycles.

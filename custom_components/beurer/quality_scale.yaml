@@ -13,8 +13,11 @@ rules:
   appropriate-polling:
     status: exempt
     comment: |
-      BLE has no polling loop. Entities are driven by GATT notifications and a
-      debounced status query after each command.
+      State is pushed over GATT notifications, and every command is followed by a
+      debounced status query rather than a polling loop. The light entity keeps a
+      single 60 s status poll as a resync path for notifications missed while the
+      BLE link was down; the timer entities disable polling because they only
+      mirror notification data.
   brands:
     status: done
     comment: Icons and logos ship in custom_components/beurer/brand.
@@ -80,7 +83,12 @@ rules:
     status: done
     comment: Entities delegate to BeurerInstance.available, which follows the live connection.
   integration-owner:
-    status: done
+    status: exempt
+    comment: |
+      manifest.json lists no codeowner, because this is a fork maintained outside
+      Home Assistant core and the upstream handle in the original manifest would
+      be wrong to claim. A codeowner is added when the integration is submitted
+      upstream.
   log-when-unavailable:
     status: done
     comment: |
@@ -90,8 +98,11 @@ rules:
   parallel-updates:
     status: exempt
     comment: |
-      Entities do not implement async_update entities; BLE writes are serialized
-      by an internal lock inside BeurerInstance.
+      Every logical command is serialised by a single command lock inside
+      BeurerInstance, because a command such as enabling the timer is two frames
+      with a pause in between and must not interleave with another entity's
+      frames. Status queries take the same lock, so the number cannot be left for
+      Home Assistant to manage.
   reauthentication-flow:
     status: exempt
     comment: |
