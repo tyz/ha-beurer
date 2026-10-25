@@ -688,7 +688,7 @@ class BeurerInstance:
                         self._mode = ColorMode.WHITE
                     elif self._color_on:
                         self._mode = ColorMode.RGB
-                LOGGER.info("Triggered update")
+                LOGGER.debug("Triggered update")
                 await self.trigger_entity_update()
 
     async def trigger_entity_update(self) -> None:
@@ -974,10 +974,10 @@ class BeurerInstance:
                     LOGGER.error("No supported read/write UUIDs found")
                     return False
 
-                LOGGER.info("Read UUID: %s, Write UUID: %s", self._read_uuid, self._write_uuid)
+                LOGGER.debug("Read UUID: %s, Write UUID: %s", self._read_uuid, self._write_uuid)
 
                 await asyncio.sleep(0.1)
-                LOGGER.info("Starting notifications")
+                LOGGER.debug("Starting notifications")
 
                 await self._device.start_notify(self._read_uuid, self.notification_handler)
 
