@@ -4,13 +4,13 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, override
 
-import voluptuous as vol
+import probatio as vol
 from homeassistant import config_entries
 from homeassistant.components.bluetooth import BluetoothServiceInfoBleak
+from homeassistant.config_entries import ConfigFlowResult
 from homeassistant.const import CONF_MAC
-from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers.device_registry import format_mac
 
 from .beurer import BeurerInstance, discover, get_device
@@ -26,7 +26,7 @@ MODE_REAUTH: str = "reauth"
 MODE_RECONFIGURE: str = "reconfigure"
 
 
-class BeurerFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore[call-arg]
+class BeurerFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Beurer BLE integration."""
 
     VERSION: int = 1
@@ -49,11 +49,11 @@ class BeurerFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):  # type: igno
             return self._get_reauth_entry().title
         return self.name or "Beurer TL 100"
 
-    def _finish(self) -> FlowResult:
+    def _finish(self) -> ConfigFlowResult:
         """Finish the flow according to the current mode.
 
         Returns:
-            FlowResult creating a new entry, or updating the existing one.
+            ConfigFlowResult creating a new entry, or updating the existing one.
         """
         data = {CONF_MAC: self.mac, "name": self.name}
         if self._mode == MODE_REAUTH:
@@ -66,14 +66,15 @@ class BeurerFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):  # type: igno
             )
         return self.async_create_entry(title=self._current_title(), data=data)
 
-    async def async_step_user(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+    @override
+    async def async_step_user(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Handle the initial user setup step.
 
         Args:
             user_input: User submitted form data.
 
         Returns:
-            FlowResult showing form or transitioning to next step.
+            ConfigFlowResult showing form or transitioning to next step.
         """
         if user_input is not None:
             if user_input["mac"] == MANUAL_MAC:
@@ -108,14 +109,15 @@ class BeurerFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):  # type: igno
             errors={},
         )
 
-    async def async_step_bluetooth(self, discovery_info: BluetoothServiceInfoBleak) -> FlowResult:
+    @override
+    async def async_step_bluetooth(self, discovery_info: BluetoothServiceInfoBleak) -> ConfigFlowResult:
         """Handle bluetooth discovery step.
 
         Args:
             discovery_info: Discovery information from Bluetooth advertisement.
 
         Returns:
-            FlowResult moving to bluetooth confirmation form or aborting.
+            ConfigFlowResult moving to bluetooth confirmation form or aborting.
         """
         await self.async_set_unique_id(format_mac(discovery_info.address))
         self._abort_if_unique_id_configured()
@@ -124,14 +126,14 @@ class BeurerFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):  # type: igno
         self.context["title_placeholders"] = {"name": self.name}
         return await self.async_step_bluetooth_confirm()
 
-    async def async_step_bluetooth_confirm(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+    async def async_step_bluetooth_confirm(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Confirm discovery of a Beurer device.
 
         Args:
             user_input: User submission on confirmation.
 
         Returns:
-            FlowResult proceeding to validation form or showing confirmation form.
+            ConfigFlowResult proceeding to validation form or showing confirmation form.
         """
         if user_input is not None:
             return await self.async_step_validate()
@@ -142,7 +144,7 @@ class BeurerFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):  # type: igno
             description_placeholders={"name": self.name or "Beurer TL 100"},
         )
 
-    async def async_step_validate(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+    async def async_step_validate(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Validate connection by blinking the light.
 
         This step is shared by the initial setup, the reauthentication and the
@@ -153,7 +155,7 @@ class BeurerFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):  # type: igno
             user_input: User validation feedback.
 
         Returns:
-            FlowResult creating or updating the entry, aborting, or prompting retry.
+            ConfigFlowResult creating or updating the entry, aborting, or prompting retry.
         """
         if user_input is not None:
             if "flicker" in user_input:
@@ -173,14 +175,14 @@ class BeurerFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):  # type: igno
 
         return self.async_show_form(step_id="validate", data_schema=vol.Schema({vol.Required("flicker"): bool}), errors={})
 
-    async def async_step_manual(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+    async def async_step_manual(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Manual MAC address entry step.
 
         Args:
             user_input: Submitted MAC and name.
 
         Returns:
-            FlowResult showing form or proceeding to validation.
+            ConfigFlowResult showing form or proceeding to validation.
         """
         if user_input is not None:
             self.mac = user_input["mac"]
@@ -193,7 +195,7 @@ class BeurerFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):  # type: igno
             step_id="manual", data_schema=vol.Schema({vol.Required("mac"): str, vol.Required("name"): str}), errors={}
         )
 
-    async def async_step_reauth(self, entry_data: Mapping[str, Any]) -> FlowResult:
+    async def async_step_reauth(self, entry_data: Mapping[str, Any]) -> ConfigFlowResult:
         """Start reauthentication for an existing entry.
 
         ``async_setup_entry`` calls ``entry.async_start_reauth`` when the lamp
@@ -203,7 +205,7 @@ class BeurerFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):  # type: igno
             entry_data: Current data of the config entry.
 
         Returns:
-            FlowResult showing the reauth confirmation form.
+            ConfigFlowResult showing the reauth confirmation form.
         """
         self._mode = MODE_REAUTH
         self.mac = entry_data.get(CONF_MAC)
@@ -211,14 +213,14 @@ class BeurerFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):  # type: igno
         self.context["title_placeholders"] = {"name": self.name or "Beurer TL 100"}
         return await self.async_step_reauth_confirm()
 
-    async def async_step_reauth_confirm(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+    async def async_step_reauth_confirm(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Let the user fix the address of the lamp before validating again.
 
         Args:
             user_input: Submitted MAC address and name.
 
         Returns:
-            FlowResult showing the form, advancing to validation, or updating the entry.
+            ConfigFlowResult showing the form, advancing to validation, or updating the entry.
         """
         if user_input is not None:
             self.mac = user_input["mac"]
@@ -237,14 +239,14 @@ class BeurerFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):  # type: igno
             errors={},
         )
 
-    async def async_step_reconfigure(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+    async def async_step_reconfigure(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Let the user change the address or name of an existing entry.
 
         Args:
             user_input: Submitted MAC address and name.
 
         Returns:
-            FlowResult showing the form, advancing to validation, or updating the entry.
+            ConfigFlowResult showing the form, advancing to validation, or updating the entry.
         """
         self._mode = MODE_RECONFIGURE
         entry = self._get_reconfigure_entry()
