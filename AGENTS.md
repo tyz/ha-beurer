@@ -202,6 +202,8 @@ changes nothing.
 * Linux (Debian/RaspberryPi OS, arm64), Python 3.14.
 * You run in an OCI container. Only `/project` and `/project/.opencode` (`$HOME`)
   survive a restart; installed packages live in `.opencode/.local`.
+* There is no SSH key here. `origin` is SSH and belongs to the human; push and
+  fetch over the `origin-https` remote, which authenticates through `gh`.
 * `bleak` 3.x has no top-level re-exports: import from `bleak.exc` and
   `bleak.backends.*`.
 * As of Home Assistant 2026.10, `probatio` replaces `voluptuous`; its exception is
