@@ -160,7 +160,10 @@ changes nothing.
 * Conventional Commits. One commit per type of change, so a pull request may hold
   several commits. Messages are multi-line: a summary line, then a body with the
   context and the key changes.
-* Merge with squash, then delete the branch.
+* The human merges. Squash, then delete the branch. Do not merge your own pull
+  request to "finish" the work: the review gate is the only thing the branch and
+  PR workflow adds over pushing to `main`, and merging it yourself removes it.
+  Merge only when explicitly asked to, in that message.
 * Other than a `commit`, perform no git actions — push, tag, force-push, deleting
   a remote branch — without the user's permission.
 
