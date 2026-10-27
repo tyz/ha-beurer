@@ -16,4 +16,3 @@ repos:
       - id: ruff-check
         args: [ "--fix" ]
       - id: ruff-format
-        args: ["--config", "line-length=128"]

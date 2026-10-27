@@ -174,6 +174,9 @@ changes nothing.
 * `README.bluetooth.md` is the protocol specification. Correct it when a capture
   or the decoded app contradicts it.
 * `quality_scale.yaml` must stay truthful; see above.
+* Documentation and skills hold rules and pointers, not snapshots: never copy a
+  count, version or status that the reader can obtain from the code or from a
+  test run.
 * Comments in code explain *why*, not *what*. If a workaround exists for a
   firmware bug, name the bug and where it was found.
 

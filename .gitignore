@@ -1,4 +1,5 @@
 .*
+!.agents
 !.gitignore
 !.github
 !.pre-commit-config.yaml
