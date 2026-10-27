@@ -1,0 +1,5 @@
+# Ruff is configured here rather than in pyproject.toml because this repository
+# has no pyproject.toml: it is a Home Assistant custom component, not a package.
+# Keeping the line length in one place means a manual `ruff format` matches what
+# pre-commit and CI do.
+line-length = 128
