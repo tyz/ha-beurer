@@ -196,7 +196,6 @@ changes nothing.
 ## Language
 
 * Code, comments, documentation and commit messages are **English**.
-* The conversation with the user is **Dutch** (informal, "je/jouw").
 * Keep translations in `translations/XX.json` key-synced with `strings.json` for
   these languages: af, ar, bg, bn, bs, ca, cs, cy, da, de, el, en-GB, en, eo,
   es-419, es, et, eu, fa, fi, fr, fy, ga, gsw, he, hi, hr, hu, hy, id, is, it, ja,
