@@ -6,6 +6,7 @@
             "local_name": "TL100*"
         }
     ],
+    "categories": ["lighting.bulbs_lamps"],
     "codeowners": ["@tyz"],
     "config_flow": true,
     "dependencies": [
