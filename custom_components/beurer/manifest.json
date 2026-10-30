@@ -1,6 +1,11 @@
 {
     "domain": "beurer",
     "name": "Beurer TL 100",
+    "bluetooth": [
+        {
+            "local_name": "TL100*"
+        }
+    ],
     "codeowners": ["@tyz"],
     "config_flow": true,
     "dependencies": [
@@ -11,11 +16,6 @@
     "issue_tracker": "https://github.com/tyz/ha-beurer/issues",
     "requirements": [
         "bleak-retry-connector>=4.7.0"
-    ],
-    "bluetooth": [
-        {
-            "local_name": "TL100*"
-        }
     ],
     "version": "1.0.0"
 }
