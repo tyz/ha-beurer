@@ -1,5 +1,8 @@
 # Beurer TL 100 for Home Assistant
 
+[![HACS](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
+[![Validate](https://github.com/tyz/ha-beurer/actions/workflows/validate.yml/badge.svg?branch=main)](https://github.com/tyz/ha-beurer/actions/workflows/validate.yml)
+
 A custom Home Assistant integration for controlling the **Beurer TL 100** daylight therapy and moodlight lamp (as well as compatible models like the WL 90 and WL 75) over Bluetooth Low Energy (BLE).
 
 This repository is an actively maintained fork of [Deadolus/ha-beurer](https://github.com/Deadolus/ha-beurer), updated to meet modern Home Assistant architectural standards and resolve long-standing connection and protocol bugs.
