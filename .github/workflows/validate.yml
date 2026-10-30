@@ -1,0 +1,51 @@
+---
+name: Validate
+
+# The two checks the HACS catalogue runs before it accepts a repository, kept out
+# of ci.yml because a failure here is about the repository as published, not
+# about the code: a missing topic, a description that went away, a brand image,
+# or a manifest that Home Assistant itself would reject.
+#
+# The catalogue refuses entries whose checks are silenced, so findings are fixed
+# here and never added to the action's `ignore` input.
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  schedule:
+    # Nothing in the repository has to change for this to break: a topic can be
+    # removed or a release deleted. The daily run is what notices.
+    - cron: "0 0 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  hassfest:
+    name: hassfest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Validates the integration against Home Assistant's own rules: manifest
+      # keys and values, translation structure, and the quality scale file.
+      - name: Hassfest validation
+        uses: home-assistant/actions/hassfest@master
+
+  hacs:
+    name: hacs
+    runs-on: ubuntu-latest
+    steps:
+      # Validates the repository requirements HACS reads at install time, which
+      # no other job looks at: description, topics, license, brand assets and
+      # the contents of hacs.json.
+      - name: HACS validation
+        uses: hacs/action@main
+        with:
+          category: integration
