@@ -6,6 +6,7 @@
             "local_name": "TL100*"
         }
     ],
+    "categories": ["lighting.bulbs_lamps"],
     "codeowners": ["@tyz"],
     "config_flow": true,
     "dependencies": [
@@ -17,5 +18,5 @@
     "requirements": [
         "bleak-retry-connector>=4.7.0"
     ],
-    "version": "1.0.0"
+    "version": "1.0.1"
 }
