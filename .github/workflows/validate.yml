@@ -13,6 +13,14 @@ on:
     branches: [main]
     tags: ["v*"]
   pull_request:
+    # Neither job is a required check, and neither reads documentation or tests,
+    # so a pull request that cannot change what they validate does not start
+    # them. The daily run below is what notices drift in the repository settings,
+    # which no file change can express anyway.
+    paths:
+      - "custom_components/**"
+      - "hacs.json"
+      - ".github/workflows/validate.yml"
   schedule:
     # Nothing in the repository has to change for this to break: a topic can be
     # removed or a release deleted. The daily run is what notices.
