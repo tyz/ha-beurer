@@ -2,6 +2,7 @@
 
 [![HACS](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
 [![Validate](https://github.com/tyz/ha-beurer/actions/workflows/validate.yml/badge.svg?branch=main)](https://github.com/tyz/ha-beurer/actions/workflows/validate.yml)
+[![CodeQL](https://github.com/tyz/ha-beurer/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/tyz/ha-beurer/actions/workflows/github-code-scanning/codeql)
 
 A custom Home Assistant integration for controlling the **Beurer TL 100** daylight therapy and moodlight lamp (as well as compatible models like the WL 90 and WL 75) over Bluetooth Low Energy (BLE).
 
