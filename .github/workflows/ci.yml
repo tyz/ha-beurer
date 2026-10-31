@@ -4,6 +4,12 @@ name: CI
 # Runs on every pull request and on every push to main. The push trigger is not
 # redundant: it keeps the check results on main itself, so a branch cannot gain a
 # green result on one commit and carry a stale one over to the next.
+#
+# A documentation-only pull request does not need mypy or pytest, but it does
+# need those two checks to report, because both are required by the ruleset. That
+# rules out `paths:` on the trigger: a workflow skipped by path filtering leaves
+# its checks "Pending" and blocks the pull request forever. A step skipped by a
+# condition reports success, so the jobs below decide for themselves.
 on:
   push:
     branches: [main]
@@ -38,19 +44,30 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Installs Home Assistant, which costs more than mypy itself, so it is the
+      # first thing a documentation-only change should skip.
+      - name: Decide whether the code changed
+        id: scope
+        run: echo "run=$(python scripts/ci_scope.py code)" >> "$GITHUB_OUTPUT"
 
       - uses: actions/setup-python@v5
+        if: steps.scope.outputs.run == 'true'
         with:
           python-version: "3.14"
           cache: pip
           cache-dependency-path: requirements_test.txt
 
       - name: Install dependencies
+        if: steps.scope.outputs.run == 'true'
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r requirements_test.txt mypy==2.4.0
 
       - name: Run mypy
+        if: steps.scope.outputs.run == 'true'
         run: python -m mypy custom_components/
 
   pytest:
@@ -58,19 +75,28 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Decide whether the code changed
+        id: scope
+        run: echo "run=$(python scripts/ci_scope.py code)" >> "$GITHUB_OUTPUT"
 
       - uses: actions/setup-python@v5
+        if: steps.scope.outputs.run == 'true'
         with:
           python-version: "3.14"
           cache: pip
           cache-dependency-path: requirements_test.txt
 
       - name: Install dependencies
+        if: steps.scope.outputs.run == 'true'
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r requirements_test.txt
 
       - name: Run tests
+        if: steps.scope.outputs.run == 'true'
         run: python -m pytest -v tests/
 
   manifest:
