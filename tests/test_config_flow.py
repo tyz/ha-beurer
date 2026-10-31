@@ -506,6 +506,143 @@ async def test_flow_reconfigure_validate_failure_aborts() -> None:
 
 
 @pytest.mark.asyncio
+async def test_flow_reconfigure_blinks_through_the_live_instance() -> None:
+    """Test reconfigure validates on the running instance instead of a second connection.
+
+    A lamp stops advertising while the loaded entry holds the connection, so
+    the advertisement cache cannot resolve its address and a fresh instance
+    would also open a second connection to a lamp that only accepts one. The
+    running instance is already connected and is the only usable handle.
+    """
+    entry = ConfigEntry(
+        entry_id="existing",
+        data={CONF_MAC: "AA:BB:CC:DD:EE:FF", "name": "Desk Lamp"},
+        unique_id="aabbccddeeff",
+    )
+    live_instance = MagicMock()
+    live_instance.is_on = False
+    live_instance.is_closing = False
+    live_instance.update = AsyncMock()
+    live_instance.turn_on = AsyncMock()
+    live_instance.turn_off = AsyncMock()
+    live_instance.disconnect = AsyncMock()
+    entry.runtime_data = live_instance
+
+    flow = BeurerFlowHandler()
+    flow.hass = MagicMock()
+    flow._set_reconfigure_entry(entry)
+    await flow.async_step_reconfigure(None)
+
+    with (
+        patch(
+            "homeassistant.components.bluetooth.async_ble_device_from_address",
+            return_value=None,
+        ) as lookup,
+        patch("asyncio.sleep", AsyncMock()),
+    ):
+        result = await flow.async_step_reconfigure({"name": "Bedroom Lamp"})
+        assert result["step_id"] == "validate"
+
+        result = await flow.async_step_validate({"flicker": True})
+
+    assert result["type"] == "abort"
+    assert result["reason"] == "reconfigure_successful"
+    assert result["title"] == "Bedroom Lamp"
+    lookup.assert_not_called()
+    live_instance.update.assert_awaited_once()
+    live_instance.turn_on.assert_awaited_once()
+    live_instance.turn_off.assert_awaited_once()
+    # The instance belongs to the running entry: closing it here would take
+    # the integration down until the next reload.
+    live_instance.disconnect.assert_not_called()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("runtime_state", ["missing", "closing"])
+async def test_flow_reconfigure_falls_back_to_the_advertisement_lookup(runtime_state: str) -> None:
+    """Test reconfigure resolves a device when the entry has no usable instance.
+
+    An entry that is not loaded has nothing to blink with, and an instance that
+    is already closing refuses to connect again, so both cases keep the
+    original behaviour: resolve the address and use a flow-owned instance.
+    """
+    entry = ConfigEntry(
+        entry_id="existing",
+        data={CONF_MAC: "AA:BB:CC:DD:EE:FF", "name": "Desk Lamp"},
+        unique_id="aabbccddeeff",
+    )
+    if runtime_state == "closing":
+        closing_instance = MagicMock()
+        closing_instance.is_closing = True
+        closing_instance.disconnect = AsyncMock()
+        entry.runtime_data = closing_instance
+
+    mock_device = MagicMock()
+    mock_instance = MagicMock()
+    mock_instance.is_on = False
+    mock_instance.update = AsyncMock()
+    mock_instance.turn_on = AsyncMock()
+    mock_instance.turn_off = AsyncMock()
+    mock_instance.disconnect = AsyncMock()
+
+    flow = BeurerFlowHandler()
+    flow.hass = MagicMock()
+    flow._set_reconfigure_entry(entry)
+    await flow.async_step_reconfigure(None)
+
+    with (
+        patch(
+            "homeassistant.components.bluetooth.async_ble_device_from_address",
+            return_value=mock_device,
+        ),
+        patch(
+            "custom_components.beurer.config_flow.BeurerInstance",
+            return_value=mock_instance,
+        ),
+        patch("asyncio.sleep", AsyncMock()),
+    ):
+        result = await flow.async_step_reconfigure({"name": "Bedroom Lamp"})
+        result = await flow.async_step_validate({"flicker": True})
+
+    assert result["type"] == "abort"
+    assert result["reason"] == "reconfigure_successful"
+    mock_instance.update.assert_awaited_once()
+    mock_instance.disconnect.assert_awaited_once_with(closing=True)
+    assert flow.beurer_instance is None
+
+
+@pytest.mark.asyncio
+async def test_flow_reconfigure_reports_a_blink_error_on_the_live_instance() -> None:
+    """Test a failed blink on the running instance surfaces as a retry, not a crash."""
+    entry = ConfigEntry(
+        entry_id="existing",
+        data={CONF_MAC: "AA:BB:CC:DD:EE:FF", "name": "Desk Lamp"},
+        unique_id="aabbccddeeff",
+    )
+    live_instance = MagicMock()
+    live_instance.is_on = False
+    live_instance.is_closing = False
+    live_instance.update = AsyncMock(side_effect=RuntimeError("lamp out of reach"))
+    live_instance.turn_on = AsyncMock()
+    live_instance.turn_off = AsyncMock()
+    live_instance.disconnect = AsyncMock()
+    entry.runtime_data = live_instance
+
+    flow = BeurerFlowHandler()
+    flow.hass = MagicMock()
+    flow._set_reconfigure_entry(entry)
+    await flow.async_step_reconfigure(None)
+
+    with patch("asyncio.sleep", AsyncMock()):
+        result = await flow.async_step_reconfigure({"name": "Bedroom Lamp"})
+
+    assert result["step_id"] == "validate"
+    assert result["errors"] == {"base": "connect"}
+    live_instance.update.assert_awaited_once()
+    live_instance.disconnect.assert_not_called()
+
+
+@pytest.mark.asyncio
 async def test_flow_initial_validate_still_creates_entry() -> None:
     """Test the shared validate step still creates a new entry during setup."""
     flow = BeurerFlowHandler()

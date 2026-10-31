@@ -222,6 +222,11 @@ class BeurerFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         them. Pointing the entry at another lamp therefore means deleting and
         re-adding it, which the documentation states explicitly.
 
+        The blink test runs on the loaded entry's instance. A connected lamp
+        stops advertising, so the advertisement cache no longer resolves its
+        address, and a second connection to a lamp that only accepts one would
+        fail anyway.
+
         Args:
             user_input: Submitted name.
 
@@ -247,12 +252,38 @@ class BeurerFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             errors={},
         )
 
+    def _live_instance(self) -> BeurerInstance | None:
+        """Return the loaded entry's instance for a reconfigure flow.
+
+        While the entry is loaded the integration owns the lamp's only BLE
+        connection and a connected peripheral stops advertising, so the
+        advertisement cache no longer resolves the address. The running
+        instance is already connected and is the only usable handle on the lamp.
+
+        Returns:
+            The instance, or None when this is not a reconfigure flow, the
+            entry is not loaded, or its instance is being torn down.
+        """
+        if self._mode != MODE_RECONFIGURE:
+            return None
+        instance: BeurerInstance | None = getattr(self._get_reconfigure_entry(), "runtime_data", None)
+        if instance is None or instance.is_closing:
+            return None
+        return instance
+
     async def toggle_light(self) -> Exception | None:
         """Toggle light during setup to confirm communication.
 
         Returns:
             None if successful, or Exception on error.
         """
+        if (live := self._live_instance()) is not None:
+            # The instance belongs to the running entry: it is the only handle
+            # on a lamp that is connected and therefore not advertising, and it
+            # must stay open. Closing it would leave the integration dead until
+            # the next reload.
+            return await self._blink(live)
+
         if not self.mac:
             return Exception("No MAC address specified")
 
@@ -282,27 +313,40 @@ class BeurerFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         else:
             self.beurer_instance.set_device(device)
 
+        instance = self.beurer_instance
+        try:
+            return await self._blink(instance)
+        finally:
+            # Closing marks the instance as permanently shutting down so a
+            # stray disconnect cannot schedule a reconnect after the flow
+            # ends. A closed instance also refuses to connect again, so a
+            # retry of this step must start from a fresh one. Instances owned
+            # by a loaded entry never reach this path.
+            await instance.disconnect(closing=True)
+            self.beurer_instance = None
+
+    async def _blink(self, instance: BeurerInstance) -> Exception | None:
+        """Blink the lamp to confirm the instance can drive it.
+
+        Args:
+            instance: Connected instance to blink through.
+
+        Returns:
+            None if successful, or Exception on error.
+        """
         try:
             LOGGER.debug("Going to update from config flow")
-            await self.beurer_instance.update()
-            LOGGER.debug("Finished updating from config flow, light is %s", self.beurer_instance.is_on)
-            if self.beurer_instance.is_on:
-                await self.beurer_instance.turn_off()
+            await instance.update()
+            LOGGER.debug("Finished updating from config flow, light is %s", instance.is_on)
+            if instance.is_on:
+                await instance.turn_off()
                 await asyncio.sleep(2)
-                await self.beurer_instance.turn_on()
+                await instance.turn_on()
             else:
-                await self.beurer_instance.turn_on()
+                await instance.turn_on()
                 await asyncio.sleep(2)
-                await self.beurer_instance.turn_off()
+                await instance.turn_off()
         except Exception as error:  # noqa: BLE001
             LOGGER.error("Error while toggling light: %s", error)
             return error
-        finally:
-            if self.beurer_instance:
-                # Closing marks the instance as permanently shutting down so a
-                # stray disconnect cannot schedule a reconnect after the flow
-                # ends. A closed instance also refuses to connect again, so a
-                # retry of this step must start from a fresh one.
-                await self.beurer_instance.disconnect(closing=True)
-                self.beurer_instance = None
         return None
