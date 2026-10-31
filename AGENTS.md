@@ -201,6 +201,14 @@ changes nothing.
   es-419, es, et, eu, fa, fi, fr, fy, ga, gsw, he, hi, hr, hu, hy, id, is, it, ja,
   ka, ko, lb, lt, lv, mk, ml, nb, ne, nl, nn, pl, pt-BR, pt, ro, ru, sk, sl, sq,
   sr-Latn, sr, sv, ta, th, tr, uk, ur, vi, zh-Hans, zh-Hant. CI enforces this.
+* Key-sync is the floor, not the goal: a new or changed key is translated into
+  every listed language in the same change, not copied over in English. CI
+  compares keys only, so an English copy passes silently and reaches the user as
+  English text in the UI.
+* A removed key is removed from every file as well; a leftover string is dead UI
+  text that no longer exists in `strings.json`.
+* Product names and strings that happen to be identical in a language (`Timer`
+  in Dutch, `Name` in German) are not untranslated; leave them.
 
 ## Your Environment
 
