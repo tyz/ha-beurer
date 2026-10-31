@@ -41,8 +41,7 @@
     "abort": {
       "already_configured": "ഉപകരണം ഇതിനകം ക്രമീകരിച്ചിരിക്കുന്നു",
       "cannot_connect": "Beurer-ലേക്ക് കണക്റ്റുചെയ്യാനാകുന്നില്ല",
-      "cannot_validate": "Beurer ലൈറ്റ് സാധൂകരിക്കാനായില്ല",
-      "reconfigure_successful": "Reconfiguration was successful"
+      "cannot_validate": "Beurer ലൈറ്റ് സാധൂകരിക്കാനായില്ല"
     }
   },
   "exceptions": {

@@ -41,8 +41,7 @@
     "abort": {
       "already_configured": "Устройство уже настроено",
       "cannot_connect": "Не удалось подключиться к Beurer",
-      "cannot_validate": "Не удалось проверить лампу Beurer",
-      "reconfigure_successful": "Reconfiguration was successful"
+      "cannot_validate": "Не удалось проверить лампу Beurer"
     }
   },
   "exceptions": {

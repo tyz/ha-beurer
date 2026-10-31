@@ -41,8 +41,7 @@
     "abort": {
       "already_configured": "Laite on jo määritetty",
       "cannot_connect": "Yhteyttä Beureriin ei saatu",
-      "cannot_validate": "Beurer-valoa ei voitu vahvistaa",
-      "reconfigure_successful": "Reconfiguration was successful"
+      "cannot_validate": "Beurer-valoa ei voitu vahvistaa"
     }
   },
   "exceptions": {

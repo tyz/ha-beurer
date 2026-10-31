@@ -41,8 +41,7 @@
     "abort": {
       "already_configured": "Apparat ass scho konfiguréiert",
       "cannot_connect": "Konnt net mat Beurer verbannen",
-      "cannot_validate": "Beurer Luucht konnt net validéiert ginn",
-      "reconfigure_successful": "Reconfiguration was successful"
+      "cannot_validate": "Beurer Luucht konnt net validéiert ginn"
     }
   },
   "exceptions": {

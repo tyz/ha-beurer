@@ -41,8 +41,7 @@
     "abort": {
       "already_configured": "デバイスはすでに設定されています",
       "cannot_connect": "Beurerに接続できません",
-      "cannot_validate": "Beurerライトを検証できません",
-      "reconfigure_successful": "Reconfiguration was successful"
+      "cannot_validate": "Beurerライトを検証できません"
     }
   },
   "exceptions": {

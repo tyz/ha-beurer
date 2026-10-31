@@ -29,9 +29,9 @@
       },
       "reconfigure": {
         "title": "Beurer TL 100 opnieuw configureren",
-        "description": "Change the name of {name}. The address {mac} stays fixed; to move the entry to a different lamp, delete it and set it up again.",
+        "description": "Wijzig de naam van {name}. Het adres {mac} blijft ongewijzigd; om dit item naar een andere lamp te verplaatsen, verwijder je het en stel je het opnieuw in.",
         "data": {
-          "name": "Name"
+          "name": "Naam"
         }
       }
     },
@@ -41,8 +41,7 @@
     "abort": {
       "already_configured": "Apparaat is al geconfigureerd",
       "cannot_connect": "Kan geen verbinding maken met Beurer",
-      "cannot_validate": "Kan Beurer-lamp niet valideren",
-      "reconfigure_successful": "Opnieuw configureren is gelukt"
+      "cannot_validate": "Kan Beurer-lamp niet valideren"
     }
   },
   "exceptions": {

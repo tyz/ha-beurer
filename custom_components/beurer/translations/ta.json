@@ -41,8 +41,7 @@
     "abort": {
       "already_configured": "சாதனம் ஏற்கனவே கட்டமைக்கப்பட்டுள்ளது",
       "cannot_connect": "Beurer உடன் இணைக்க முடியவில்லை",
-      "cannot_validate": "Beurer விளக்கை சரிபார்க்க முடியவில்லை",
-      "reconfigure_successful": "Reconfiguration was successful"
+      "cannot_validate": "Beurer விளக்கை சரிபார்க்க முடியவில்லை"
     }
   },
   "exceptions": {

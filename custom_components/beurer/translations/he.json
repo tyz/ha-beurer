@@ -41,8 +41,7 @@
     "abort": {
       "already_configured": "ההתקן כבר מוגדר",
       "cannot_connect": "לא ניתן להתחבר ל-Beurer",
-      "cannot_validate": "לא ניתן לאמת את מנורת Beurer",
-      "reconfigure_successful": "Reconfiguration was successful"
+      "cannot_validate": "לא ניתן לאמת את מנורת Beurer"
     }
   },
   "exceptions": {

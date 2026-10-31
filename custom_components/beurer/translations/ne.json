@@ -41,8 +41,7 @@
     "abort": {
       "already_configured": "यन्त्र पहिले नै कन्फिगर गरिएको छ",
       "cannot_connect": "Beurer मा जडान गर्न असमर्थ",
-      "cannot_validate": "Beurer बत्ती प्रमाणीकरण गर्न असमर्थ",
-      "reconfigure_successful": "Reconfiguration was successful"
+      "cannot_validate": "Beurer बत्ती प्रमाणीकरण गर्न असमर्थ"
     }
   },
   "exceptions": {

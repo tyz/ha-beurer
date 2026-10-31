@@ -41,8 +41,7 @@
     "abort": {
       "already_configured": "Zařízení je již nakonfigurováno",
       "cannot_connect": "Nelze se připojit k Beurer",
-      "cannot_validate": "Nelze ověřit světlo Beurer",
-      "reconfigure_successful": "Reconfiguration was successful"
+      "cannot_validate": "Nelze ověřit světlo Beurer"
     }
   },
   "exceptions": {

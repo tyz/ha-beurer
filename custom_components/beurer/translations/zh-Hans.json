@@ -41,8 +41,7 @@
     "abort": {
       "already_configured": "设备已配置",
       "cannot_connect": "无法连接到 Beurer",
-      "cannot_validate": "无法验证 Beurer 灯",
-      "reconfigure_successful": "Reconfiguration was successful"
+      "cannot_validate": "无法验证 Beurer 灯"
     }
   },
   "exceptions": {

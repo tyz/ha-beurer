@@ -41,8 +41,7 @@
     "abort": {
       "already_configured": "Cihaz zaten yapılandırılmış",
       "cannot_connect": "Beurer cihazına bağlanılamadı",
-      "cannot_validate": "Beurer ışığı doğrulanamadı",
-      "reconfigure_successful": "Reconfiguration was successful"
+      "cannot_validate": "Beurer ışığı doğrulanamadı"
     }
   },
   "exceptions": {

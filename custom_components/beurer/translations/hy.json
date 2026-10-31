@@ -41,8 +41,7 @@
     "abort": {
       "already_configured": "Սարքն արդեն կարգավորված է",
       "cannot_connect": "Չհաջողվեց միանալ Beurer-ին",
-      "cannot_validate": "Չհաջողվեց ստուգել Beurer լույսը",
-      "reconfigure_successful": "Reconfiguration was successful"
+      "cannot_validate": "Չհաջողվեց ստուգել Beurer լույսը"
     }
   },
   "exceptions": {
