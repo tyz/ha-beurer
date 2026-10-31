@@ -28,10 +28,10 @@
         "description": "გსურთ {name}-ის გამართვა?"
       },
       "reconfigure": {
-        "title": "Reconfigure Beurer TL 100",
-        "description": "Change the name of {name}. The address {mac} stays fixed; to move the entry to a different lamp, delete it and set it up again.",
+        "title": "Beurer TL 100-ის ხელახლა კონფიგურაცია",
+        "description": "შეცვალეთ {name}-ის სახელი. მისამართი {mac} უცვლელი რჩება; ჩანაწერის სხვა ნათურაზე გადასატანად წაშალეთ იგი და ხელახლა დააყენეთ.",
         "data": {
-          "name": "Name"
+          "name": "სახელი"
         }
       }
     },

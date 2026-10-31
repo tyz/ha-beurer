@@ -28,10 +28,10 @@
         "description": "您想要设置 {name} 吗？"
       },
       "reconfigure": {
-        "title": "Reconfigure Beurer TL 100",
-        "description": "Change the name of {name}. The address {mac} stays fixed; to move the entry to a different lamp, delete it and set it up again.",
+        "title": "重新配置 Beurer TL 100",
+        "description": "更改 {name} 的名称。地址 {mac} 保持不变；要将此条目移到另一盏灯，请先删除再重新设置。",
         "data": {
-          "name": "Name"
+          "name": "名称"
         }
       }
     },

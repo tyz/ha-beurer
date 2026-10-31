@@ -28,8 +28,8 @@
         "description": "Möchtest du {name} einrichten?"
       },
       "reconfigure": {
-        "title": "Reconfigure Beurer TL 100",
-        "description": "Change the name of {name}. The address {mac} stays fixed; to move the entry to a different lamp, delete it and set it up again.",
+        "title": "Beurer TL 100 neu konfigurieren",
+        "description": "Ändere den Namen von {name}. Die Adresse {mac} bleibt unverändert; um den Eintrag auf eine andere Lampe zu verschieben, lösche ihn und richte ihn erneut ein.",
         "data": {
           "name": "Name"
         }
