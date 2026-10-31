@@ -28,10 +28,10 @@
         "description": "{name}을(를) 설정하시겠습니까?"
       },
       "reconfigure": {
-        "title": "Reconfigure Beurer TL 100",
-        "description": "Change the name of {name}. The address {mac} stays fixed; to move the entry to a different lamp, delete it and set it up again.",
+        "title": "Beurer TL 100 재구성",
+        "description": "{name}의 이름을 변경합니다. 주소 {mac}은(는) 변경되지 않습니다. 항목을 다른 조명으로 옮기려면 삭제한 후 다시 설정하세요.",
         "data": {
-          "name": "Name"
+          "name": "이름"
         }
       }
     },

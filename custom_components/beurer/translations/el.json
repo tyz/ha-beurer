@@ -28,10 +28,10 @@
         "description": "Θέλετε να ρυθμίσετε το {name};"
       },
       "reconfigure": {
-        "title": "Reconfigure Beurer TL 100",
-        "description": "Change the name of {name}. The address {mac} stays fixed; to move the entry to a different lamp, delete it and set it up again.",
+        "title": "Επαναδιαμόρφωση Beurer TL 100",
+        "description": "Αλλάξτε το όνομα του {name}. Η διεύθυνση {mac} παραμένει σταθερή· για να μετακινήσετε την καταχώριση σε άλλο φως, διαγράψτε την και ρυθμίστε την ξανά.",
         "data": {
-          "name": "Name"
+          "name": "Όνομα"
         }
       }
     },

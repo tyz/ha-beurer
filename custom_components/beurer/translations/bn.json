@@ -28,10 +28,10 @@
         "description": "আপনি কি {name} সেট আপ করতে চান?"
       },
       "reconfigure": {
-        "title": "Reconfigure Beurer TL 100",
-        "description": "Change the name of {name}. The address {mac} stays fixed; to move the entry to a different lamp, delete it and set it up again.",
+        "title": "Beurer TL 100 পুনঃকনফিগার করুন",
+        "description": "{name}-এর নাম পরিবর্তন করুন। ঠিকানা {mac} অপরিবর্তিত থাকবে; এন্ট্রিটি অন্য লাইটে সরাতে চাইলে এটি মুছে আবার সেট আপ করুন।",
         "data": {
-          "name": "Name"
+          "name": "নাম"
         }
       }
     },
