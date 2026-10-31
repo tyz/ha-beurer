@@ -41,8 +41,7 @@
     "abort": {
       "already_configured": "Aparato jam estas agordita",
       "cannot_connect": "Ne eblas konekti al Beurer",
-      "cannot_validate": "Ne eblis validigi Beurer-lumon",
-      "reconfigure_successful": "Reconfiguration was successful"
+      "cannot_validate": "Ne eblis validigi Beurer-lumon"
     }
   },
   "exceptions": {

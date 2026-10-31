@@ -41,8 +41,7 @@
     "abort": {
       "already_configured": "Az eszköz már konfigurálva van",
       "cannot_connect": "Nem sikerült csatlakozni a Beurerhez",
-      "cannot_validate": "A Beurer lámpa ellenőrzése sikertelen",
-      "reconfigure_successful": "Reconfiguration was successful"
+      "cannot_validate": "A Beurer lámpa ellenőrzése sikertelen"
     }
   },
   "exceptions": {

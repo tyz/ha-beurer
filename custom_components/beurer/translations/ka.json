@@ -41,8 +41,7 @@
     "abort": {
       "already_configured": "მოწყობილობა უკვე კონფიგურირებულია",
       "cannot_connect": "Beurer-თან დაკავშირება ვერ მოხერხდა",
-      "cannot_validate": "Beurer ნათურის შემოწმება ვერ მოხერხდა",
-      "reconfigure_successful": "Reconfiguration was successful"
+      "cannot_validate": "Beurer ნათურის შემოწმება ვერ მოხერხდა"
     }
   },
   "exceptions": {

@@ -41,8 +41,7 @@
     "abort": {
       "already_configured": "Uređaj je već konfigurisan",
       "cannot_connect": "Nije se moguće povezati s Beurerom",
-      "cannot_validate": "Nije moguće potvrditi Beurer svjetlo",
-      "reconfigure_successful": "Reconfiguration was successful"
+      "cannot_validate": "Nije moguće potvrditi Beurer svjetlo"
     }
   },
   "exceptions": {

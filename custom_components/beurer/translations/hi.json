@@ -41,8 +41,7 @@
     "abort": {
       "already_configured": "डिवाइस पहले से कॉन्फ़िगर है",
       "cannot_connect": "Beurer से कनेक्ट करने में असमर्थ",
-      "cannot_validate": "Beurer लाइट को सत्यापित करने में असमर्थ",
-      "reconfigure_successful": "Reconfiguration was successful"
+      "cannot_validate": "Beurer लाइट को सत्यापित करने में असमर्थ"
     }
   },
   "exceptions": {

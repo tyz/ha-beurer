@@ -41,8 +41,7 @@
     "abort": {
       "already_configured": "Tá an gléas cumraithe cheana féin",
       "cannot_connect": "Níorbh fhéidir ceangal le Beurer",
-      "cannot_validate": "Níorbh fhéidir solas Beurer a bhailíochtú",
-      "reconfigure_successful": "Reconfiguration was successful"
+      "cannot_validate": "Níorbh fhéidir solas Beurer a bhailíochtú"
     }
   },
   "exceptions": {

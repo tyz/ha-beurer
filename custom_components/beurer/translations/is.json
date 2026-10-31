@@ -41,8 +41,7 @@
     "abort": {
       "already_configured": "Tæki er nú þegar stillt",
       "cannot_connect": "Gat ekki tengst Beurer",
-      "cannot_validate": "Gat ekki staðfest Beurer ljós",
-      "reconfigure_successful": "Reconfiguration was successful"
+      "cannot_validate": "Gat ekki staðfest Beurer ljós"
     }
   },
   "exceptions": {

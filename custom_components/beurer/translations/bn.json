@@ -41,8 +41,7 @@
     "abort": {
       "already_configured": "ডিভাইসটি ইতিমধ্যে কনফিগার করা আছে",
       "cannot_connect": "Beurer-এ সংযোগ করতে ব্যর্থ",
-      "cannot_validate": "Beurer লাইট যাচাই করতে অক্ষম",
-      "reconfigure_successful": "Reconfiguration was successful"
+      "cannot_validate": "Beurer লাইট যাচাই করতে অক্ষম"
     }
   },
   "exceptions": {

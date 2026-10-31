@@ -41,8 +41,7 @@
     "abort": {
       "already_configured": "تم تكوين الجهاز بالفعل",
       "cannot_connect": "تعذر الاتصال بـ Beurer",
-      "cannot_validate": "تعذر التحقق من مصباح Beurer",
-      "reconfigure_successful": "Reconfiguration was successful"
+      "cannot_validate": "تعذر التحقق من مصباح Beurer"
     }
   },
   "exceptions": {

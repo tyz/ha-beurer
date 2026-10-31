@@ -41,8 +41,7 @@
     "abort": {
       "already_configured": "Enheden er allerede konfigureret",
       "cannot_connect": "Kunne ikke oprette forbindelse til Beurer",
-      "cannot_validate": "Kunne ikke validere Beurer-lampe",
-      "reconfigure_successful": "Reconfiguration was successful"
+      "cannot_validate": "Kunne ikke validere Beurer-lampe"
     }
   },
   "exceptions": {

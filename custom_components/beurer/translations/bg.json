@@ -41,8 +41,7 @@
     "abort": {
       "already_configured": "Устройството вече е конфигурирано",
       "cannot_connect": "Не може да се свърже с Beurer",
-      "cannot_validate": "Лампата Beurer не може да бъде валидирана",
-      "reconfigure_successful": "Reconfiguration was successful"
+      "cannot_validate": "Лампата Beurer не може да бъде валидирана"
     }
   },
   "exceptions": {

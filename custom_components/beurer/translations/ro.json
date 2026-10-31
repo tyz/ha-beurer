@@ -41,8 +41,7 @@
     "abort": {
       "already_configured": "Dispozitivul este deja configurat",
       "cannot_connect": "Nu se poate conecta la Beurer",
-      "cannot_validate": "Nu se poate valida lampa Beurer",
-      "reconfigure_successful": "Reconfiguration was successful"
+      "cannot_validate": "Nu se poate valida lampa Beurer"
     }
   },
   "exceptions": {

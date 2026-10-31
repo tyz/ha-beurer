@@ -41,8 +41,7 @@
     "abort": {
       "already_configured": "Уредот е веќе конфигуриран",
       "cannot_connect": "Не може да се воспостави врска со Beurer",
-      "cannot_validate": "Не може да се верификува Beurer светилката",
-      "reconfigure_successful": "Reconfiguration was successful"
+      "cannot_validate": "Не може да се верификува Beurer светилката"
     }
   },
   "exceptions": {

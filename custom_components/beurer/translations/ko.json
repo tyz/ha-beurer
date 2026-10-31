@@ -41,8 +41,7 @@
     "abort": {
       "already_configured": "기기가 이미 구성되어 있습니다",
       "cannot_connect": "Beurer에 연결할 수 없습니다",
-      "cannot_validate": "Beurer 조명을 확인할 수 없습니다",
-      "reconfigure_successful": "Reconfiguration was successful"
+      "cannot_validate": "Beurer 조명을 확인할 수 없습니다"
     }
   },
   "exceptions": {

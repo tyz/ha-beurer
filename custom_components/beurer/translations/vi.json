@@ -41,8 +41,7 @@
     "abort": {
       "already_configured": "Thiết bị đã được định cấu hình",
       "cannot_connect": "Không thể kết nối với Beurer",
-      "cannot_validate": "Không thể xác thực đèn Beurer",
-      "reconfigure_successful": "Reconfiguration was successful"
+      "cannot_validate": "Không thể xác thực đèn Beurer"
     }
   },
   "exceptions": {

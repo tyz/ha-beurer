@@ -41,8 +41,7 @@
     "abort": {
       "already_configured": "Η συσκευή έχει ήδη διαμορφωθεί",
       "cannot_connect": "Αδυναμία σύνδεσης με το Beurer",
-      "cannot_validate": "Αδυναμία επαλήθευσης φωτός Beurer",
-      "reconfigure_successful": "Reconfiguration was successful"
+      "cannot_validate": "Αδυναμία επαλήθευσης φωτός Beurer"
     }
   },
   "exceptions": {

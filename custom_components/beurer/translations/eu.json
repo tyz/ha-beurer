@@ -41,8 +41,7 @@
     "abort": {
       "already_configured": "Gailua dagoeneko konfiguratuta dago",
       "cannot_connect": "Ezin izan da Beurer-ekin konektatu",
-      "cannot_validate": "Ezin izan da Beurer argia balioztatu",
-      "reconfigure_successful": "Reconfiguration was successful"
+      "cannot_validate": "Ezin izan da Beurer argia balioztatu"
     }
   },
   "exceptions": {

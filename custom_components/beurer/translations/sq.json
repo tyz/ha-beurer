@@ -41,8 +41,7 @@
     "abort": {
       "already_configured": "Pajisja është e konfiguruar tashmë",
       "cannot_connect": "E pamundur lidhja me Beurer",
-      "cannot_validate": "E pamundur të verifikohet drita Beurer",
-      "reconfigure_successful": "Reconfiguration was successful"
+      "cannot_validate": "E pamundur të verifikohet drita Beurer"
     }
   },
   "exceptions": {

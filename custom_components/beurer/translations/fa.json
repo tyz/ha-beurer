@@ -41,8 +41,7 @@
     "abort": {
       "already_configured": "دستگاه قبلاً پیکربندی شده است",
       "cannot_connect": "امکان اتصال به Beurer وجود ندارد",
-      "cannot_validate": "امکان تأیید چراغ Beurer وجود ندارد",
-      "reconfigure_successful": "Reconfiguration was successful"
+      "cannot_validate": "امکان تأیید چراغ Beurer وجود ندارد"
     }
   },
   "exceptions": {
