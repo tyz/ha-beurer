@@ -197,10 +197,10 @@ changes nothing.
 
 * Code, comments, documentation and commit messages are **English**.
 * Keep translations in `translations/XX.json` key-synced with `strings.json` for
-  these languages: af, ar, bg, bn, bs, ca, cs, cy, da, de, el, en-GB, en, eo,
-  es-419, es, et, eu, fa, fi, fr, fy, ga, gsw, he, hi, hr, hu, hy, id, is, it, ja,
-  ka, ko, lb, lt, lv, mk, ml, nb, ne, nl, nn, pl, pt-BR, pt, ro, ru, sk, sl, sq,
-  sr-Latn, sr, sv, ta, th, tr, uk, ur, vi, zh-Hans, zh-Hant. CI enforces this.
+  these languages: ar, bn, ca, da, de, en, en-GB, es, es-419, eu, fr, gsw, hi, hu,
+  id, it, ko, ml, nb, nl, nn, pl, sv, ta, ur, zh-Hans. CI enforces this. These
+  are the languages of the markets the lamp is sold in; a language outside this
+  list is not maintained.
 * Key-sync is the floor, not the goal: a new or changed key is translated into
   every listed language in the same change, not copied over in English. CI
   compares keys only, so an English copy passes silently and reaches the user as
