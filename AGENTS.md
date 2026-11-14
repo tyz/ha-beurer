@@ -65,6 +65,25 @@ repository. They are not style preferences.
   Back up to `/tmp/opencode/` before any bulk operation.
 * **Run the linter and the tests after every change**, not once at the end.
 
+## Skills
+
+Agent skills live in `.agents/skills/` and are loaded on demand when a task
+matches their description:
+
+* generic skills in `.agents/skills/<skill>/SKILL.md`, usable by any Home
+  Assistant integration;
+* repository-specific skills in `.agents/skills/<project>/<skill>/SKILL.md`, for
+  example `.agents/skills/beurer/ble-frame-test/SKILL.md`.
+
+The directory that actually holds `SKILL.md` is the skill ID, so the `<project>`
+directory groups skills without namespacing them: `orcon-mvs15/orcon-entity` has
+the ID `orcon-entity`. Keep project-specific IDs prefixed and unique, because a
+duplicate ID inside one source is ambiguous. Only `SKILL.md` may be nested; a
+flat `.md` is discovered only at the source root.
+
+The rules in this file still apply. A skill adds detail and never overrides
+`AGENTS.md`.
+
 ## Coding Conventions
 
 * Type hints are mandatory everywhere.
